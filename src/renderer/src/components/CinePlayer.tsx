@@ -4,7 +4,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import Hls from 'hls.js'
 import {
   Airplay, AudioLines, Cast, Check, CheckCircle2, ChevronDown, Download, FastForward, Flag, Languages, List, Loader2, Maximize, Minimize, Music, Pause, PictureInPicture2, Play, RotateCcw, RotateCw,
-  Search, Server, Settings, SkipBack, SkipForward, TriangleAlert, Upload, Users, Volume1, Volume2, VolumeX, X,
+  Search, Server, Settings, SkipBack, SkipForward, Sliders, Sparkles, TriangleAlert, Upload, Users, Volume1, Volume2, VolumeX, X,
 } from 'lucide-react'
 import { apiUrl, fetchStream, type EpInfo, type EpKind } from '../services/api'
 import { KIND } from './EpisodeList'
@@ -12,6 +12,7 @@ import { blob, BLOB_T, LITE, SPRING } from './ServerPopup'
 import { LoadingGrid } from './LoadingGrid'
 import { Tour, tourDone, tourSeen, type TourStep } from './Tour'
 import { gpuSupported, startUpscale, type Anime4KMode } from '../lib/upscale'
+import type { VisionLiveMetrics, VisionLiveHandle } from '../lib/vision-live'
 import { findActiveCue, parseSubtitleText, type Cue } from '../lib/subtitles'
 import { submitStreamReport } from '../lib/supabase'
 import { toast } from '../lib/toast'
@@ -807,6 +808,7 @@ export default function CinePlayer({
   qualities, currentQuality, onQualityChange, downloadUrl, fallbackStreamUrl, isTmdb = false, onStreamError,
 }: CinePlayerProps) {
   const isMovie = format === 'MOVIE' || (totalEpisodes <= 1 && format !== 'TV')
+  const isEmbed = Boolean(streamUrl && (streamUrl.includes('embed') || streamUrl.includes('iframe')))
   const cleanEpTitle = episodeTitle?.trim()
   const hasDistinctEpTitle = !!(
     cleanEpTitle &&
@@ -1050,6 +1052,22 @@ export default function CinePlayer({
       localStorage.setItem('zp-upm', m)
     } catch {}
   }
+  const [upSplit, setUpSplitRaw] = useState<boolean>(() => readNum('zp-upsplit', 0) === 1)
+  const [upSplitPct, setUpSplitPct] = useState<number>(50)
+  const [showMetrics, setShowMetricsRaw] = useState<boolean>(() => readNum('zp-upmet', 0) === 1)
+  const [upMetrics, setUpMetrics] = useState<VisionLiveMetrics | null>(null)
+  const liveHandleRef = useRef<VisionLiveHandle | null>(null)
+
+  const setUpSplit = (on: boolean) => {
+    setUpSplitRaw(on)
+    saveNum('zp-upsplit', on ? 1 : 0)
+    liveHandleRef.current?.setSplitPercent(on ? upSplitPct : 100)
+  }
+
+  const setShowMetrics = (on: boolean) => {
+    setShowMetricsRaw(on)
+    saveNum('zp-upmet', on ? 1 : 0)
+  }
   const [vfx, setVfxRaw] = useState<VideoFilters>(loadVideoFilters)
   const setVfx = (patch: Partial<VideoFilters>) => {
     setVfxRaw((p) => {
@@ -1088,7 +1106,7 @@ export default function CinePlayer({
       } catch {}
       return n
     })
-  const [setTab, setSetTab] = useState<'video' | 'picture' | 'play' | 'cast'>('video')
+  const [setTab, setSetTab] = useState<'vision' | 'video' | 'picture' | 'play' | 'cast'>('vision')
   const [ar, setArRaw] = useState<Aspect>(loadAspect)
   const setAr = (a: Aspect) => {
     setArRaw(a)
@@ -1761,24 +1779,52 @@ const slider = (label: string, key: 'opacity' | 'lh' | 'width' | 'blur' | 'scale
   useEffect(() => {
     const v = vid.current
     const c = cv.current
-    if (!up || !v || !c) return
+    if (!up || !v || !c) {
+      liveHandleRef.current?.stop()
+      liveHandleRef.current = null
+      setUpMetrics(null)
+      return
+    }
     let dead = false
-    let stop: (() => void) | undefined
+    let handle: VisionLiveHandle | undefined
     setUpErr(null)
     startUpscale(v, c, {
       mode: upMode,
-      onSlow: (reason) => {
-        if (!dead && reason) setUpErr(reason)
+      splitPercent: upSplit ? upSplitPct : 100,
+      onMetrics: (m) => {
+        if (!dead) setUpMetrics(m)
+      },
+      onDegrade: (preset) => {
+        if (!dead) {
+          setUpMode(preset)
+          toast(`Vision Watchdog: auto-switched to ${preset} to maintain 60 FPS`, 'info')
+        }
+      },
+      onBypass: (reason) => {
+        if (!dead) {
+          setUpErr(reason)
+          setUp(false)
+          toast(`Vision AI bypassed: ${reason}`, 'info')
+        }
       },
     })
-      .then((s) => (dead ? s() : (stop = s)))
+      .then((h) => {
+        if (dead) {
+          h.stop()
+        } else {
+          handle = h
+          liveHandleRef.current = h
+        }
+      })
       .catch((e: unknown) => {
         if (dead) return
-        setUpErr(e instanceof Error ? e.message : 'Upscaler initialization failed')
+        setUpErr(e instanceof Error ? e.message : 'Zenkai Vision initialization failed')
+        setUp(false)
       })
     return () => {
       dead = true
-      stop?.()
+      handle?.stop()
+      liveHandleRef.current = null
     }
   }, [up, upMode, vkey])
 
@@ -2312,6 +2358,22 @@ const slider = (label: string, key: 'opacity' | 'lh' | 'width' | 'blur' | 'scale
         }}
       />
       {up && !upErr && <canvas ref={cv} className="zp-v" style={{ ...aspectStyle(ar), opacity: upInt / 100, pointerEvents: 'none', filter: videoFilterStyle }} />}
+
+      {/* Live Vision Performance HUD Overlay */}
+      {showMetrics && up && upMetrics && !upErr && (
+        <div className="absolute top-4 left-4 z-30 pointer-events-none rounded-xl bg-black/85 p-3 text-xs font-mono text-emerald-400 backdrop-blur border border-emerald-500/30 space-y-1 shadow-2xl ring-1 ring-emerald-500/20">
+          <div className="flex items-center gap-2 font-bold text-white border-b border-white/10 pb-1">
+            <Sparkles className="size-3.5 text-emerald-400 animate-pulse" />
+            <span>Zenkai Vision HUD</span>
+            <span className="text-[10px] rounded bg-emerald-500/20 px-1 text-emerald-300 uppercase">{upMetrics.preset}</span>
+          </div>
+          <div>In: <span className="text-white">{upMetrics.inputWidth}x{upMetrics.inputHeight}</span> → Out: <span className="text-emerald-300 font-bold">{upMetrics.outputWidth}x{upMetrics.outputHeight}</span></div>
+          <div>Frame Time: <span className={upMetrics.renderTimeMs > 30 ? 'text-yellow-400' : 'text-white'}>{upMetrics.renderTimeMs} ms</span></div>
+          <div>Live FPS: <span className="text-white font-bold">{upMetrics.currentFps} FPS</span></div>
+          <div>Dropped: <span className={upMetrics.droppedFrames > 0 ? 'text-yellow-400' : 'text-white'}>{upMetrics.droppedFrames}</span></div>
+          <div className="text-[10px] text-zinc-400 truncate max-w-[220px]">{upMetrics.adapterName}</div>
+        </div>
+      )}
       <div className="zp-g" onPointerDown={holdStart} onPointerUp={(e) => holdEnd() || onTap(e)} onPointerCancel={holdEnd} onPointerLeave={holdEnd} onContextMenu={(e) => e.preventDefault()} />
       {casting && (
         <div className="zp-cast" role="status" aria-live="polite">
@@ -2626,6 +2688,17 @@ const slider = (label: string, key: 'opacity' | 'lh' | 'width' | 'blur' | 'scale
                   <Download />
                 </a>
               )}
+              <button
+                className={cx('zp-b relative', up && 'on text-emerald-400')}
+                onClick={() => { closePop(); setSetTab('vision'); setSheet('set'); }}
+                aria-label="Zenkai Vision AI"
+                title={up ? 'Zenkai Vision AI Active (Click to configure)' : 'Zenkai Vision AI (Enhance)'}
+              >
+                <Sparkles className={cx('size-4', up && 'text-emerald-400 animate-pulse')} />
+                {up && (
+                  <span className="absolute -top-1 -right-1 flex size-2 rounded-full bg-emerald-400 animate-ping" />
+                )}
+              </button>
               <button className="zp-b" data-tour="p-set" onClick={() => (closePop(), setSheet('set'))} aria-label="Settings" title="Settings">
                 <Settings />
               </button>
@@ -3321,13 +3394,114 @@ const slider = (label: string, key: 'opacity' | 'lh' | 'width' | 'blur' | 'scale
         <Sheet title="Settings" onClose={() => setSheet(null)} target={target} dialog>
           <div className="zp-prev">
             <div className="zp-tabs" role="tablist">
-              {([['video', 'Video'], ['picture', 'Picture'], ['play', 'Playback'], ...(canCast && castAvail ? [['cast', 'Cast']] : [])] as unknown as ReadonlyArray<readonly ['video' | 'picture' | 'play' | 'cast', string]>).map(([k, l]) => (
+              {([['vision', 'Vision AI'], ['video', 'Video'], ['picture', 'Picture'], ['play', 'Playback'], ...(canCast && castAvail ? [['cast', 'Cast']] : [])] as unknown as ReadonlyArray<readonly ['vision' | 'video' | 'picture' | 'play' | 'cast', string]>).map(([k, l]) => (
                 <button key={k} role="tab" aria-selected={setTab === k} className={cx('zp-tab', setTab === k && 'on')} onClick={() => setSetTab(k)}>
                   {l}
                 </button>
               ))}
             </div>
           </div>
+
+          {setTab === 'vision' && (
+            <div className="zp-tc">
+              <div className="flex items-center justify-between pb-1">
+                <div>
+                  <p className="text-sm font-bold text-white flex items-center gap-1.5">
+                    <Sparkles className="size-4 text-emerald-400" />
+                    Zenkai Vision Live AI
+                  </p>
+                  <p className="text-[11px] text-zinc-400">
+                    GPU-accelerated super-resolution via WebGPU neural shaders
+                  </p>
+                </div>
+              </div>
+
+              <button
+                className="zp-row"
+                disabled={!gpuSupported || isEmbed}
+                onClick={() => {
+                  setUpErr(null)
+                  setUp(!up)
+                }}
+              >
+                <span>Live AI Enhancement</span>
+                <i className={cx('zp-tg', up && 'on')} />
+              </button>
+
+              {up && (
+                <>
+                  <p className="zp-sec">Neural Shader Preset</p>
+                  <div className="zp-pg">
+                    {ANIME4K_MODES.map((m) => (
+                      <button
+                        key={m.id}
+                        className={cx('zp-pi', upMode === m.id && 'on')}
+                        onClick={() => setUpMode(m.id)}
+                      >
+                        {m.label}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="zp-note" style={{ marginTop: '4px' }}>
+                    {ANIME4K_MODES.find((m) => m.id === upMode)?.desc}
+                  </p>
+
+                  <p className="zp-sec">Upscale Intensity ({upInt}%)</p>
+                  <input
+                    type="range"
+                    className="zp-rg"
+                    min={0}
+                    max={100}
+                    step={5}
+                    value={upInt}
+                    style={{ '--p': `${upInt}%` } as CSSProperties}
+                    onChange={(e) => setUpInt(+e.target.value)}
+                    aria-label="Upscaler intensity"
+                  />
+
+                  <button className="zp-row" onClick={() => setUpSplit(!upSplit)}>
+                    <span>Split Comparison Mode (50/50)</span>
+                    <i className={cx('zp-tg', upSplit && 'on')} />
+                  </button>
+                  {upSplit && (
+                    <>
+                      <p className="zp-sec">Split Position ({upSplitPct}%)</p>
+                      <input
+                        type="range"
+                        className="zp-rg"
+                        min={10}
+                        max={90}
+                        step={5}
+                        value={upSplitPct}
+                        style={{ '--p': `${upSplitPct}%` } as CSSProperties}
+                        onChange={(e) => {
+                          const val = +e.target.value
+                          setUpSplitPct(val)
+                          liveHandleRef.current?.setSplitPercent(val)
+                        }}
+                        aria-label="Split position"
+                      />
+                    </>
+                  )}
+
+                  <button className="zp-row" onClick={() => setShowMetrics(!showMetrics)}>
+                    <span>Performance HUD Overlay</span>
+                    <i className={cx('zp-tg', showMetrics && 'on')} />
+                  </button>
+                </>
+              )}
+
+              <p className="zp-note">
+                {!gpuSupported
+                  ? 'This environment does not support WebGPU. Live enhancement is unavailable.'
+                  : isEmbed
+                    ? 'Live AI enhancement is unsupported for third-party embed servers due to cross-origin boundaries. Please select a direct stream (Sub/Dub).'
+                    : upErr
+                      ? `Vision note: ${upErr}. Try selecting another preset or re-toggling.`
+                      : 'Runs 100% locally on your GPU. Automatically bypassed if frame drops occur.'}
+              </p>
+            </div>
+          )}
 
           {setTab === 'video' && (
             <div className="zp-tc">
@@ -3351,47 +3525,6 @@ const slider = (label: string, key: 'opacity' | 'lh' | 'width' | 'blur' | 'scale
                 <span>Mirror video</span>
                 <i className={cx('zp-tg', pf.flip && 'on')} />
               </button>
-          <p className="zp-sec">4K upscaler (GPU)</p>
-          <button className="zp-row" disabled={!gpuSupported} onClick={() => { setUpErr(null); setUp(!up); }}>
-            <span>Anime4K WebGPU upscaling</span>
-            <i className={cx('zp-tg', up && 'on')} />
-          </button>
-          {up && (
-            <>
-              <p className="zp-sec">Anime4K Model / Shader Preset</p>
-              <div className="zp-pg">
-                {ANIME4K_MODES.map((m) => (
-                  <button
-                    key={m.id}
-                    className={cx('zp-pi', upMode === m.id && 'on')}
-                    onClick={() => setUpMode(m.id)}
-                  >
-                    {m.label}
-                  </button>
-                ))}
-              </div>
-              <p className="zp-note" style={{ marginTop: '4px' }}>
-                {ANIME4K_MODES.find((m) => m.id === upMode)?.desc}
-              </p>
-
-              <p className="zp-sec">Upscale Intensity ({upInt}%)</p>
-              <input
-                type="range" className="zp-rg" min={0} max={100} step={5} value={upInt}
-                style={{ '--p': `${upInt}%` } as CSSProperties}
-                onChange={(e) => setUpInt(+e.target.value)}
-                aria-label="Upscaler intensity"
-              />
-            </>
-          )}
-          <p className="zp-note">
-            {!gpuSupported
-              ? 'This browser has no WebGPU, so the upscaler is unavailable.'
-              : upErr
-                ? `Upscaler note: ${upErr}. Try selecting another preset or re-toggling.`
-                : 'Runs in real-time on your GPU with WebGPU neural shaders. Best on 720p–1080p anime.'}
-          </p>
-
-
             </div>
           )}
 

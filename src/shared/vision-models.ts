@@ -45,3 +45,4 @@ export interface InferenceBenchmarkResult {
   success: boolean;
   error?: string;
 }
+

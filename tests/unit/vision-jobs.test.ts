@@ -121,3 +121,4 @@ describe('Zenkai Vision Job Manager', () => {
     expect(manager.getJobs().length).toBe(0);
   });
 });
+

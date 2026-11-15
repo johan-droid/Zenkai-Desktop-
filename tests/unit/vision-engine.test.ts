@@ -37,3 +37,4 @@ describe('Vision Inference Engine & Provider Abstraction', () => {
     await expect(engine.release()).resolves.toBeUndefined();
   });
 });
+

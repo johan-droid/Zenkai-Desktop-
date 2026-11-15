@@ -3,6 +3,7 @@ import fs from "node:fs";
 import { join } from "node:path";
 import { dispatchWebKey } from "./playback";
 import { targetWindow } from "./menu";
+import { checkForUpdatesManual } from "./updater";
 
 let tray: Tray | null = null;
 
@@ -36,6 +37,14 @@ export function createTray(): void {
           click: () => {
             const w = targetWindow();
             if (w) dispatchWebKey(w, { key: " ", code: "Space" });
+          },
+        },
+        {
+          label: "Check for Updates...",
+          click: () => {
+            checkForUpdatesManual().catch((err) =>
+              console.warn("[tray] check for updates error:", err),
+            );
           },
         },
         { type: "separator" },

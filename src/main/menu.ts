@@ -2,9 +2,11 @@ import {
   app,
   BrowserWindow,
   Menu,
+  shell,
   type MenuItemConstructorOptions,
 } from "electron";
 import { loadStandaloneUI, loadWebPortal } from "./window";
+import { checkForUpdatesManual } from "./updater";
 
 export function targetWindow(): BrowserWindow | undefined {
   return BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0];
@@ -67,6 +69,27 @@ export function buildMenu(): void {
       ],
     },
     ...(isMac ? [{ role: "windowMenu" as const }] : []),
+    {
+      label: "Help",
+      submenu: [
+        {
+          id: "check-updates",
+          label: "Check for Updates...",
+          click: () => {
+            checkForUpdatesManual().catch((err) =>
+              console.warn("[menu] check for updates error:", err),
+            );
+          },
+        },
+        { type: "separator" },
+        {
+          label: "Zenkai Desktop on GitHub",
+          click: () => {
+            shell.openExternal("https://github.com/johan-droid/Zenkai-Desktop-");
+          },
+        },
+      ],
+    },
   ];
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
 }

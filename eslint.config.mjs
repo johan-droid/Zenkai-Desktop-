@@ -41,6 +41,9 @@ export default [
       "test-results/**",
       "playwright-report/**",
       "pnpm-lock.yaml",
+      "public/**",
+      "src/renderer/public/**",
+      "server/**",
     ],
   },
   {

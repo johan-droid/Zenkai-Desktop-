@@ -13,7 +13,7 @@ delete launchEnv.ELECTRON_RUN_AS_NODE;
 
 const app = await electron.launch({
   executablePath: electronPath,
-  args: ["."],
+  args: [".", "--user-data-dir=/tmp/zenkai-t3-profile"],
   env: launchEnv,
 });
 

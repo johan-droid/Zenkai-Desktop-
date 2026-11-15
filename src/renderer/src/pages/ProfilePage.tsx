@@ -4,6 +4,7 @@ import {
   BookmarkCheck,
   ChevronRight,
   Cloud,
+  Laptop,
   Moon,
   ShieldCheck,
   SlidersHorizontal,
@@ -13,6 +14,7 @@ import {
 import { AccountPanel, AuthPanel } from '../components/CloudSyncCard'
 import { useAuth } from '../context/AuthContext'
 import { AniListCard } from '../components/AniListCard'
+import { DesktopSettingsCard } from '../components/DesktopSettingsCard'
 import { ProfileEditor, ProfileHero, type SectionKey } from '../components/ProfileCustomizer'
 import { CustomSelect } from '../components/CustomSelect'
 import { DISCORD_URL, REPO_URL, TELEGRAM_URL } from '../lib/app'
@@ -25,7 +27,7 @@ import { useTheme } from '../context/ThemeContext'
 import { useFlag } from '../hooks/useFlag'
 import { supabase } from '../lib/supabase'
 
-type TabKey = 'preferences' | 'account' | 'anilist' | 'legal'
+type TabKey = 'preferences' | 'account' | 'anilist' | 'legal' | 'desktop'
 
 const h2 = 'font-display text-xl font-bold'
 
@@ -98,7 +100,8 @@ export default function ProfilePage() {
   const [editing, setEditing] = useState(false)
   const [showAuth, setShowAuth] = useState(false)
   const [editTab, setEditTab] = useState<SectionKey>('identity')
-  const [activeTab, setActiveTab] = useState<TabKey>('preferences')
+  const isDesktop = typeof window !== 'undefined' && Boolean(window.zenkai?.isDesktop)
+  const [activeTab, setActiveTab] = useState<TabKey>(() => (isDesktop ? 'desktop' : 'preferences'))
 
   const [prefs, setPrefs] = useState(getPrefs)
   const [autoNext, setAutoNext] = useFlag('zk:autonext', true)
@@ -175,6 +178,9 @@ export default function ProfilePage() {
   }
 
   const SUB_TABS = [
+    ...(isDesktop
+      ? [{ id: 'desktop' as const, label: 'Desktop & Updates', icon: Laptop }]
+      : []),
     { id: 'preferences' as const, label: 'Preferences', icon: SlidersHorizontal },
     { id: 'account' as const, label: 'Cloud & Sync', icon: Cloud, badge: user ? 'Connected' : null },
     { id: 'anilist' as const, label: 'AniList', icon: BookmarkCheck },
@@ -219,6 +225,8 @@ export default function ProfilePage() {
           </div>
 
           {/* 3. Unified Content Sections */}
+          {activeTab === 'desktop' && isDesktop && <DesktopSettingsCard />}
+
           {activeTab === 'preferences' && (
             <section
               id="settings"

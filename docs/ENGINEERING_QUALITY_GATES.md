@@ -416,3 +416,4 @@ For every completed feature or major subsystem repair, the implementing agent mu
 ---
 
 *This document represents the permanent engineering policy of Zenkai Desktop. Every task, commit, and pull request is bound by these requirements.*
+

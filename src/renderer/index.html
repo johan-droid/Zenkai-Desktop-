@@ -162,6 +162,8 @@
                   <span>Playback auto-paused on window blur (Setting: pauseOnClose)</span>
                 </div>
                 <video id="zenkaiVideoPlayer" controls playsinline aria-label="Anime video player"></video>
+                <canvas id="zenkaiUpscaleCanvas" class="player-upscale-canvas" hidden aria-hidden="true"></canvas>
+                <div id="zenkaiSubtitleOverlay" class="player-subtitle-overlay" aria-live="polite"></div>
               </div>
 
               <!-- Controls Toolbar with Grouped Server Picker (§4) -->
@@ -378,6 +380,28 @@
               <input type="checkbox" id="settingHwDecode" />
               <span class="toggle-slider"></span>
             </label>
+          </div>
+
+          <div class="setting-row" id="rowAiUpscale">
+            <div class="setting-info">
+              <div class="setting-title">Sharpen (AI Upscale)</div>
+              <div class="setting-desc">Real-time Anime4K neural-net upscaling using WebGPU compute shaders. Capped at 2× native resolution.</div>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox" id="settingAiUpscale" />
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+
+          <div class="setting-row">
+            <div class="setting-info">
+              <div class="setting-title">Subtitle Sync Delay</div>
+              <div class="setting-desc">Adjust subtitle timing in seconds (-5.0s to +5.0s). Works across ASS, SRT, and WebVTT cues.</div>
+            </div>
+            <div style="display:flex; align-items:center; gap:8px;">
+              <input type="number" id="settingSubtitleDelay" class="player-select" style="width:80px; text-align:center;" min="-5" max="5" step="0.1" value="0" />
+              <span style="font-size:12px; color:var(--muted);">sec</span>
+            </div>
           </div>
 
           <div class="setting-row">

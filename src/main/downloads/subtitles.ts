@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { cuesToSrt, parseSubtitles } from "../../shared/subtitles";
 import { fetchViaProxy } from "../api/proxy";
 import { getMapping, getSubtitles } from "../api/routes";
 
@@ -140,7 +141,7 @@ export async function downloadSubtitles(
 }
 
 /**
- * Basic WebVTT / ASS to SRT converter.
+ * Converts WebVTT / ASS to numbered SRT using the unified subtitle engine.
  */
 function convertToSrt(content: string): string {
   // If already standard SRT (starts with digit and contains --> with commas)
@@ -148,34 +149,9 @@ function convertToSrt(content: string): string {
     return content;
   }
 
-  // WebVTT conversion
-  if (content.includes("WEBVTT")) {
-    let clean = content.replace(/^WEBVTT[^\n]*\n+/i, "");
-    // Replace timestamps dots with commas: 00:01:23.456 --> 00:01:23,456
-    clean = clean.replace(
-      /(\d{2}:\d{2}:\d{2})\.(\d{3})/g,
-      "$1,$2",
-    );
-    // Replace 2-part timestamps: 01:23.456 --> 00:01:23,456
-    clean = clean.replace(
-      /(^|\n)(\d{2}:\d{2})\.(\d{3})\s*-->\s*(\d{2}:\d{2})\.(\d{3})/g,
-      "$100:$2,$3 --> 00:$4,$5",
-    );
-    // Strip cue settings (e.g. line:0% position:50% align:middle)
-    clean = clean.replace(
-      /(-->\s*\d{2}:\d{2}:\d{2},\d{3})[^\n]*/g,
-      "$1",
-    );
-    // Number blocks sequentially if missing numbers
-    const blocks = clean.split(/\n\s*\n/).filter((b) => b.trim().length > 0);
-    const numbered = blocks.map((b, idx) => {
-      const lines = b.trim().split("\n");
-      if (/^\d+$/.test(lines[0])) {
-        return b;
-      }
-      return `${idx + 1}\n${b}`;
-    });
-    return numbered.join("\n\n") + "\n";
+  const cues = parseSubtitles(content);
+  if (cues.length > 0) {
+    return cuesToSrt(cues);
   }
 
   // Fallback: return as-is

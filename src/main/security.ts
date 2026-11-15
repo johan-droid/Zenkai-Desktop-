@@ -1,5 +1,9 @@
 import { app, session, shell } from "electron";
+import fs from "node:fs";
+import path from "node:path";
+import { pathToFileURL } from "node:url";
 import { ALLOWED_ORIGINS } from "../shared/config";
+import { getActiveRendererPath } from "./renderer-updater";
 
 // §6.4: only these three permissions may be granted (T3 step 3).
 const ALLOWED_PERMISSIONS = new Set(["notifications", "fullscreen", "media"]);
@@ -60,6 +64,32 @@ export function registerSecurity(): void {
       const allowed = ALLOWED_PERMISSIONS.has(permission);
       if (!allowed) console.log(`[security] permission denied: ${permission}`);
       callback(allowed);
+    },
+  );
+
+  // Redirect root file:// asset requests to active renderer directory
+  session.defaultSession.webRequest.onBeforeRequest(
+    {
+      urls: [
+        "file:///logo.png",
+        "file:///characters/*",
+        "file:///frames/*",
+        "file:///winter/*",
+        "file:///og-image.jpg",
+      ],
+    },
+    (details, callback) => {
+      try {
+        const u = new URL(details.url);
+        const rendererDir = path.dirname(getActiveRendererPath());
+        const subPath = u.pathname.replace(/^\/+/, "");
+        const localFile = path.join(rendererDir, subPath);
+        if (fs.existsSync(localFile)) {
+          callback({ redirectURL: pathToFileURL(localFile).href });
+          return;
+        }
+      } catch {}
+      callback({});
     },
   );
 

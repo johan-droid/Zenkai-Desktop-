@@ -1,5 +1,6 @@
 import { memo } from 'react'
 import { Link, useLocation } from 'react-router-dom'
+import { LOGO_URL } from '../lib/constants'
 import {
   House,
   Clapperboard,
@@ -111,6 +112,9 @@ export const DesktopSidebar = memo(function DesktopSidebar({ collapsed, onToggle
       <div className="w-full space-y-4">
         {collapsed ? (
           <div className="flex flex-col items-center gap-2 pt-0.5">
+            <Link to="/home" title="Zenkai Home" className="grid size-9 place-items-center rounded-xl transition hover:opacity-90 active:scale-95">
+              <img src={LOGO_URL} alt="Zenkai" className="size-7 object-contain drop-shadow" />
+            </Link>
             <button type="button" onClick={onToggle} title="Expand sidebar" className={cn(iconBtn, 'size-10 rounded-xl')}>
               <PanelLeft className="size-5" />
             </button>
@@ -121,7 +125,7 @@ export const DesktopSidebar = memo(function DesktopSidebar({ collapsed, onToggle
         ) : (
           <div className="flex h-11 items-center justify-between px-2">
             <Link to="/home" className="group flex min-w-0 items-center gap-2.5">
-              <img src="/logo.png" alt="Zenkai" className="size-7 shrink-0 object-contain drop-shadow transition-transform duration-200 group-hover:scale-105" />
+              <img src={LOGO_URL} alt="Zenkai" className="size-7 shrink-0 object-contain drop-shadow transition-transform duration-200 group-hover:scale-105" />
               <div className="flex min-w-0 flex-col leading-tight">
                 <span className="truncate font-display text-[15px] font-bold tracking-tight text-foreground">Zenkai</span>
                 <span className="font-mono text-[11px] font-medium tracking-tight text-muted">zenkai.cfd</span>

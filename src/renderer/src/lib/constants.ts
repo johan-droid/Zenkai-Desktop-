@@ -1,4 +1,7 @@
-export const LOGO_URL = '/logo.png'
+import { ZENKAI_LOGO_BASE64, GHOST_SVG_DATA_URI } from '../assets/logo'
+
+export const LOGO_URL = ZENKAI_LOGO_BASE64
+export const GHOST_URL = GHOST_SVG_DATA_URI
 
 export const GENRES: { name: string }[] = [
   { name: 'Action' },

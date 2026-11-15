@@ -10,6 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Official Trademark Logo Integration**: Embedded authentic Zenkai 512x512 trademark logo and OpenMoji character assets into the application bundle (`src/renderer/src/assets/logo.ts`, `DesktopSidebar`, `Logo`, `LogoFill`, `ExtensionPage`), eliminating missing asset errors and blank placeholder boxes on `file://` desktop runtimes.
+- **Native OS Packaging Brand Assets**: Replaced placeholder blue squares in `scripts/gen-icons.mjs` and `scripts/gen-tray-icon.mjs` with genuine multi-resolution asset pipelines producing authentic `resources/icon.png`, `resources/icons/*`, `resources/icon.ico`, `resources/icon.icns`, and `resources/tray.png`.
+- **Production README Documentation Overhaul**: Rebuilt `README.md` with official trademark branding header, application architecture diagrams, real application showcase screenshots, and verified setup instructions.
 - **Scraped Home & Catalog Fallback Dataset**: Bundled authentic pre-scraped home and catalog dataset (`src/renderer/src/data/fallback-home.json` and `public/home-data.json`) via `scripts/scrape-zenkai-home.mjs`, ensuring discovery shelves and hero carousels remain populated during upstream API rate limits or network outages.
 - **Outbound API Header Normalization**: Added `onBeforeSendHeaders` interceptor in `src/main/security.ts` to attach genuine web origin and user-agent headers to AniList, Kitsu, Jikan, and TMDB queries from the desktop runtime.
 - **Desktop Shield Exemption**: Updated `src/renderer/src/lib/shield.ts` to recognize the native desktop runtime (`window.zenkai` / `file://`), preventing false-positive headless bot locks and 403 "Automated Access Denied" errors in desktop automation and testing.

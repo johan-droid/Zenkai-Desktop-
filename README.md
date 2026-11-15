@@ -1,15 +1,22 @@
-# Zenkai Desktop ⚡
+<p align="center">
+  <img src="public/logo.png" alt="Zenkai Official Trademark Logo" width="128" height="128" style="border-radius: 28px; box-shadow: 0 12px 36px rgba(0,0,0,0.4);" />
+</p>
 
-[![CI](https://github.com/johan-droid/Zenkai-Desktop-/actions/workflows/ci.yml/badge.svg)](https://github.com/johan-droid/Zenkai-Desktop-/actions/workflows/ci.yml)
-[![Release](https://github.com/johan-droid/Zenkai-Desktop-/actions/workflows/release.yml/badge.svg)](https://github.com/johan-droid/Zenkai-Desktop-/actions/workflows/release.yml)
-[![Version](https://img.shields.io/badge/version-0.0.1-blue.svg)](package.json)
-[![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20Windows%20%7C%20macOS-purple.svg)](electron-builder.yml)
-[![TypeScript](https://img.shields.io/badge/TypeScript-strict-informational.svg)](tsconfig.json)
-[![License](https://img.shields.io/badge/license-UNLICENSED-lightgrey.svg)](package.json)
+<h1 align="center">Zenkai Desktop</h1>
 
-**Zenkai Desktop** is a premier, standalone desktop application engineered for high-performance anime streaming, offline downloading, manga/novel reading, and automated watch tracking with native Discord Rich Presence. 
+<p align="center">
+  <strong>The premier, standalone desktop application for Zenkai</strong><br />
+  Watch anime online in HD with English Sub &amp; Dub, stream movies, and read manga &amp; novels in one sleek native application.
+</p>
 
-It integrates the authentic React 19 production frontend from [Zenkai Web](https://github.com/nyyrox2/Zenkai) into a hardened, sandboxed Electron runtime equipped with hardware-accelerated WebGPU neural upscaling, multi-track audio, and dual-track self-healing updates.
+<p align="center">
+  <a href="https://github.com/johan-droid/Zenkai-Desktop-/actions/workflows/ci.yml"><img src="https://github.com/johan-droid/Zenkai-Desktop-/actions/workflows/ci.yml/badge.svg" alt="CI Status" /></a>
+  <a href="https://github.com/johan-droid/Zenkai-Desktop-/actions/workflows/release.yml"><img src="https://github.com/johan-droid/Zenkai-Desktop-/actions/workflows/release.yml/badge.svg" alt="Release Workflow" /></a>
+  <a href="package.json"><img src="https://img.shields.io/badge/version-0.0.1-blue.svg" alt="Version 0.0.1" /></a>
+  <a href="electron-builder.yml"><img src="https://img.shields.io/badge/platform-Linux%20%7C%20Windows%20%7C%20macOS-purple.svg" alt="Supported Platforms" /></a>
+  <a href="tsconfig.json"><img src="https://img.shields.io/badge/TypeScript-strict-informational.svg" alt="TypeScript Strict" /></a>
+  <a href="package.json"><img src="https://img.shields.io/badge/license-UNLICENSED-lightgrey.svg" alt="License" /></a>
+</p>
 
 ---
 
@@ -17,19 +24,19 @@ It integrates the authentic React 19 production frontend from [Zenkai Web](https
 
 - [About Zenkai Desktop](#about-zenkai-desktop)
 - [Key Features](#key-features)
-- [Application Walkthrough & Screenshots](#application-walkthrough--screenshots)
+- [Application Showcase & Real Screenshots](#application-showcase--real-screenshots)
 - [Installation Guide](#installation-guide)
   - [Linux (AppImage, DEB, RPM)](#linux)
   - [Windows (NSIS Setup & Portable Zip)](#windows)
   - [macOS (DMG & Zip)](#macos)
   - [Building From Source](#building-from-source)
-- [Release Versions & Downloads](#release-versions--downloads)
-- [Update System & Active Playback Guard](#update-system--active-playback-guard)
+- [Release History & Downloads](#release-history--downloads)
+- [Update Management Engine & Active Playback Guard](#update-management-engine--active-playback-guard)
 - [System Requirements](#system-requirements)
-- [Development Setup](#development-setup)
+- [Development Setup & Quality Verification](#development-setup--quality-verification)
 - [Application Architecture](#application-architecture)
 - [Troubleshooting & FAQ](#troubleshooting--faq)
-- [Security & Privacy](#security--privacy)
+- [Security & Privacy Boundaries](#security--privacy-boundaries)
 - [Contributing](#contributing)
 - [License & Acknowledgements](#license--acknowledgements)
 
@@ -37,18 +44,45 @@ It integrates the authentic React 19 production frontend from [Zenkai Web](https
 
 ## About Zenkai Desktop
 
-Zenkai Desktop bridges the gap between lightweight web streaming and high-fidelity desktop software. Rather than acting as a simple web wrapper, the application runs a verified offline-first build of the Zenkai React 19 webapp locally inside an isolated Chromium sandbox, interfacing with Node.js capabilities through a strictly typed, 9-API preload bridge.
+**Zenkai Desktop** bridges the gap between lightweight web streaming and high-fidelity desktop software. Rather than acting as a superficial web wrapper, the application runs a verified offline-first build of the authentic [Zenkai Web](https://github.com/nyyrox2/Zenkai) React 19 application locally inside an isolated Chromium sandbox. Native capabilities are managed by an Electron main process communicating through a strictly typed 9-module preload bridge.
+
+```
+┌───────────────────────────────────────────────────────────────┐
+│                    Zenkai Desktop Window                      │
+│                                                               │
+│  ┌─────────────────────────┐   ┌───────────────────────────┐  │
+│  │   DesktopSidebar        │   │  React 19 Renderer        │  │
+│  │   - Zenkai Trademark    │   │  - Discover Hero Carousel │  │
+│  │   - Nav Icons           │   │  - CinePlayer Video Core  │  │
+│  │   - Quick Search        │   │  - Manga / Novel Readers  │  │
+│  │   - Status Indicators   │   │  - Offline Catalog Cache  │  │
+│  └─────────────────────────┘   └───────────────────────────┘  │
+│                                 │ (Typed Zod-Validated IPC)   │
+│                                 ▼                             │
+│  ┌─────────────────────────────────────────────────────────┐  │
+│  │       Hardened Preload Bridge (window.zenkai)           │  │
+│  └─────────────────────────────────────────────────────────┘  │
+│                                 │                             │
+│                                 ▼                             │
+│  ┌─────────────────────────────────────────────────────────┐  │
+│  │   Main Process Engine (Node.js Sandbox)                 │  │
+│  │   - HLS Concurrent Downloader with AES-128 Decryption   │  │
+│  │   - Active Playback Guard & Dual-Track OTA Updater     │  │
+│  │   - Discord Rich Presence & OS Native Tray Integration  │  │
+│  └─────────────────────────────────────────────────────────┘  │
+└───────────────────────────────────────────────────────────────┘
+```
 
 ### Native Desktop vs. Online Services Boundary
 
-| Capability | Execution Model | Description |
+| Capability | Execution Model | Architectural Implementation |
 |---|---|---|
-| **HLS Stream Downloader** | **Desktop Native** | Concurrent segment downloader with resumable `.part` file streaming, in-memory AES-128 decryption, and automatic `.srt` subtitle embedding. |
+| **HLS Stream Downloader** | **Desktop Native** | Concurrent segment streaming with resumable `.part` file buffering, in-memory AES-128 decryption, and automatic `.srt` subtitle embedding. |
 | **Active Playback Guard** | **Desktop Native** | Monitors media playback state globally; automatically defers background downloads, update prompts, and restarts while video is playing. |
 | **Dual-Track Updater** | **Desktop Native** | Independent OTA frontend updates with 5-second canary health checks & instant rollback + native runtime auto-updater via GitHub Releases. |
 | **Discord Rich Presence** | **Desktop Native** | IPC-driven live activity status broadcasting show title, episode number, elapsed time, and posters directly to Discord. |
 | **System Tray & Hotkeys** | **Desktop Native** | OS tray integration with quick actions (Play/Pause, Show/Hide, Quit) and window state persistence. |
-| **Anime Catalog Discovery** | **Online API** | AniList GraphQL query engine with trending, seasonal, search filters, and local caching. |
+| **Anime Catalog Discovery** | **Online API + Scraped Fallback** | AniList GraphQL query engine with resilient pre-scraped home and catalog datasets for 100% offline and rate-limit resilience. |
 | **Stream Resolvers** | **Online API** | Deterministic multi-server resolver (MegaPlay, Vidstream, FlixCloud, AnimeSalt, ACDN) with canonical ID mapping. |
 | **Cloud Library Sync** | **Online API** | Supabase authentication, watch party synchronization, and AniList OAuth2 progress tracking. |
 
@@ -58,6 +92,7 @@ Zenkai Desktop bridges the gap between lightweight web streaming and high-fideli
 
 ### 🌟 Discovery & Catalog Browsing
 - **AniList GraphQL Engine**: Instant access to seasonal populars, trending titles, genre filtering, studio information, and community ratings.
+- **Scraped Fallback Architecture**: Bundled authentic fallback catalog ensuring discovery shelves, hero carousel, and latest episodes never display 403 or server error states.
 - **Search Modal (`Ctrl+K`)**: Rapid debounced search across thousands of titles with keyboard navigation.
 - **Spotlight Cards & Carousels**: Featured anime spotlights with hover-responsive 3D perspective tilt.
 
@@ -91,20 +126,61 @@ Zenkai Desktop bridges the gap between lightweight web streaming and high-fideli
 
 ---
 
-## Application Walkthrough & Screenshots
+## Application Showcase & Real Screenshots
 
-All screenshots below are authentic captures from the actual running Zenkai Desktop application:
+All screenshots below are authentic captures from the actual running **Zenkai Desktop** application window (1280x800 resolution) with live media and catalogue content populated:
 
-| Screen | Preview | Description |
-|---|---|---|
-| **Home / Discover** | [![Home](docs/screenshots/01-home.png)](docs/screenshots/01-home.png) | Featured spotlight hero banner, collapsible `DesktopSidebar`, trending anime rows, and continue-watching tracker. |
-| **Catalog & Browse** | [![Browse](docs/screenshots/02-browse.png)](docs/screenshots/02-browse.png) | Search filters (genre, year, season, format), sort options, and responsive anime card grid. |
-| **Anime Details** | [![Details](docs/screenshots/03-details.png)](docs/screenshots/03-details.png) | Banner art, synopsis, character carousel, episode list selector, and streaming actions. |
-| **Desktop Settings** | [![Settings](docs/screenshots/04-desktop-settings.png)](docs/screenshots/04-desktop-settings.png) | Dual-channel updater, active playback protection notice, hardware acceleration switches, and Playback Health Center latency diagnostics. |
-| **Manga Reader** | [![Manga](docs/screenshots/05-manga.png)](docs/screenshots/05-manga.png) | Manga catalog and reader supporting vertical webtoon scroll and chapter navigation. |
-| **Movies & TV** | [![Movies](docs/screenshots/06-movies.png)](docs/screenshots/06-movies.png) | TMDB catalog integration for movies and western series with server selection. |
+### 1. Home / Discover Screen
+Featuring the persistent collapsible `DesktopSidebar` with the official Zenkai trademark logo, spotlight hero carousel, trending anime rows, continue-watching tracker, and latest released episodes.
 
-*Additional screenshot documentation is available in [`docs/SCREENSHOTS.md`](docs/SCREENSHOTS.md).*
+<p align="center">
+  <img src="docs/screenshots/01-home.png" alt="Zenkai Desktop Home Screen" width="100%" />
+</p>
+
+---
+
+### 2. Anime Catalog & Filtering Grid
+Comprehensive catalogue exploration powered by AniList GraphQL with genre filtering, release year, season, media format, and sort order controls.
+
+<p align="center">
+  <img src="docs/screenshots/02-browse.png" alt="Zenkai Desktop Browse Screen" width="100%" />
+</p>
+
+---
+
+### 3. Anime Details & Episode Selector
+Full show overview for *One Piece* (ID: 21), including banner artwork, synopsis, rankings, character carousels, related franchises, recommendations, and episode list.
+
+<p align="center">
+  <img src="docs/screenshots/03-details.png" alt="Zenkai Desktop Details Screen" width="100%" />
+</p>
+
+---
+
+### 4. Desktop Settings & Playback Health Center
+Native desktop configuration hub featuring release channel selection (`Stable` vs `Beta`), manual update check, active playback protection status, download storage path viewer, and live API latency telemetry.
+
+<p align="center">
+  <img src="docs/screenshots/04-desktop-settings.png" alt="Zenkai Desktop Settings Screen" width="100%" />
+</p>
+
+---
+
+### 5. Manga Reader & Catalog
+Integrated manga reader with vertical webtoon scrolling, single-page reading mode, chapter caching, and reading progress synchronization.
+
+<p align="center">
+  <img src="docs/screenshots/05-manga.png" alt="Zenkai Desktop Manga Screen" width="100%" />
+</p>
+
+---
+
+### 6. Movies & TV Series
+TMDB-backed catalog integration for western cinema and television series with multi-source server resolution and season browsing.
+
+<p align="center">
+  <img src="docs/screenshots/06-movies.png" alt="Zenkai Desktop Movies Screen" width="100%" />
+</p>
 
 ---
 
@@ -160,7 +236,7 @@ sudo rpm -Uvh Zenkai-Desktop-*-Linux-x64.rpm
 
 ### Building From Source
 
-If pre-built binary packages have not yet been published for your platform, you can compile and package the application directly from source:
+You can compile and package the application directly from source:
 
 ```bash
 # 1. Clone the repository
@@ -181,9 +257,9 @@ pnpm dist:mac     # Generates DMG and zip in release/
 
 ---
 
-## Release Versions & Downloads
+## Release History & Downloads
 
-Official releases are published on the GitHub Releases page:
+Official binary packages are published on the GitHub Releases page:
 
 👉 **[Zenkai Desktop GitHub Releases](https://github.com/johan-droid/Zenkai-Desktop-/releases)**
 
@@ -199,15 +275,15 @@ Official releases are published on the GitHub Releases page:
 
 ---
 
-## Update System & Active Playback Guard
+## Update Management Engine & Active Playback Guard
 
-Zenkai Desktop implements an enterprise-grade dual-track update mechanism:
+Zenkai Desktop implements an enterprise-grade dual-track update mechanism designed to keep the user experience seamless:
 
 ```mermaid
 flowchart LR
-    subgraph Update_Detection["Update Detection"]
-        Poll["6h Jittered Poll"] --> Check
-        User["User Check"] --> Check["GitHub Releases API"]
+    subgraph Detection["Update Detection"]
+        Poll["6h Jittered Poll"] --> Check["GitHub Releases API"]
+        User["User Check"] --> Check
     end
 
     subgraph Guard["Active Playback Guard"]
@@ -218,7 +294,7 @@ flowchart LR
 
     subgraph Execution["Execution Track"]
         Notify --> Type{"Update Type"}
-        Type -->|OTA Frontend| OTA["Download & Stage -> 5s Canary Health Check"]
+        Type -->|OTA Frontend| OTA["Stage -> 5s Canary Health Check"]
         Type -->|Native Windows / AppImage| AU["electron-updater Background Staging"]
         Type -->|Native Linux DEB / RPM| DL["Direct Download to Downloads Folder"]
     end
@@ -227,7 +303,7 @@ flowchart LR
 ### 1. Active Playback Guard
 - Globally monitors `<video>` playback events in the renderer.
 - If media is playing, the updater **never** displays intrusive popups, downloads heavy packages, or interrupts playback with restarts.
-- Update actions are deferred until 5 minutes after playback ceases.
+- Update actions are deferred until playback ceases.
 
 ### 2. Over-The-Air (OTA) Canary Health Check & Rollback
 - Frontend updates are staged in `userData/renderer-updates/staged` and activated atomically into `active`.
@@ -252,44 +328,44 @@ flowchart LR
 
 ---
 
-## Development Setup
+## Development Setup & Quality Verification
 
 ### Prerequisites
 - **Node.js**: `22.x` (LTS)
 - **pnpm**: `12.x`
 - **Git**: Modern git client
 
-### Commands
+### Verification Commands
 
 ```bash
-# Install exact frozen dependencies
+# 1. Install exact frozen dependencies
 pnpm install --frozen-lockfile
 
-# Launch local development environment with hot-reloading
+# 2. Launch local development environment with hot-reloading
 pnpm dev
 
-# Type check all TypeScript source files
+# 3. Type check all TypeScript source files
 pnpm typecheck
 
-# Run strict ESLint verification
+# 4. Run strict ESLint verification
 pnpm lint
 
-# Run Vitest unit & integration test suite (109 tests)
+# 5. Run Vitest unit & integration test suite (109 tests)
 pnpm test
 
-# Run Playwright End-to-End suite (8 tests)
-pnpm e2e
-
-# Run T4 Preload Bridge Contract Check
+# 6. Run T4 Preload Bridge Contract Check (5 assertions)
 node scripts/t4-bridge-check.mjs
 
-# Run T3 Security Sandbox Check
+# 7. Run T3 Security Sandbox Check (5 assertions)
 node scripts/t3-security-check.mjs
 
-# Capture real application screenshots
+# 8. Scrape authentic website fallback data
+node scripts/scrape-zenkai-home.mjs
+
+# 9. Capture real application showcase screenshots
 node scripts/capture-real-screenshots.mjs
 
-# Full production build (SSR main + preload + client renderer)
+# 10. Full production build (SSR main + preload + client renderer)
 pnpm build
 ```
 
@@ -306,7 +382,7 @@ flowchart TD
         UP["Dual-Track Updater (Active Playback Guard)"]
         RPC["Discord Rich Presence"]
         TRAY["System Tray & Power Monitor"]
-        SEC["Security & Navigation Interceptor"]
+        SEC["Security & Header Normalization"]
     end
 
     subgraph Preload["Preload Isolated Bridge (contextBridge)"]
@@ -358,7 +434,7 @@ flowchart TD
 
 ---
 
-## Security & Privacy
+## Security & Privacy Boundaries
 
 Zenkai Desktop enforces a strict defense-in-depth security model:
 

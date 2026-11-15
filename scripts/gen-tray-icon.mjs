@@ -1,9 +1,11 @@
-// Generates resources/tray.png (16x16 solid) — run: node scripts/gen-tray-icon.mjs
-import { writePng } from "./lib/png.mjs";
+// Generates resources/tray.png from the official Zenkai trademark logo (public/logo.png)
+import { execSync } from "node:child_process";
 
-const [r, g, b, a] = [79, 140, 255, 255]; // Zenkai blue
-writePng("resources/tray.png", 16, 16, (x, y) => {
-  const edge = x === 0 || y === 0 || x === 15 || y === 15;
-  return edge ? [30, 80, 160, a] : [r, g, b, a];
-});
-console.log("resources/tray.png written");
+const pyScript = `
+from PIL import Image
+img = Image.open('public/logo.png').convert('RGBA')
+tray = img.resize((32, 32), Image.Resampling.LANCZOS)
+tray.save('resources/tray.png', 'PNG')
+`;
+execSync(`python3 -c "${pyScript.replace(/\n/g, '; ')}"`, { stdio: "inherit" });
+console.log("resources/tray.png generated from official Zenkai logo");

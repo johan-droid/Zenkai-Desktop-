@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
+import { LOGO_URL } from '../lib/constants'
 import {
   Download,
   CheckCircle2,
@@ -46,7 +47,7 @@ export default function ExtensionPage() {
         {/* Hero */}
         <div className="text-center">
           <div className="mx-auto mb-5 flex size-16 items-center justify-center rounded-2xl bg-black/40 ring-1 ring-white/10 shadow-xl">
-            <img src="/logo.png" alt="Zenkai" className="size-12 object-contain drop-shadow" />
+            <img src={LOGO_URL} alt="Zenkai" className="size-12 object-contain drop-shadow" />
           </div>
 
           <div className="inline-flex items-center gap-2 rounded-full border border-accent/30 bg-accent/10 px-3.5 py-1.5 text-xs font-bold text-accent">

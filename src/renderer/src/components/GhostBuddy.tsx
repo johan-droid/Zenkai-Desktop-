@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { cn } from '../lib/utils'
+import { GHOST_URL } from '../lib/constants'
 
 /** Playful ghost for error pages: leans toward the pointer, hops / twirls / sparkles when poked, talks back.
  *  Art: OpenMoji "ghost" (CC BY-SA 4.0, openmoji.org), public/characters/ghost.svg. */
@@ -74,7 +75,7 @@ export function GhostBuddy({ lines, className }: { lines: string[]; className?: 
             className="zk-act block size-full cursor-pointer select-none outline-none transition-transform active:scale-90"
             style={{ animation: anim }}
           >
-            <img src="/characters/ghost.svg" alt="" draggable={false} className="size-full drop-shadow-[0_10px_18px_rgba(0,0,0,0.25)]" />
+            <img src={GHOST_URL} alt="" draggable={false} className="size-full drop-shadow-[0_10px_18px_rgba(0,0,0,0.25)]" />
           </button>
         </span>
       </div>

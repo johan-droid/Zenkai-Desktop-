@@ -53,6 +53,20 @@ export type IpcContract = {
   }) => Promise<void>;
   "rpc:clear": () => Promise<void>;
   "app:version": () => Promise<string>;
+  "app:checkUpdate": () => Promise<{
+    updateAvailable: boolean;
+    version?: string;
+    channel?: string;
+    releaseDate?: string;
+    notes?: string;
+    mandatory?: boolean;
+    assetUrl?: string;
+    reason?: string;
+  }>;
+  "app:startUpdateDownload": () => Promise<{ success: boolean; message?: string }>;
+  "app:installUpdate": () => Promise<void>;
+  "app:openFile": (path: string) => Promise<void>;
+  "window:loadWebPortal": () => void;
   "updater:check": () => Promise<{
     updateAvailable: boolean;
     version?: string;

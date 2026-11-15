@@ -13,16 +13,16 @@ export function defaultDownloadDir(): string {
     return join(home, "Downloads", "Zenkai");
   }
   const xdg = process.env["XDG_DOWNLOAD_DIR"];
-  return join(xdg && xdg.length > 0 ? xdg : join(home, "Downloads"), "Zenkai");
+  return join(
+    xdg && xdg.length > 0 ? xdg : join(home, "Downloads"),
+    "Zenkai",
+  );
 }
 
 export const SettingsSchema = z.object({
   pauseOnClose: z.boolean().default(true),
   hwDecode: z.boolean().default(() => process.platform !== "linux"),
-  downloadDir: z
-    .string()
-    .min(1)
-    .default(() => defaultDownloadDir()),
+  downloadDir: z.string().min(1).default(() => defaultDownloadDir()),
   rpcEnabled: z.boolean().default(true),
   windowState: z
     .object({
@@ -34,7 +34,7 @@ export const SettingsSchema = z.object({
     })
     .optional(),
   theme: z.enum(["system", "dark", "light"]).default("system"),
-  channel: z.enum(["stable", "beta"]).default("stable"),
+  channel: z.enum(["stable", "beta"]).default("stable"), // kept explicit so renderer can safely send a channel patch
   installationId: z.string().default("zenkai-client-cohort"),
   updateServerUrl: z.string().default("https://update.zenkai.cfd"),
 });

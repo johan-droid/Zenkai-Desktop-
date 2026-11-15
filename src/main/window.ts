@@ -44,6 +44,8 @@ export function createMainWindow(): BrowserWindow {
     minWidth: 960,
     minHeight: 600,
     show: false,
+      titleBarStyle: process.platform === "darwin" ? "hiddenInset" : "default",
+    trafficLightPosition: process.platform === "darwin" ? { x: 16, y: 14 } : undefined,
     webPreferences: {
       preload: join(__dirname, "../preload/index.js"),
       contextIsolation: true,
@@ -57,7 +59,6 @@ export function createMainWindow(): BrowserWindow {
 
   if (state?.maximized) win.maximize();
 
-  // T5: persist window state for restore on next launch.
   win.on("close", () => {
     if (!win.isDestroyed()) {
       updateSettings({

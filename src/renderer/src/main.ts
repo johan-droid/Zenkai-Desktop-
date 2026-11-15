@@ -98,6 +98,7 @@ class ZenkaiDesktopApp {
   private activeAnime: AnimeItem = FALLBACK_ANIME[0];
   private activeEpisode = 1;
   private hls: Hls | null = null;
+  private streamResolveTimer: number | null = null;
   private isPlaying = false;
   private autoPauseTimeout: number | null = null;
   private downloadPollTimer: number | null = null;
@@ -135,13 +136,21 @@ class ZenkaiDesktopApp {
   }
 
   private async init(): Promise<void> {
+    // Platform class for CSS rules that only apply on macOS/Windows/Linux
+    if (window.zenkai?.platform) {
+      document.body.classList.add(`platform-${window.zenkai.platform}`);
+    }
+
     this.bindNavigation();
+    this.bindSidebar();
+    this.bindCommandPalette();
     this.bindPlayerEvents();
     this.bindSettings();
     this.bindActions();
     this.bindBridgeEvents();
 
-    this.renderAnimeGrid(FALLBACK_ANIME);
+    // Skeleton placeholders while live data loads
+    this.renderSkeletons(12);
     void this.fetchLiveTrendingAnime();
 
     // Start background download state polling (every 1.5s)
@@ -152,11 +161,19 @@ class ZenkaiDesktopApp {
 
     // Show initial Hero showcase
     this.updateHeroShowcase(FALLBACK_ANIME[0]);
+
+    // Cleanup timers and HLS on page unload so renderer can't fire IPC
+    // after the main process has quit.
+    window.addEventListener("beforeunload", () => {
+      if (this.downloadPollTimer) clearInterval(this.downloadPollTimer);
+      if (this.streamResolveTimer) clearTimeout(this.streamResolveTimer);
+      this.hls?.destroy();
+    });
   }
 
-  // --- 1. Tab Navigation ---
+  // --- 1. Tab & Sidebar Navigation ---
   private bindNavigation(): void {
-    const tabBtns = document.querySelectorAll<HTMLButtonElement>(".nav-tab-btn");
+    const tabBtns = document.querySelectorAll<HTMLButtonElement>(".nav-tab-btn, .nav-item[data-tab]");
     tabBtns.forEach((btn) => {
       btn.addEventListener("click", () => {
         const tab = btn.dataset.tab;
@@ -164,20 +181,12 @@ class ZenkaiDesktopApp {
       });
     });
 
-    // Keyboard shortcut Ctrl+K focuses search
-    window.addEventListener("keydown", (e) => {
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
-        e.preventDefault();
-        const searchInput = document.getElementById("searchInput") as HTMLInputElement;
-        searchInput?.focus();
-      }
-    });
-
     const searchInput = document.getElementById("searchInput") as HTMLInputElement;
     searchInput?.addEventListener("input", () => {
       const q = searchInput.value.toLowerCase().trim();
       if (!q) {
-        this.renderAnimeGrid(FALLBACK_ANIME);
+        this.renderSkeletons();
+        void this.fetchLiveTrendingAnime();
         return;
       }
       const filtered = FALLBACK_ANIME.filter(
@@ -187,9 +196,173 @@ class ZenkaiDesktopApp {
     });
   }
 
+  private bindSidebar(): void {
+    const sidebar = document.getElementById("sidebar");
+    const toggleBtn = document.getElementById("sidebarToggle");
+    toggleBtn?.addEventListener("click", () => {
+      const isCollapsed = sidebar?.getAttribute("data-collapsed") === "true";
+      sidebar?.setAttribute("data-collapsed", isCollapsed ? "false" : "true");
+    });
+
+    // Theme toggle button (§2 View Transitions)
+    const btnTheme = document.getElementById("btnThemeToggle");
+    btnTheme?.addEventListener("click", () => {
+      const current = document.documentElement.dataset.theme;
+      const next = current === "oled" ? "clay" : current === "clay" ? "system" : "oled";
+
+      const apply = () => {
+        this.applyTheme(next);
+        const selTheme = document.getElementById("settingTheme") as HTMLSelectElement | null;
+        if (selTheme) selTheme.value = next;
+        if (window.zenkai?.settings) {
+          void window.zenkai.settings.set({ theme: next as any });
+        }
+        this.showToast(`Theme switched to ${next.toUpperCase()}`);
+      };
+
+      if ((document as any).startViewTransition) {
+        (document as any).startViewTransition(() => apply());
+      } else {
+        apply();
+      }
+    });
+  }
+
+  private bindCommandPalette(): void {
+    const searchModal = document.getElementById("searchModal") as HTMLDialogElement | null;
+    const searchTriggerBox = document.getElementById("searchTriggerBox");
+    const input = document.getElementById("searchPaletteInput") as HTMLInputElement | null;
+    const resultsContainer = document.getElementById("paletteResultsList");
+    const genreChips = document.querySelectorAll<HTMLButtonElement>("#paletteGenreChips .chip");
+
+    const openPalette = () => {
+      if (!searchModal) return;
+      searchModal.showModal();
+      if (input) {
+        input.value = "";
+        input.focus();
+        renderPaletteResults(FALLBACK_ANIME);
+      }
+    };
+
+    searchTriggerBox?.addEventListener("click", openPalette);
+
+    let selectedIndex = 0;
+    let currentResults: AnimeItem[] = [];
+
+    const renderPaletteResults = (list: AnimeItem[]) => {
+      if (!resultsContainer) return;
+      currentResults = list;
+      selectedIndex = 0;
+      if (list.length === 0) {
+        resultsContainer.innerHTML = `
+          <div style="padding:24px;text-align:center;color:var(--muted);font-size:12px;">
+            No anime found matching your query.
+          </div>
+        `;
+        return;
+      }
+
+      resultsContainer.innerHTML = list.map((item, idx) => `
+        <div class="palette-item ${idx === 0 ? "selected" : ""}" data-idx="${idx}">
+          <img class="palette-item-cover" src="${item.coverImage}" alt="" />
+          <div class="palette-item-info">
+            <div class="palette-item-title">${item.title}</div>
+            <div class="palette-item-meta">
+              <span>★ ${item.score}</span>
+              <span>•</span>
+              <span>${item.format}</span>
+              <span>•</span>
+              <span>${item.year}</span>
+            </div>
+          </div>
+          <span style="font-size:10px;font-family:var(--font-mono);color:var(--muted);"><kbd>↵</kbd></span>
+        </div>
+      `).join("");
+
+      resultsContainer.querySelectorAll(".palette-item").forEach((el, idx) => {
+        el.addEventListener("click", () => {
+          this.loadAnimeIntoPlayer(currentResults[idx], 1);
+          searchModal?.close();
+        });
+      });
+    };
+
+    let debounceTimer: number | null = null;
+    input?.addEventListener("input", () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
+      debounceTimer = window.setTimeout(() => {
+        const q = input.value.toLowerCase().trim();
+        const activeGenreBtn = document.querySelector("#paletteGenreChips .chip.active") as HTMLElement | null;
+        const activeGenre = activeGenreBtn?.dataset.genre || "all";
+
+        let filtered = FALLBACK_ANIME;
+        if (activeGenre !== "all") {
+          filtered = filtered.filter((a) => a.genres.includes(activeGenre));
+        }
+        if (q) {
+          filtered = filtered.filter((a) =>
+            a.title.toLowerCase().includes(q) ||
+            (a.romajiTitle && a.romajiTitle.toLowerCase().includes(q))
+          );
+        }
+        renderPaletteResults(filtered);
+      }, 200);
+    });
+
+    genreChips.forEach((chip) => {
+      chip.addEventListener("click", () => {
+        genreChips.forEach((c) => c.classList.remove("active"));
+        chip.classList.add("active");
+        input?.dispatchEvent(new Event("input"));
+      });
+    });
+
+    // Keyboard navigation: ArrowUp / ArrowDown / Enter
+    searchModal?.addEventListener("keydown", (e) => {
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        if (currentResults.length > 0) {
+          selectedIndex = (selectedIndex + 1) % currentResults.length;
+          updateSelectedPaletteItem();
+        }
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        if (currentResults.length > 0) {
+          selectedIndex = (selectedIndex - 1 + currentResults.length) % currentResults.length;
+          updateSelectedPaletteItem();
+        }
+      } else if (e.key === "Enter") {
+        e.preventDefault();
+        if (currentResults[selectedIndex]) {
+          this.loadAnimeIntoPlayer(currentResults[selectedIndex], 1);
+          searchModal.close();
+        }
+      }
+    });
+
+    const updateSelectedPaletteItem = () => {
+      const items = resultsContainer?.querySelectorAll(".palette-item");
+      items?.forEach((el, idx) => {
+        el.classList.toggle("selected", idx === selectedIndex);
+        if (idx === selectedIndex) {
+          (el as HTMLElement).scrollIntoView({ block: "nearest" });
+        }
+      });
+    };
+
+    // Global shortcut Ctrl+K / Cmd+K
+    window.addEventListener("keydown", (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        openPalette();
+      }
+    });
+  }
+
   private switchTab(tabName: string): void {
     this.currentTab = tabName;
-    document.querySelectorAll(".nav-tab-btn").forEach((btn) => {
+    document.querySelectorAll(".nav-tab-btn, .nav-item[data-tab]").forEach((btn) => {
       btn.classList.toggle("active", btn.getAttribute("data-tab") === tabName);
     });
     document.querySelectorAll(".tab-pane").forEach((pane) => {
@@ -202,6 +375,19 @@ class ZenkaiDesktopApp {
   }
 
   // --- 2. Anime Catalog & Discovery ---
+  private renderSkeletons(count = 12): void {
+    if (!this.trendingGrid) return;
+    this.trendingGrid.innerHTML = Array.from({ length: count }, () => `
+      <div class="anime-card skeleton-card">
+        <div class="skeleton skeleton-cover"></div>
+        <div class="anime-card-details">
+          <div class="skeleton skeleton-line"></div>
+          <div class="skeleton skeleton-line short"></div>
+        </div>
+      </div>
+    `).join("");
+  }
+
   private async fetchLiveTrendingAnime(): Promise<void> {
     try {
       const query = `
@@ -280,6 +466,16 @@ class ZenkaiDesktopApp {
     if (btnHeroDownload) {
       btnHeroDownload.onclick = () => this.triggerDownload(anime, 1);
     }
+
+    // Staggered riseIn animation (§3)
+    const heroOverlay = document.querySelector(".hero-overlay");
+    if (heroOverlay) {
+      Array.from(heroOverlay.children).forEach((child, i) => {
+        (child as HTMLElement).style.animation = "none";
+        void (child as HTMLElement).offsetHeight;
+        (child as HTMLElement).style.animation = `riseIn 0.45s ease-out ${0.05 + i * 0.06}s both`;
+      });
+    }
   }
 
   private renderAnimeGrid(animeList: AnimeItem[]): void {
@@ -291,18 +487,21 @@ class ZenkaiDesktopApp {
       card.className = "anime-card";
       card.innerHTML = `
         <div class="anime-card-cover">
-          <img src="${anime.coverImage}" alt="${anime.title}" loading="lazy" />
+          <img src="${anime.coverImage}" alt="" loading="lazy" />
           <div class="anime-card-badge">★ ${anime.score}</div>
           <div class="anime-card-episodes">${anime.episodes} EP</div>
         </div>
         <div class="anime-card-details">
-          <div class="anime-card-title">${anime.title}</div>
+          <div class="anime-card-title"></div>
           <div class="anime-card-meta">
             <span>${anime.format}</span>
             <span>${anime.year}</span>
           </div>
         </div>
       `;
+
+      const titleEl = card.querySelector(".anime-card-title");
+      if (titleEl) titleEl.textContent = anime.title;
 
       card.addEventListener("click", () => {
         this.loadAnimeIntoPlayer(anime, 1);
@@ -325,7 +524,9 @@ class ZenkaiDesktopApp {
     if (showEp) showEp.textContent = `Episode ${episode} of ${anime.episodes}`;
     if (showSyn) showSyn.textContent = anime.synopsis;
 
-    // Populate episode select options
+    // Populate episode select options; cap at 100 UI slots while AniList
+    // may report more (e.g. One Piece). In the future this should be
+    // pagination or a "?show more" overflow once the stream API supports it.
     this.selectEpisode.innerHTML = "";
     for (let i = 1; i <= Math.min(anime.episodes || 12, 100); i++) {
       const opt = document.createElement("option");
@@ -336,7 +537,7 @@ class ZenkaiDesktopApp {
     }
 
     this.switchTab("player");
-    void this.resolveAndPlayStream();
+    this.scheduleStreamResolve();
   }
 
   private async resolveAndPlayStream(): Promise<void> {
@@ -423,17 +624,108 @@ class ZenkaiDesktopApp {
       }
     });
 
+    // Dismiss toasts on click
+    this.toastContainer.addEventListener("click", (e) => {
+      const toast = (e.target as HTMLElement).closest(".toast");
+      toast?.remove();
+    });
+
+    // Keyboard shortcut: Escape closes open dialogs and clears search
+    window.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") {
+        const modal = document.querySelector<HTMLDialogElement>("dialog[open]");
+        if (modal) {
+          modal.close();
+          e.preventDefault();
+          return;
+        }
+        const searchInput = document.getElementById("searchInput") as HTMLInputElement | null;
+        if (searchInput && document.activeElement === searchInput) {
+          searchInput.value = "";
+          searchInput.dispatchEvent(new Event("input", { bubbles: true }));
+          e.preventDefault();
+        }
+      }
+    });
+
     this.selectEpisode.addEventListener("change", () => {
       this.activeEpisode = Number(this.selectEpisode.value) || 1;
-      void this.resolveAndPlayStream();
+      this.scheduleStreamResolve();
     });
 
     this.selectServer.addEventListener("change", () => {
-      void this.resolveAndPlayStream();
+      this.scheduleStreamResolve();
     });
 
     this.selectAudio.addEventListener("change", () => {
-      void this.resolveAndPlayStream();
+      this.scheduleStreamResolve();
+    });
+
+    // Grouped Server Picker Panel & ACDN Dub-Only Enforcement (§4 / D15 / Audit L5)
+    const pickerBtn = document.getElementById("serverPickerBtn");
+    const pickerPanel = document.getElementById("serverPickerPanel");
+    const currentName = document.getElementById("serverPickerCurrentName");
+    const currentTag = document.getElementById("serverPickerCurrentTag");
+    const serverOpts = document.querySelectorAll<HTMLButtonElement>(".server-opt");
+
+    pickerBtn?.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const isOpen = !pickerPanel?.hasAttribute("hidden");
+      if (isOpen) {
+        pickerPanel?.setAttribute("hidden", "");
+        pickerBtn.setAttribute("aria-expanded", "false");
+      } else {
+        pickerPanel?.removeAttribute("hidden");
+        pickerBtn.setAttribute("aria-expanded", "true");
+      }
+    });
+
+    document.addEventListener("click", (e) => {
+      if (!pickerPanel?.contains(e.target as Node) && e.target !== pickerBtn) {
+        pickerPanel?.setAttribute("hidden", "");
+        pickerBtn?.setAttribute("aria-expanded", "false");
+      }
+    });
+
+    serverOpts.forEach((opt) => {
+      opt.addEventListener("click", () => {
+        const server = opt.dataset.server || "megaplay";
+        serverOpts.forEach((o) => o.classList.toggle("active", o === opt));
+
+        this.selectServer.value = server;
+        if (currentName) {
+          currentName.textContent = server === "megaplay" ? "Megaplay" : server === "vidstream" ? "Vidstream" : "ACDN";
+        }
+        if (currentTag) {
+          if (server === "acdn") {
+            currentTag.className = "tag tag-multi";
+            currentTag.textContent = "Multi audio";
+          } else {
+            currentTag.className = "tag tag-direct";
+            currentTag.textContent = "Direct";
+          }
+        }
+
+        // ACDN Dub-Only Enforcement
+        const subOption = this.selectAudio.querySelector<HTMLOptionElement>('option[value="sub"]');
+        if (server === "acdn") {
+          this.selectAudio.value = "dub";
+          if (subOption) {
+            subOption.disabled = true;
+            subOption.textContent = "Sub (Unavailable for ACDN)";
+          }
+          this.showToast("ACDN server is English Dub only.");
+        } else {
+          if (subOption) {
+            subOption.disabled = false;
+            subOption.textContent = "Subtitled (Japanese)";
+          }
+        }
+
+        pickerPanel?.setAttribute("hidden", "");
+        pickerBtn?.setAttribute("aria-expanded", "false");
+        this.scheduleStreamResolve();
+      });
     });
 
     // PiP Button
@@ -531,10 +823,10 @@ class ZenkaiDesktopApp {
     if (items.length === 0) {
       this.downloadsContainer.innerHTML = `
         <div class="empty-state">
-          <div class="empty-state-icon">📥</div>
+          ${this.getMascotSvg()}
           <div class="empty-state-title">No Active Downloads</div>
           <div class="empty-state-text">Browse anime releases or click "Download by ID" to download episodes for offline viewing.</div>
-          <button class="action-btn primary" id="btnEmptyBrowse">Browse Anime</button>
+          <button class="action-btn primary" id="btnEmptyBrowse" style="margin:0 auto;">Browse Anime</button>
         </div>
       `;
       document.getElementById("btnEmptyBrowse")?.addEventListener("click", () => {
@@ -595,7 +887,7 @@ class ZenkaiDesktopApp {
     if (items.length === 0) {
       this.offlineContainer.innerHTML = `
         <div class="empty-state">
-          <div class="empty-state-icon">🎬</div>
+          ${this.getMascotSvg()}
           <div class="empty-state-title">Library is Empty</div>
           <div class="empty-state-text">Episodes you download will appear here, ready to watch anytime with zero internet connection.</div>
         </div>
@@ -640,6 +932,34 @@ class ZenkaiDesktopApp {
     });
   }
 
+  private getMascotSvg(): string {
+    return `
+      <svg class="mascot-icon" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="mascotGrad" x1="10" y1="10" x2="110" y2="110" gradientUnits="userSpaceOnUse">
+            <stop stop-color="#8b5cf6" />
+            <stop offset="1" stop-color="#3b82f6" />
+          </linearGradient>
+          <radialGradient id="eyeGlow" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stop-color="#ffffff" />
+            <stop offset="100%" stop-color="#c4b5fd" />
+          </radialGradient>
+        </defs>
+        <path d="M60 16C36 16 18 34 18 60C18 84 32 104 60 104C88 104 102 84 102 60C102 34 84 16 60 16Z" fill="url(#mascotGrad)" />
+        <ellipse cx="44" cy="54" rx="7" ry="9" fill="url(#eyeGlow)" />
+        <ellipse cx="76" cy="54" rx="7" ry="9" fill="url(#eyeGlow)" />
+        <circle cx="46" cy="51" r="2.5" fill="#0f1420" />
+        <circle cx="78" cy="51" r="2.5" fill="#0f1420" />
+        <ellipse cx="36" cy="65" rx="5" ry="3" fill="rgba(244, 63, 94, 0.4)" />
+        <ellipse cx="84" cy="65" rx="5" ry="3" fill="rgba(244, 63, 94, 0.4)" />
+        <path d="M52 68C56 73 64 73 68 68" stroke="#ffffff" stroke-width="3" stroke-linecap="round" />
+        <circle cx="20" cy="30" r="3" fill="#a78bfa" opacity="0.8" />
+        <circle cx="98" cy="32" r="2" fill="#38bdf8" opacity="0.8" />
+        <circle cx="104" cy="74" r="3" fill="#a78bfa" opacity="0.6" />
+      </svg>
+    `;
+  }
+
   private async removeDownloadItem(id: string): Promise<void> {
     if (window.zenkai?.downloads?.remove) {
       await window.zenkai.downloads.remove(id);
@@ -656,9 +976,11 @@ class ZenkaiDesktopApp {
     if (showEp) showEp.textContent = "Offline Local File";
 
     if (item.path) {
-      this.videoEl.src = `file://${item.path}`;
-      void this.videoEl.play();
-      this.showToast(`Playing local file: ${item.name}`);
+      if (window.zenkai?.app?.openFile) {
+        void window.zenkai.app.openFile(item.path);
+      } else {
+        this.showToast("Cannot play — desktop bridge unavailable.");
+      }
     }
   }
 
@@ -873,10 +1195,12 @@ class ZenkaiDesktopApp {
   }
 
   private applyTheme(theme: string): void {
-    if (theme === "dark") {
+    if (theme === "dark" || theme === "oled") {
       document.documentElement.dataset.theme = "oled";
     } else if (theme === "clay") {
       document.documentElement.dataset.theme = "clay";
+    } else if (theme === "light") {
+      document.documentElement.dataset.theme = "light";
     } else {
       delete document.documentElement.dataset.theme;
     }
@@ -884,10 +1208,11 @@ class ZenkaiDesktopApp {
 
   // --- 7. Actions & Web Switch ---
   private bindActions(): void {
-    // Switch to Web Portal button
+    // Switch to Web Portal button — use IPC instead of setting window.location
+    // so the security policy (will-navigate) does not block the navigation.
     const btnSwitchWeb = document.getElementById("btnSwitchWeb");
     btnSwitchWeb?.addEventListener("click", () => {
-      window.location.href = "https://zenkai-web.pages.dev/";
+      window.zenkai?.app?.loadWebPortal?.();
     });
 
     // Manual Download by ID
@@ -903,10 +1228,17 @@ class ZenkaiDesktopApp {
       const audioSelect = document.getElementById("manualAudio") as HTMLSelectElement;
       const serverSelect = document.getElementById("manualServer") as HTMLSelectElement;
 
-      const anilistId = Number(idInput?.value) || 21;
+      const anilistId = Number(idInput?.value);
       const ep = Number(epInput?.value) || 1;
       const audio = (audioSelect?.value as "sub" | "dub") || "sub";
       const server = serverSelect?.value || "megaplay";
+
+      const errEl = document.getElementById("manualAnilistIdErr");
+      if (anilistId < 1) {
+        if (errEl) errEl.style.display = "block";
+        return;
+      }
+      if (errEl) errEl.style.display = "none";
 
       const found = FALLBACK_ANIME.find((a) => a.id === anilistId) || {
         id: anilistId,
@@ -929,12 +1261,22 @@ class ZenkaiDesktopApp {
     const toast = document.createElement("div");
     toast.className = "toast";
     toast.textContent = msg;
+    toast.style.pointerEvents = "auto";
+    toast.style.cursor = "pointer";
+    toast.addEventListener("click", () => toast.remove());
     this.toastContainer.appendChild(toast);
     setTimeout(() => {
       toast.style.opacity = "0";
       toast.style.transition = "opacity 0.3s ease";
       setTimeout(() => toast.remove(), 300);
     }, 3200);
+  }
+
+  private scheduleStreamResolve(): void {
+    if (this.streamResolveTimer) clearTimeout(this.streamResolveTimer);
+    this.streamResolveTimer = window.setTimeout(() => {
+      void this.resolveAndPlayStream();
+    }, 300);
   }
 }
 

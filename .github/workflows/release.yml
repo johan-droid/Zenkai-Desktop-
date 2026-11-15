@@ -46,7 +46,10 @@ jobs:
         run: pnpm build
 
       - name: Package Linux distributions (AppImage, deb, rpm)
-        run: pnpm exec electron-builder --linux -c.linux.target=AppImage -c.linux.target=deb -c.linux.target=rpm
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: pnpm exec electron-builder --linux -p never
 
       - name: Generate Linux SHA-256 checksums
         shell: bash
@@ -92,9 +95,11 @@ jobs:
 
       - name: Package Windows distributions (NSIS Setup & Portable Zip)
         env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CSC_LINK: ${{ secrets.CSC_LINK }}
           CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
-        run: pnpm exec electron-builder --win -c.win.target=nsis -c.win.target=zip
+        run: pnpm exec electron-builder --win -p never
 
       - name: Generate Windows SHA-256 checksums
         shell: pwsh
@@ -139,10 +144,12 @@ jobs:
 
       - name: Package macOS distributions (DMG & Zip)
         env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-        run: pnpm exec electron-builder --mac -c.mac.target=dmg -c.mac.target=zip
+        run: pnpm exec electron-builder --mac -p never
 
       - name: Generate macOS SHA-256 checksums
         shell: bash

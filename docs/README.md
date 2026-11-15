@@ -15,6 +15,7 @@ cross-platform Electron shell.
 
 | Doc | Contents |
 |---|---|
+| [ENGINEERING_QUALITY_GATES.md](ENGINEERING_QUALITY_GATES.md) | **Mandatory engineering standard**: 14-stage lifecycle, UI consistency, 15-state testing, stress budgets, dual-agent verification, 12 release gates |
 | [01-context.md](01-context.md) | Agent rules, verified facts, locked decisions, OS support matrix, blockers, risks |
 | [02-reference.md](02-reference.md) | Exact config blocks: shared config, `webPreferences`, CSP, allowlist, IPC contract, feature-parity tables, packaging config, commands |
 | [03-execution-phases.md](03-execution-phases.md) | Phase-wise execution plan: Phases 0–6 with tasks T1–T17, inputs, files, steps, acceptance criteria, phase exit gates |

@@ -91,5 +91,15 @@ export function buildMenu(): void {
       ],
     },
   ];
-  Menu.setApplicationMenu(Menu.buildFromTemplate(template));
+  const menu = Menu.buildFromTemplate(template);
+  Menu.setApplicationMenu(menu);
+
+  if (!isMac) {
+    for (const win of BrowserWindow.getAllWindows()) {
+      if (!win.isDestroyed()) {
+        win.setAutoHideMenuBar(true);
+        win.setMenuBarVisibility(false);
+      }
+    }
+  }
 }

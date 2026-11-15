@@ -232,6 +232,9 @@ export function setupAutoUpdater(): void {
   autoUpdater.checkForUpdates().catch((err) => {
     console.warn("[updater] initial check failed:", err.message);
   });
+  checkForUpdatesClient().catch((err) => {
+    console.warn("[updater] initial GitHub check failed:", err.message);
+  });
 
   // Recurring check every 6 hours
   setInterval(() => {
@@ -241,6 +244,9 @@ export function setupAutoUpdater(): void {
     }
     autoUpdater.checkForUpdates().catch((err) => {
       console.warn("[updater] interval check failed:", err.message);
+    });
+    checkForUpdatesClient().catch((err) => {
+      console.warn("[updater] interval GitHub check failed:", err.message);
     });
   }, CHECK_INTERVAL_MS);
 }
@@ -298,31 +304,56 @@ export async function checkForUpdatesClient(): Promise<UpdateCheckResult> {
         let matchingAssetName: string | undefined;
         let isLinuxNative = false;
 
-        // On Linux native package (non-AppImage), locate .deb / .rpm asset for 1-click download
-        if (process.platform === "linux" && !process.env.APPIMAGE && newest.assets) {
-          const pref = detectLinuxPackagePreference();
-          const suffixes = getArchSuffixes();
-          const preferredExt = `.${pref}`;
-          const targetSuffixes = suffixes[pref];
+        // Locate matching platform asset from GitHub release assets
+        if (newest.assets && newest.assets.length > 0) {
+          if (process.platform === "win32") {
+            const winAsset =
+              newest.assets.find((a) => a.name.toLowerCase().endsWith(".exe") && a.name.toLowerCase().includes("setup")) ||
+              newest.assets.find((a) => a.name.toLowerCase().endsWith(".exe"));
+            if (winAsset) {
+              matchingAssetUrl = winAsset.browser_download_url;
+              matchingAssetName = winAsset.name;
+            }
+          } else if (process.platform === "linux") {
+            if (process.env.APPIMAGE || (!fs.existsSync("/etc/debian_version") && !fs.existsSync("/etc/redhat-release"))) {
+              const appImageAsset = newest.assets.find((a) => a.name.toLowerCase().endsWith(".appimage"));
+              if (appImageAsset) {
+                matchingAssetUrl = appImageAsset.browser_download_url;
+                matchingAssetName = appImageAsset.name;
+              }
+            }
+            if (!matchingAssetName) {
+              const pref = detectLinuxPackagePreference();
+              const suffixes = getArchSuffixes();
+              const preferredExt = `.${pref}`;
+              const targetSuffixes = suffixes[pref];
 
-          let asset = newest.assets.find((a) => {
-            const lower = a.name.toLowerCase();
-            return lower.endsWith(preferredExt) && targetSuffixes.some((s) => lower.includes(s));
-          });
+              let asset = newest.assets.find((a) => {
+                const lower = a.name.toLowerCase();
+                return lower.endsWith(preferredExt) && targetSuffixes.some((s) => lower.includes(s));
+              });
 
-          if (!asset) {
-            asset = newest.assets.find((a) => a.name.toLowerCase().endsWith(preferredExt));
-          }
-          if (!asset) {
-            asset = newest.assets.find(
-              (a) => a.name.toLowerCase().endsWith(".deb") || a.name.toLowerCase().endsWith(".rpm"),
-            );
-          }
+              if (!asset) {
+                asset = newest.assets.find((a) => a.name.toLowerCase().endsWith(preferredExt));
+              }
+              if (!asset) {
+                asset = newest.assets.find(
+                  (a) => a.name.toLowerCase().endsWith(".deb") || a.name.toLowerCase().endsWith(".rpm") || a.name.toLowerCase().endsWith(".appimage"),
+                );
+              }
 
-          if (asset) {
-            matchingAssetUrl = asset.browser_download_url;
-            matchingAssetName = asset.name;
-            isLinuxNative = true;
+              if (asset) {
+                matchingAssetUrl = asset.browser_download_url;
+                matchingAssetName = asset.name;
+                isLinuxNative = !asset.name.toLowerCase().endsWith(".appimage");
+              }
+            }
+          } else if (process.platform === "darwin") {
+            const macAsset = newest.assets.find((a) => a.name.toLowerCase().endsWith(".dmg"));
+            if (macAsset) {
+              matchingAssetUrl = macAsset.browser_download_url;
+              matchingAssetName = macAsset.name;
+            }
           }
         }
 
@@ -384,20 +415,12 @@ export async function startUpdateDownload(): Promise<{ success: boolean; message
       await autoUpdater.downloadUpdate();
       return { success: true };
     } catch (err) {
-      console.warn("[updater] autoUpdater.downloadUpdate failed:", err);
-      if (latestUpdateResult?.assetUrl) {
-        shell.openExternal(latestUpdateResult.assetUrl);
-        return { success: true, message: "Opened download link in browser" };
-      }
+      console.warn("[updater] autoUpdater.downloadUpdate failed, attempting direct binary pull:", err);
     }
   }
 
-  // 2. Linux native package (.deb / .rpm) -> Download directly to Downloads folder (Option B)
-  if (
-    latestUpdateResult?.isLinuxNativePackage &&
-    latestUpdateResult.assetUrl &&
-    latestUpdateResult.assetName
-  ) {
+  // 2. Direct binary pull from GitHub Releases to Downloads directory
+  if (latestUpdateResult?.assetUrl && latestUpdateResult?.assetName) {
     try {
       broadcastToWindows("updater:status", { status: "downloading", progress: 0 });
       const targetDir = app.getPath("downloads");
@@ -418,7 +441,7 @@ export async function startUpdateDownload(): Promise<{ success: boolean; message
           showNotification({
             id: `update-downloaded-${latestUpdateResult.version}`,
             title: "⚡ Zenkai Desktop Downloaded",
-            body: `Package ${latestUpdateResult.assetName} saved to Downloads. Click to view or install.`,
+            body: `Package ${latestUpdateResult.assetName} saved to Downloads. Click to apply update.`,
           });
         } catch {
           // ignore
@@ -428,7 +451,7 @@ export async function startUpdateDownload(): Promise<{ success: boolean; message
       return { success: true, message: `Package saved to ${targetFile}` };
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      console.warn("[updater] direct download to Downloads folder failed:", msg);
+      console.warn("[updater] direct download failed:", msg);
       broadcastToWindows("updater:status", { status: "error", error: msg });
       if (latestUpdateResult.assetUrl) {
         shell.openExternal(latestUpdateResult.assetUrl);
@@ -456,18 +479,38 @@ export async function applyUpdateAndRestart(): Promise<void> {
     throw new Error("Cannot restart while media playback is in progress.");
   }
 
-  if (app.isPackaged && (process.platform === "win32" || process.env.APPIMAGE)) {
-    autoUpdater.quitAndInstall();
-    return;
+  try {
+    if (app.isPackaged && (process.platform === "win32" || process.env.APPIMAGE)) {
+      autoUpdater.quitAndInstall();
+      return;
+    }
+  } catch (err) {
+    console.warn("[updater] autoUpdater.quitAndInstall threw, checking direct downloaded file:", err);
   }
 
-  // If a Linux package was downloaded to Downloads folder
+  // If a binary package was downloaded directly
   if (downloadedPackagePath && fs.existsSync(downloadedPackagePath)) {
+    if (process.platform === "win32" && downloadedPackagePath.endsWith(".exe")) {
+      shell.openPath(downloadedPackagePath);
+      setTimeout(() => app.quit(), 500);
+      return;
+    }
+    if (process.platform === "linux") {
+      if (downloadedPackagePath.endsWith(".AppImage")) {
+        try {
+          fs.chmodSync(downloadedPackagePath, 0o755);
+        } catch {}
+        shell.openPath(downloadedPackagePath);
+        setTimeout(() => app.quit(), 500);
+        return;
+      }
+      shell.showItemInFolder(downloadedPackagePath);
+      return;
+    }
     shell.showItemInFolder(downloadedPackagePath);
     return;
   }
 
-  // For non-AppImage packages fallback
   shell.openExternal("https://github.com/johan-droid/Zenkai-Desktop-/releases/latest");
 }
 

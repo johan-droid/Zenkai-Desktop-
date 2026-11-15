@@ -65,6 +65,7 @@ export function createMainWindow(): BrowserWindow {
     minHeight: 600,
     show: false,
     icon: iconPath,
+    autoHideMenuBar: true,
     titleBarStyle: process.platform === "darwin" ? "hiddenInset" : "default",
     trafficLightPosition: process.platform === "darwin" ? { x: 16, y: 14 } : undefined,
     webPreferences: {
@@ -96,6 +97,10 @@ export function createMainWindow(): BrowserWindow {
     void win.loadFile(target.path);
   } else {
     void win.loadURL(target.path);
+  }
+
+  if (process.platform !== "darwin") {
+    win.setMenuBarVisibility(false);
   }
 
   return win;

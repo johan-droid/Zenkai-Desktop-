@@ -16,6 +16,7 @@ import { ApiIntro } from './components/ApiIntro'
 import { WelcomeNotes } from './components/WelcomeNotes'
 import { ShortcutsHelp } from './components/ShortcutsHelp'
 import { Toaster } from './components/Toaster'
+import { UpdatePrompt } from './components/UpdatePrompt'
 import { MovieSearchModal } from './components/MovieSearchModal'
 import { SearchModal } from './components/SearchModal'
 import { ChangelogModal } from './components/ChangelogModal'
@@ -241,6 +242,7 @@ export default function App() {
       {!bare && !isApi && !inChat && <MobileDock onOpenDrawer={() => setDrawerOpen(true)} />}
       {!bare && !isApi && section === 'movies' ? <MovieSearchModal /> : <SearchModal />}
       <Toaster />
+      <UpdatePrompt />
       <ShortcutsHelp />
       <ShieldGate />
       <ChangelogModal />

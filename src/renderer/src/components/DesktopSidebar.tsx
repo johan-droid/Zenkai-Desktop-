@@ -17,9 +17,11 @@ import {
   Heart,
   Sparkles,
   Download,
+  RefreshCw,
   type LucideIcon,
 } from 'lucide-react'
 import { cn } from '../lib/utils'
+import { toast } from '../lib/toast'
 import { useSearch } from '../context/SearchContext'
 import { useProfile } from '../lib/profile'
 import { useAuth } from '../context/AuthContext'
@@ -98,6 +100,24 @@ export const DesktopSidebar = memo(function DesktopSidebar({ collapsed, onToggle
   const { user } = useAuth()
   const profile = useProfile()
   const [activeDownloads, setActiveDownloads] = useState(0)
+  const [checkingUpdates, setCheckingUpdates] = useState(false)
+
+  const handleCheckUpdates = async () => {
+    if (!window.zenkai?.app || checkingUpdates) return
+    setCheckingUpdates(true)
+    try {
+      const res = await window.zenkai.app.checkUpdate()
+      if (res?.updateAvailable) {
+        toast(`Update v${res.version} available! Check bottom right prompt.`, 'success')
+      } else {
+        toast('Zenkai Desktop is up to date', 'info')
+      }
+    } catch {
+      toast('Failed to check for updates', 'error')
+    } finally {
+      setCheckingUpdates(false)
+    }
+  }
 
   useEffect(() => {
     if (typeof window === 'undefined' || !window.zenkai?.downloads) return
@@ -176,6 +196,26 @@ export const DesktopSidebar = memo(function DesktopSidebar({ collapsed, onToggle
         {MORE.map((item) => (
           <NavItem key={item.label} item={item} collapsed={collapsed} active={Boolean(item.match?.(pathname))} />
         ))}
+
+        {collapsed ? (
+          <button
+            type="button"
+            onClick={handleCheckUpdates}
+            title="Check for updates"
+            className={cn(iconBtn, 'size-11 mx-auto rounded-2xl')}
+          >
+            <RefreshCw className={cn('size-4', checkingUpdates && 'animate-spin text-accent')} />
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={handleCheckUpdates}
+            className="flex w-full items-center gap-3.5 rounded-2xl px-3.5 py-2 text-[13px] font-medium text-muted transition hover:bg-foreground/[0.06] hover:text-foreground active:scale-95"
+          >
+            <RefreshCw className={cn('size-4 shrink-0', checkingUpdates && 'animate-spin text-accent')} />
+            <span>{checkingUpdates ? 'Checking for updates...' : 'Check for updates'}</span>
+          </button>
+        )}
 
         <div className={cn('flex items-center', collapsed ? 'justify-center py-1' : 'justify-between px-3 py-1')}>
           {!collapsed && <span className="text-xs text-muted font-medium">Appearance</span>}

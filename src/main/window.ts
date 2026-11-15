@@ -3,7 +3,7 @@ import fs from "node:fs";
 import { join } from "node:path";
 import { WEB_URL } from "../shared/config";
 import { getSettings, updateSettings } from "./settings";
-import { getActiveRendererPath } from "./renderer-updater";
+import { getActiveRendererPath, setupCanaryHealthCheck } from "./renderer-updater";
 
 export function getAppEntryTarget(): { type: "url" | "file"; path: string } {
   const customUrl = process.env.ZENKAI_WEB_URL;
@@ -72,6 +72,7 @@ export function createMainWindow(): BrowserWindow {
 
   const target = getAppEntryTarget();
   if (target.type === "file") {
+    setupCanaryHealthCheck(win, target.path);
     void win.loadFile(target.path);
   } else {
     void win.loadURL(target.path);

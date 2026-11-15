@@ -1,4 +1,4 @@
-import { app } from "electron";
+import { app, type BrowserWindow } from "electron";
 import crypto from "node:crypto";
 import fs from "node:fs";
 import { join } from "node:path";
@@ -178,5 +178,66 @@ export function rollbackRenderer(reason = "manual"): boolean {
     console.error("[renderer-updater] rollback error:", err);
     return false;
   }
+}
+
+/**
+ * 5-second canary health check for OTA renderer updates.
+ * If the loaded active renderer crashes (render-process-gone) or fails to load within 5s,
+ * it rolls back to the previous/bundled build and reloads the window.
+ */
+export function setupCanaryHealthCheck(win: BrowserWindow, loadedPath: string): () => void {
+  // Only monitor if loading an OTA build from the renderer-updates directory
+  const isOtaBuild = loadedPath.includes("renderer-updates");
+  if (!isOtaBuild) {
+    return () => {};
+  }
+
+  let timer: NodeJS.Timeout | null = null;
+  let cleanedUp = false;
+
+  const performRollback = (reason: string) => {
+    if (cleanedUp) return;
+    cleanup();
+    console.warn(`[canary] OTA renderer health check failed: ${reason}. Rolling back...`);
+    rollbackRenderer(reason);
+    if (!win.isDestroyed()) {
+      const fallback = join(__dirname, "../renderer/index.html");
+      void win.loadFile(fallback);
+    }
+  };
+
+  const onCrash = (_e: unknown, details: unknown) => {
+    performRollback(`render-process-gone: ${JSON.stringify(details)}`);
+  };
+
+  const onFailLoad = (_e: unknown, errorCode: number, errorDescription: string) => {
+    performRollback(`did-fail-load: ${errorCode} - ${errorDescription}`);
+  };
+
+  const cleanup = () => {
+    cleanedUp = true;
+    if (timer) {
+      clearTimeout(timer);
+      timer = null;
+    }
+    if (!win.isDestroyed() && win.webContents) {
+      win.webContents.removeListener("render-process-gone", onCrash);
+      win.webContents.removeListener("did-fail-load", onFailLoad);
+    }
+  };
+
+  if (!win.isDestroyed() && win.webContents) {
+    win.webContents.once("render-process-gone", onCrash);
+    win.webContents.once("did-fail-load", onFailLoad);
+  }
+
+  timer = setTimeout(() => {
+    if (!cleanedUp) {
+      console.info("[canary] OTA renderer passed 5-second health check");
+      cleanup();
+    }
+  }, 5000);
+
+  return cleanup;
 }
 

@@ -55,5 +55,38 @@ if (typeof window !== "undefined") {
       const v = document.getElementById("zenkaiVideo") as HTMLVideoElement | null;
       if (v && !v.paused) v.pause();
     });
+
+    // Capture media play/pause/ended globally to inform main process of playback state
+    const notifyPlayback = (isPlaying: boolean) => {
+      try {
+        ipcRenderer.send("playback:state", { isPlaying });
+      } catch {
+        // ignore if ipc is tearing down
+      }
+    };
+
+    document.addEventListener(
+      "play",
+      (e) => {
+        if (e.target instanceof HTMLMediaElement) notifyPlayback(true);
+      },
+      true,
+    );
+
+    document.addEventListener(
+      "pause",
+      (e) => {
+        if (e.target instanceof HTMLMediaElement) notifyPlayback(false);
+      },
+      true,
+    );
+
+    document.addEventListener(
+      "ended",
+      (e) => {
+        if (e.target instanceof HTMLMediaElement) notifyPlayback(false);
+      },
+      true,
+    );
   });
 }

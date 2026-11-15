@@ -148,4 +148,24 @@ describe("auto-updater decisions (T14)", () => {
     delete process.env.APPIMAGE;
     h.autoUpdater.checkForUpdates.mockResolvedValue(undefined);
   });
+
+  it("active playback guard: applyUpdateAndRestart throws when media playback is active", async () => {
+    const { applyUpdateAndRestart } = await freshSetup();
+    const { setPlaybackState } = await import("../../src/main/playback");
+    setPlaybackState(true);
+
+    await expect(applyUpdateAndRestart()).rejects.toThrow(/media playback is in progress/);
+    setPlaybackState(false);
+  });
+
+  it("active playback guard: startUpdateDownload defers when media playback is active", async () => {
+    const { startUpdateDownload } = await freshSetup();
+    const { setPlaybackState } = await import("../../src/main/playback");
+    setPlaybackState(true);
+
+    const res = await startUpdateDownload();
+    expect(res.success).toBe(false);
+    expect(res.message).toMatch(/media playback is in progress/);
+    setPlaybackState(false);
+  });
 });

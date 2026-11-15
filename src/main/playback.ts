@@ -1,6 +1,16 @@
 import type { BrowserWindow } from "electron";
 import { getSettings } from "./settings";
 
+let isCurrentlyPlaying = false;
+
+export function setPlaybackState(playing: boolean): void {
+  isCurrentlyPlaying = playing;
+}
+
+export function isPlaybackActive(): boolean {
+  return isCurrentlyPlaying;
+}
+
 export function sendPlaybackPause(win: BrowserWindow): void {
   if (win.isDestroyed()) return;
   win.webContents.send("playback:pause");

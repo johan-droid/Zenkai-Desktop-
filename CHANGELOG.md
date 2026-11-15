@@ -7,6 +7,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [Unreleased]
+
+### Added
+- **Desktop & Updates Settings Hub**: Integrated desktop-specific configuration panel inside `ProfilePage.tsx` with release channel switching (`stable` vs `beta`), manual update checks, and download storage folder opener.
+- **Playback Health Center**: Real-time diagnostic latency probes to AniList GraphQL API, GitHub Releases, and Cloud CDN.
+
+---
+
+## [0.0.2] - 2026-11-15
+
+### Major Milestone — Authentic React 19 Engine Integration, Dual-Track Updates & Playback Protection
+
+### Added
+* **Authentic React 19 WebApp Integration**:
+  * Direct integration of the authentic production frontend from `nyyrox2/Zenkai` into the standalone Electron client.
+  * Over 36 complete pages and 113 UI components including `DesktopSidebar`, `MobileDock`, and `DiscoverHero`.
+  * **CinePlayer Playback Engine**: Multi-server streaming (MegaPlay, Vidstream, FlixCloud, AnimeSalt, ACDN) with instant failover.
+  * **WebGPU Neural Upscaler**: Hardware-accelerated Anime4K GLSL/WGSL shader pipeline running locally on the desktop GPU.
+  * **Advanced Subtitle Engine**: OctoSub / JSSubtitles WebGL parser supporting ASS/SSA styled karaoke, positioning, and font styling, alongside SRT/VTT.
+  * **Multi-Track Audio**: Native sub and dub stream switching directly in the player.
+  * **Manga & Novel Readers**: Continuous vertical webtoon scroll, single/double page reading, chapter caching, and EPUB/text reading progress synchronization.
+  * **Movies & TV Series**: TMDB catalog integration with season/episode browsing.
+* **Dual-Track Update Management Engine**:
+  * **Track A (Over-The-Air Frontend Updates)**: Independent renderer updates without requiring full desktop reinstalls, verified via SHA-256 integrity checks.
+  * **5-Second Canary Health Check & Rollback**: OTA updates are monitored for 5 seconds after window creation; any crash or fatal load failure triggers an automatic rollback to the known-good previous build or the bundled offline fallback.
+  * **Track B (Native Runtime Updates)**: Differential update delivery via `electron-updater` (Windows NSIS / Linux AppImage) and direct one-click downloads for Linux native packages (`.deb` / `.rpm`) into the user's `Downloads` folder.
+  * **Active Playback Guard**: Zero-interruption invariant; suppresses intrusive popups, background bandwidth consumption, and application restarts while video playback is active.
+* **Anti-Cross-Title Deterministic Identity Resolution**:
+  * Canonical AniList ID mapping (`public/anime-mapping.json` & `server/mapping.js`) preventing cross-title stream pollution across disparate upstream provider scrapers.
+  * Title integrity validation in stream resolver discarding corrupted or mismatched episode streams.
+
+### Fixed
+* Fixed cross-title playback mix-ups where disparate provider IDs returned wrong show streams.
+* Resolved Electron singleton lock collisions during headless testing.
+* Fixed WebGPU types and TypeScript ambient declarations for Vite production builds.
+
+---
+
 ## [0.0.1] - 2026-11-15
 
 ### Initial Release — Standalone Architecture, Secure HLS Engine & Multi-Platform Packaging

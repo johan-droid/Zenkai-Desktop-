@@ -101,3 +101,4 @@ The baseline architecture is validated:
 - Unpacked Linux binary boots and operates cleanly without errors.
 - Unpacked Windows PE binary generates with valid ASAR integrity checksums.
 - Zero mock data or test harnesses present in production paths.
+

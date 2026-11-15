@@ -91,3 +91,4 @@ Because the dynamic linker cannot read binary symbols through the ASAR virtual f
 3. **Sandbox:** Chromium renderer sandbox is enabled (`sandbox: true`).
 4. **Content Security Policy & Iframe Sandboxing:** All third-party video embeds run inside sandboxed iframes (`sandbox="allow-scripts allow-same-origin allow-forms allow-presentation"`).
 5. **Protocol Isolation:** Deep link handler parses `zenkai://` URLs with strict URL validation, rejecting any attempt to inject shell command flags.
+

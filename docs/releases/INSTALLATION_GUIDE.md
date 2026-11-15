@@ -117,3 +117,4 @@ Because initial releases may not possess an enterprise EV code signing certifica
 ### Hardware Acceleration & Zenkai Vision
 - To verify GPU acceleration, navigate to **Settings** → **Zenkai Vision** inside the app.
 - On systems with dedicated NVIDIA or AMD GPUs, DirectML (Windows) or CUDA/Vulkan (Linux) acceleration is activated automatically.
+

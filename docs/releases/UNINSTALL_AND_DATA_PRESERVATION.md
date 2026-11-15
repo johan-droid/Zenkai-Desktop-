@@ -77,3 +77,4 @@ rm -rf ~/.cache/Zenkai
 Remove-Item -Recurse -Force "$env:APPDATA\Zenkai"
 Remove-Item -Recurse -Force "$env:LOCALAPPDATA\Zenkai"
 ```
+

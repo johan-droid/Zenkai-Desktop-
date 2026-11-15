@@ -100,3 +100,4 @@ cd dist
 sha256sum linux/* windows/* > SHA256SUMS.txt
 cat SHA256SUMS.txt
 ```
+

@@ -11,6 +11,7 @@ export class VisionWorkerManager {
   private lastError?: string;
   private lastHeartbeat?: number;
   private listeners: Set<(status: VisionWorkerStatus) => void> = new Set();
+  private jobProgressListeners: Set<(p: any) => void> = new Set();
   private pendingRequests: Map<string, { resolve: (val: any) => void; reject: (err: any) => void; timer: NodeJS.Timeout }> = new Map();
 
   constructor() {
@@ -32,6 +33,19 @@ export class VisionWorkerManager {
   public onStatusChange(cb: (status: VisionWorkerStatus) => void): () => void {
     this.listeners.add(cb);
     return () => this.listeners.delete(cb);
+  }
+
+  public onJobProgress(cb: (p: any) => void): () => void {
+    this.jobProgressListeners.add(cb);
+    return () => this.jobProgressListeners.delete(cb);
+  }
+
+  private emitJobProgress(p: any): void {
+    for (const l of this.jobProgressListeners) {
+      try {
+        l(p);
+      } catch {}
+    }
   }
 
   private emitStatus() {
@@ -104,6 +118,10 @@ export class VisionWorkerManager {
       // Setup IPC message router
       child.on('message', (msg: any) => {
         if (!msg || typeof msg !== 'object') return;
+
+        if (msg.type === 'job:progress' && msg.payload) {
+          this.emitJobProgress(msg.payload);
+        }
 
         if (msg.id && this.pendingRequests.has(msg.id)) {
           const req = this.pendingRequests.get(msg.id)!;

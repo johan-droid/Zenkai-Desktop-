@@ -28,6 +28,27 @@ declare global {
         loadWebPortal?: () => void;
         onStatus: (cb: (p: IpcEvents["updater:status"]) => void) => () => void;
       };
+      vision: {
+        getHardwareProfile: IpcContract["vision:getHardwareProfile"];
+        runDiagnostics: IpcContract["vision:runDiagnostics"];
+        getWorkerStatus: IpcContract["vision:getWorkerStatus"];
+        startWorker: IpcContract["vision:startWorker"];
+        stopWorker: IpcContract["vision:stopWorker"];
+        getModels: IpcContract["vision:getModels"];
+        verifyModel: IpcContract["vision:verifyModel"];
+        runBenchmark: IpcContract["vision:runBenchmark"];
+        probeVideo: IpcContract["vision:probeVideo"];
+        getJobs: IpcContract["vision:getJobs"];
+        createJob: IpcContract["vision:createJob"];
+        pauseJob: IpcContract["vision:pauseJob"];
+        resumeJob: IpcContract["vision:resumeJob"];
+        cancelJob: IpcContract["vision:cancelJob"];
+        deleteJob: IpcContract["vision:deleteJob"];
+        clearCompletedJobs: IpcContract["vision:clearCompletedJobs"];
+        onWorkerStatusChanged: (cb: (p: IpcEvents["vision:workerStatusChanged"]) => void) => () => void;
+        onJobProgress: (cb: (p: IpcEvents["vision:jobProgress"]) => void) => () => void;
+        onJobListChanged: (cb: (p: IpcEvents["vision:jobListChanged"]) => void) => () => void;
+      };
       onPlaybackPause: (cb: () => void) => () => void;
       onNotifyClick: (cb: (p: IpcEvents["notify:click"]) => void) => () => void;
       onAuthCallback: (cb: (p: IpcEvents["auth:callback"]) => void) => () => void;

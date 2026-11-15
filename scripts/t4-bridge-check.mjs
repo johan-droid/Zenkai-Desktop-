@@ -119,6 +119,19 @@ try {
     `modelsCount=${models?.length}`,
   );
 
+  const jobs = JSON.parse(
+    await cdp("Runtime.evaluate", {
+      expression: "window.zenkai.vision.getJobs().then(j => JSON.stringify(j))",
+      awaitPromise: true,
+      returnByValue: true,
+    }),
+  );
+  check(
+    "IPC round trip vision.getJobs()",
+    Array.isArray(jobs),
+    `jobsCount=${jobs?.length}`,
+  );
+
   const version = await cdp("Runtime.evaluate", {
     expression: "window.zenkai.app.version()",
     awaitPromise: true,

@@ -64,6 +64,7 @@ const DocsPage = lazy(() => import('./pages/DocsPage'))
 const CallPage = lazy(() => import('./pages/CallPage'))
 const ExtensionGuidePage = lazy(() => import('./pages/ExtensionGuidePage'))
 const SupportPage = lazy(() => import('./pages/SupportPage'))
+const VisionStudioPage = lazy(() => import('./pages/VisionStudioPage'))
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage'))
 
 export default function App() {
@@ -211,6 +212,7 @@ export default function App() {
               <Route path="/api" element={<DocsPage />} />
               <Route path="/api/docs" element={<DocsPage />} />
               <Route path="/docs" element={<DocsPage />} />
+              <Route path="/vision" element={<VisionStudioPage />} />
               <Route path="/support" element={<SupportPage />} />
               <Route path="/busted" element={<BustedPage />} />
               <Route path="*" element={<NotFoundPage />} />

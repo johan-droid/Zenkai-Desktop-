@@ -87,8 +87,8 @@ export function DesktopSettingsCard() {
 
     void window.zenkai.settings.get().then((s) => setSettings(s))
     void window.zenkai.app.version().then((v) => setAppVersion(v))
-    void (window.zenkai as any).vision?.getHardwareProfile().then((p: VisionHardwareProfile) => setVisionProfile(p))
-    void (window.zenkai as any).vision?.getWorkerStatus().then((s: VisionWorkerStatus) => setVisionWorkerStatus(s))
+    void window.zenkai.vision?.getHardwareProfile().then((p: VisionHardwareProfile) => setVisionProfile(p))
+    void window.zenkai.vision?.getWorkerStatus().then((s: VisionWorkerStatus) => setVisionWorkerStatus(s))
 
     const unsubscribe = window.zenkai.app.onStatus((status) => {
       setUpdaterStatus(status)
@@ -105,7 +105,7 @@ export function DesktopSettingsCard() {
   }, [])
 
   const runVisionDiagnostics = useCallback(async () => {
-    const v = (window.zenkai as any)?.vision
+    const v = window.zenkai?.vision
     if (!v) return
     setProbingVision(true)
     try {

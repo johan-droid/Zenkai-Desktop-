@@ -45,8 +45,20 @@ contextBridge.exposeInMainWorld("zenkai", {
     getModels: call("vision:getModels"),
     verifyModel: call("vision:verifyModel"),
     runBenchmark: call("vision:runBenchmark"),
+    probeVideo: call("vision:probeVideo"),
+    getJobs: call("vision:getJobs"),
+    createJob: call("vision:createJob"),
+    pauseJob: call("vision:pauseJob"),
+    resumeJob: call("vision:resumeJob"),
+    cancelJob: call("vision:cancelJob"),
+    deleteJob: call("vision:deleteJob"),
+    clearCompletedJobs: call("vision:clearCompletedJobs"),
     onWorkerStatusChanged: (cb: (p: IpcEvents["vision:workerStatusChanged"]) => void) =>
       on("vision:workerStatusChanged", cb),
+    onJobProgress: (cb: (p: IpcEvents["vision:jobProgress"]) => void) =>
+      on("vision:jobProgress", cb),
+    onJobListChanged: (cb: (p: IpcEvents["vision:jobListChanged"]) => void) =>
+      on("vision:jobListChanged", cb),
   },
   onPlaybackPause: (cb: () => void) => on("playback:pause", () => cb()),
   onNotifyClick: (cb: (p: IpcEvents["notify:click"]) => void) =>

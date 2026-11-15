@@ -15,6 +15,7 @@ import {
   Users,
   MessageSquare,
   Heart,
+  Sparkles,
   type LucideIcon,
 } from 'lucide-react'
 import { cn } from '../lib/utils'
@@ -39,6 +40,7 @@ const MAIN: Item[] = [
   { label: 'Schedule', to: '/schedule', icon: CalendarDays, match: (p) => p.startsWith('/schedule') },
   { label: 'Manga', to: '/manga', icon: BookOpen, match: (p) => p.startsWith('/manga') },
   { label: 'Novels', to: '/novel', icon: Book, match: (p) => p.startsWith('/novel') },
+  { label: 'Vision Studio', to: '/vision', icon: Sparkles, match: (p) => p.startsWith('/vision') },
 ]
 
 const MORE: Item[] = [

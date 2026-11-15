@@ -34,3 +34,4 @@ ipcMain.handle("updater:install", async (_e, raw: unknown) => {
   }
   return await applyUpdateAndRestart();
 });
+

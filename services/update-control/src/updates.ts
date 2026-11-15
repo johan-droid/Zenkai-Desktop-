@@ -74,3 +74,4 @@ export class UpdateRegistry {
     return evaluateUpdateEligibility(this.getAllReleases(), params);
   }
 }
+

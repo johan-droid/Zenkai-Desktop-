@@ -48,3 +48,4 @@ export interface UpdateCheckResult {
   metadataUrl?: string;
   reason?: string;
 }
+

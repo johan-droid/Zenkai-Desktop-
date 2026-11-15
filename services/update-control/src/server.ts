@@ -170,3 +170,4 @@ if (process.argv[1]?.endsWith("server.ts") || process.argv[1]?.endsWith("server.
     console.log(`[update-control] server listening on port ${p}`);
   });
 }
+

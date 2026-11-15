@@ -1,0 +1,145 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 675" width="1200" height="675">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0a0a0c" />
+      <stop offset="50%" stop-color="#121318" />
+      <stop offset="100%" stop-color="#0d0e12" />
+    </linearGradient>
+    <linearGradient id="accent" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3b82f6" />
+      <stop offset="100%" stop-color="#8b5cf6" />
+    </linearGradient>
+    <linearGradient id="cardBg" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#1a1c23" stop-opacity="0.8" />
+      <stop offset="100%" stop-color="#121318" stop-opacity="0.9" />
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#000000" flood-opacity="0.6" />
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="675" fill="url(#bg)" />
+
+  <!-- Window Frame -->
+  <g transform="translate(60, 40)" filter="url(#shadow)">
+    <!-- Outer Window Border -->
+    <rect width="1080" height="595" rx="16" fill="#121318" stroke="#262934" stroke-width="1.5" />
+
+    <!-- Titlebar -->
+    <rect width="1080" height="42" rx="16" fill="#171922" />
+    <rect y="26" width="1080" height="16" fill="#171922" />
+    <line x1="0" y1="42" x2="1080" y2="42" stroke="#262934" stroke-width="1" />
+
+    <!-- Window Controls (Traffic Lights) -->
+    <circle cx="28" cy="21" r="6" fill="#ef4444" />
+    <circle cx="48" cy="21" r="6" fill="#f59e0b" />
+    <circle cx="68" cy="21" r="6" fill="#10b981" />
+
+    <!-- Titlebar Text -->
+    <text x="540" y="26" fill="#94a3b8" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="13" font-weight="500" text-anchor="middle">Zenkai Desktop ⚡ Standalone Anime Player &amp; Library</text>
+
+    <!-- Sidebar -->
+    <rect y="42" width="220" height="553" fill="#13151c" />
+    <line x1="220" y1="42" x2="220" y2="595" stroke="#262934" stroke-width="1" />
+
+    <!-- Brand Header -->
+    <text x="24" y="82" fill="#ffffff" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="18" font-weight="700">ZENKAI <tspan fill="#3b82f6">⚡</tspan></text>
+    <text x="24" y="98" fill="#64748b" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="11">Desktop v0.0.1</text>
+
+    <!-- Navigation Items -->
+    <!-- Discover (Active) -->
+    <rect x="14" y="120" width="192" height="38" rx="8" fill="#3b82f6" fill-opacity="0.15" stroke="#3b82f6" stroke-opacity="0.3" stroke-width="1" />
+    <circle cx="34" cy="139" r="4" fill="#3b82f6" />
+    <text x="50" y="144" fill="#60a5fa" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="13" font-weight="600">🌟 Discover</text>
+
+    <!-- Streaming Player -->
+    <text x="50" y="184" fill="#94a3b8" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="13">🎬 Player</text>
+
+    <!-- Downloads Hub -->
+    <text x="50" y="224" fill="#94a3b8" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="13">⚡ Downloads</text>
+    <rect x="170" y="212" width="24" height="18" rx="9" fill="#3b82f6" />
+    <text x="182" y="225" fill="#ffffff" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="10" font-weight="700" text-anchor="middle">3</text>
+
+    <!-- Offline Library -->
+    <text x="50" y="264" fill="#94a3b8" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="13">📁 Library</text>
+
+    <!-- Settings -->
+    <text x="50" y="304" fill="#94a3b8" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="13">⚙️ Settings</text>
+
+    <!-- Sidebar Bottom: Discord RPC Badge -->
+    <rect x="14" y="505" width="192" height="66" rx="8" fill="#181a24" stroke="#262934" stroke-width="1" />
+    <circle cx="34" cy="530" r="10" fill="#5865F2" />
+    <text x="34" y="534" fill="#ffffff" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="11" font-weight="700" text-anchor="middle">🎮</text>
+    <text x="54" y="528" fill="#e2e8f0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="11" font-weight="600">Discord Presence</text>
+    <text x="54" y="544" fill="#10b981" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="10">● Watching Episode 1</text>
+    <text x="54" y="558" fill="#64748b" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="9">Auto-Pause: Active</text>
+
+    <!-- Main Content Area -->
+    <g transform="translate(240, 60)">
+      <!-- Search & Status Bar -->
+      <rect width="480" height="38" rx="8" fill="#1a1c24" stroke="#2e3240" stroke-width="1" />
+      <text x="16" y="24" fill="#64748b" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12">🔍 Search anime series, movies, genres...</text>
+
+      <rect x="710" y="0" width="110" height="38" rx="8" fill="#222530" stroke="#2e3240" stroke-width="1" />
+      <text x="765" y="23" fill="#10b981" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="11" font-weight="600" text-anchor="middle">● Online (AniList)</text>
+
+      <!-- Featured Banner -->
+      <g transform="translate(0, 56)">
+        <rect width="820" height="180" rx="12" fill="url(#accent)" fill-opacity="0.15" stroke="#3b82f6" stroke-opacity="0.4" stroke-width="1" />
+        <text x="32" y="54" fill="#38bdf8" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" font-weight="700" letter-spacing="1">TRENDING NOW • EPISODE 1084</text>
+        <text x="32" y="96" fill="#ffffff" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="28" font-weight="800">One Piece: Egghead Arc</text>
+        <text x="32" y="124" fill="#94a3b8" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12">Monkey D. Luffy and the Straw Hat Pirates arrive at the futuristic island of Egghead.</text>
+
+        <!-- Banner Buttons -->
+        <rect x="32" y="142" width="120" height="28" rx="6" fill="#3b82f6" />
+        <text x="92" y="161" fill="#ffffff" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" font-weight="600" text-anchor="middle">▶ Watch Now</text>
+
+        <rect x="162" y="142" width="130" height="28" rx="6" fill="#1e2230" stroke="#3b82f6" stroke-opacity="0.5" stroke-width="1" />
+        <text x="227" y="161" fill="#e2e8f0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" font-weight="500" text-anchor="middle">⬇ Download Ep</text>
+      </g>
+
+      <!-- Active Downloads Bar -->
+      <g transform="translate(0, 252)">
+        <rect width="820" height="68" rx="8" fill="#171922" stroke="#262934" stroke-width="1" />
+        <text x="20" y="28" fill="#e2e8f0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="13" font-weight="600">Downloading: Attack on Titan - Final Season Ep 28</text>
+        <text x="740" y="28" fill="#60a5fa" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" font-weight="600">74%</text>
+
+        <!-- Progress Bar Track -->
+        <rect x="20" y="38" width="780" height="8" rx="4" fill="#222530" />
+        <!-- Progress Bar Fill -->
+        <rect x="20" y="38" width="577" height="8" rx="4" fill="url(#accent)" />
+
+        <text x="20" y="58" fill="#64748b" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="10">AES-128 In-Memory Decryption • 6 Concurrent Segments • 8.4 MB/s • Subtitles: SRT Ready</text>
+      </g>
+
+      <!-- Grid Cards -->
+      <g transform="translate(0, 336)">
+        <!-- Card 1 -->
+        <rect width="258" height="180" rx="8" fill="#181a24" stroke="#262934" stroke-width="1" />
+        <rect width="258" height="110" rx="8" fill="#232736" />
+        <text x="129" y="65" fill="#64748b" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="14" text-anchor="middle">🎬 Jujutsu Kaisen</text>
+        <text x="14" y="134" fill="#ffffff" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="13" font-weight="600">Jujutsu Kaisen</text>
+        <text x="14" y="152" fill="#94a3b8" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="11">★ 8.8 • 24 Episodes</text>
+        <text x="14" y="170" fill="#3b82f6" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="10">HLS • 1080p • Sub/Dub</text>
+
+        <!-- Card 2 -->
+        <rect x="281" width="258" height="180" rx="8" fill="#181a24" stroke="#262934" stroke-width="1" />
+        <rect x="281" width="258" height="110" rx="8" fill="#232736" />
+        <text x="410" y="65" fill="#64748b" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="14" text-anchor="middle">🗡️ Demon Slayer</text>
+        <text x="295" y="134" fill="#ffffff" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="13" font-weight="600">Demon Slayer: Kimetsu</text>
+        <text x="295" y="152" fill="#94a3b8" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="11">★ 8.7 • Hashira Training</text>
+        <text x="295" y="170" fill="#3b82f6" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="10">HLS • 1080p • Sub/Dub</text>
+
+        <!-- Card 3 -->
+        <rect x="562" width="258" height="180" rx="8" fill="#181a24" stroke="#262934" stroke-width="1" />
+        <rect x="562" width="258" height="110" rx="8" fill="#232736" />
+        <text x="691" y="65" fill="#64748b" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="14" text-anchor="middle">✨ Frieren: Beyond</text>
+        <text x="576" y="134" fill="#ffffff" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="13" font-weight="600">Frieren: Beyond Journey</text>
+        <text x="576" y="152" fill="#94a3b8" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="11">★ 9.1 • 28 Episodes</text>
+        <text x="576" y="170" fill="#3b82f6" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="10">HLS • 1080p • Sub/Dub</text>
+      </g>
+    </g>
+  </g>
+</svg>
+

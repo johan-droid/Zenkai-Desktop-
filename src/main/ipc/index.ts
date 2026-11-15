@@ -3,3 +3,4 @@ import "./app.ipc";
 import "./downloads.ipc";
 import "./rpc.ipc";
 import "./settings.ipc";
+import "./updater.ipc";

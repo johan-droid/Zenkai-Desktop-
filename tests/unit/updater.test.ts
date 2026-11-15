@@ -15,6 +15,7 @@ const h = vi.hoisted(() => {
   const app = {
     isPackaged: true,
     getVersion: vi.fn(() => "0.0.1"),
+    getPath: vi.fn(() => "/tmp/zenkai-test-data"),
   };
   return { autoUpdater, app };
 });
@@ -95,8 +96,8 @@ describe("auto-updater decisions (T14)", () => {
     process.env.APPIMAGE = "/tmp/Zenkai.AppImage";
     const { setupAutoUpdater } = await freshSetup();
     setupAutoUpdater();
-    expect(h.autoUpdater.autoDownload).toBe(true);
-    expect(h.autoUpdater.autoInstallOnAppQuit).toBe(true);
+    expect(h.autoUpdater.autoDownload).toBe(false);
+    expect(h.autoUpdater.autoInstallOnAppQuit).toBe(false);
     expect(h.autoUpdater.checkForUpdates).toHaveBeenCalledTimes(1);
     for (const ev of [
       "checking-for-update",

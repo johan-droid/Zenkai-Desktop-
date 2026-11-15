@@ -53,10 +53,36 @@ export type IpcContract = {
   }) => Promise<void>;
   "rpc:clear": () => Promise<void>;
   "app:version": () => Promise<string>;
+  "updater:check": () => Promise<{
+    updateAvailable: boolean;
+    version?: string;
+    channel?: string;
+    releaseDate?: string;
+    notes?: string;
+    mandatory?: boolean;
+    assetUrl?: string;
+    reason?: string;
+  }>;
+  "updater:start-download": () => Promise<{ success: boolean; message?: string }>;
+  "updater:install": () => Promise<void>;
 };
 
 export type IpcEvents = {
   "playback:pause": void;
   "notify:click": { id: string };
   "auth:callback": { token: string };
+  "updater:status": {
+    status:
+      | "idle"
+      | "checking"
+      | "available"
+      | "not-available"
+      | "downloading"
+      | "downloaded"
+      | "error";
+    version?: string;
+    notes?: string;
+    progress?: number;
+    error?: string;
+  };
 };

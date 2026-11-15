@@ -21,6 +21,10 @@ declare global {
       };
       app: {
         version: IpcContract["app:version"];
+        checkUpdate: IpcContract["updater:check"];
+        startUpdateDownload: IpcContract["updater:start-download"];
+        installUpdate: IpcContract["updater:install"];
+        onStatus: (cb: (p: IpcEvents["updater:status"]) => void) => () => void;
       };
       onPlaybackPause: (cb: () => void) => () => void;
       onNotifyClick: (cb: (p: IpcEvents["notify:click"]) => void) => () => void;

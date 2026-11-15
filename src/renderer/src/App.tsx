@@ -203,6 +203,7 @@ export default function App() {
               <Route path="/movies/:type/:id" element={<MovieDetailsPage />} />
               <Route path="/watch/:id" element={<WatchPage />} />
               <Route path="/anime/:id" element={<DetailsPage />} />
+              <Route path="/details/:id" element={<DetailsPage />} />
               <Route path="/mal/:id" element={<DetailsPage />} />
               <Route path="/embed" element={<EmbedPage />} />
               <Route path="/embed/:id" element={<EmbedPage />} />

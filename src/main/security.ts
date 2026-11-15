@@ -63,6 +63,31 @@ export function registerSecurity(): void {
     },
   );
 
+  // Normalize outbound headers for public media APIs to prevent Cloudflare 403 access denial.
+  session.defaultSession.webRequest.onBeforeSendHeaders(
+    {
+      urls: [
+        "*://graphql.anilist.co/*",
+        "*://*.anilist.co/*",
+        "*://api.jikan.moe/*",
+        "*://kitsu.io/*",
+        "*://*.kitsu.io/*",
+        "*://aniversee.vercel.app/*",
+        "*://anibridge.eliasbenb.dev/*",
+        "*://arm.haglund.dev/*",
+        "*://api.themoviedb.org/*",
+      ],
+    },
+    (details, callback) => {
+      const requestHeaders = { ...details.requestHeaders };
+      requestHeaders["Origin"] = "https://zenkaii.pages.dev";
+      requestHeaders["Referer"] = "https://zenkaii.pages.dev/";
+      requestHeaders["User-Agent"] =
+        "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36";
+      callback({ requestHeaders });
+    },
+  );
+
   // CSP header on app-origin document responses (§6.3).
   session.defaultSession.webRequest.onHeadersReceived(
     { urls: ALLOWED_ORIGINS.map((o) => `${o}/*`) },

@@ -194,7 +194,7 @@ function install() {
     const inIframe = typeof window !== 'undefined' && window.self !== window.top;
     const path = typeof window !== 'undefined' ? window.location.pathname : '';
     const isExcluded = inIframe || path === '/embed' || path.startsWith('/embed/');
-    if (!isExcluded && (state.devtools || state.bot)) {
+    if (!isDesktopApp() && !isExcluded && (state.devtools || state.bot)) {
       const urlStr = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
       if (!urlStr.includes('/api/shield/')) {
         haltAllMedia()
@@ -225,17 +225,27 @@ function install() {
 }
 
 /* ---------- bot + DevTools checks ---------- */
+export const isDesktopApp = () =>
+  typeof window !== 'undefined' &&
+  (!!(window as unknown as { zenkai?: unknown }).zenkai ||
+    window.location.protocol === 'file:' ||
+    window.location.hostname === 'localhost')
+
 const AUTOMATION = ['__webdriver_script_fn', '__selenium_evaluate', 'callPhantom', '_phantom', '__nightmare', 'domAutomation', 'domAutomationController']
 
-const looksAutomated = () =>
-  !!navigator.webdriver ||
-  AUTOMATION.some((k) => k in window) ||
-  /HeadlessChrome|PhantomJS/i.test(navigator.userAgent) ||
-  (!!(window as unknown as { chrome?: unknown }).chrome && !navigator.languages?.length)
+const looksAutomated = () => {
+  if (isDesktopApp()) return false
+  return (
+    !!navigator.webdriver ||
+    AUTOMATION.some((k) => k in window) ||
+    /HeadlessChrome|PhantomJS/i.test(navigator.userAgent) ||
+    (!!(window as unknown as { chrome?: unknown }).chrome && !navigator.languages?.length)
+  )
+}
 
 let slowHits = 0
 function checkDevTools() {
-  if (SECURITY_DISABLED || state.bot || import.meta.env.DEV) return // DEV: never stall or lock the dev's own DevTools
+  if (SECURITY_DISABLED || isDesktopApp() || state.bot || import.meta.env.DEV) return // DEV / Desktop: never stall or lock the client
   const inIframe = typeof window !== 'undefined' && window.self !== window.top;
   const path = typeof window !== 'undefined' ? window.location.pathname : '';
   const isExcluded = inIframe || path === '/embed' || path.startsWith('/embed/');
@@ -289,7 +299,7 @@ export function startShield() {
   if (started) return
   started = true
   install()
-  if (import.meta.env.DEV) return
+  if (import.meta.env.DEV || isDesktopApp()) return
   if (looksAutomated()) return set({ bot: true })
   window.addEventListener('keydown', onKey, true)
   window.addEventListener('resize', checkDevTools)

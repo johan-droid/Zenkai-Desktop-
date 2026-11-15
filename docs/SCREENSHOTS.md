@@ -41,3 +41,4 @@ All screenshots below were captured directly from the running **Zenkai Desktop**
 ---
 
 *Note: All images in this document are authentic captures of the actual desktop application built from `johan-droid/Zenkai-Desktop-`.*
+

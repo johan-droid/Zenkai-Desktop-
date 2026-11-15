@@ -82,3 +82,4 @@ node scripts/t3-security-check.mjs
   - `refactor(module): description`
 - **Zero Mock Testing**: Never claim tests passed without executing them and verifying the output.
 - **Preserve User Data**: Never perform destructive changes to user configuration or offline media without explicit migration safeguards.
+

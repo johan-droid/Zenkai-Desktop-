@@ -78,3 +78,4 @@ When a version tag is pushed (e.g. `git push origin v0.0.2`):
 - [ ] `eslint .` passes with 0 warnings or errors.
 - [ ] `CHANGELOG.md` is updated with all notable additions, fixes, and changes.
 - [ ] `package.json` version matches the release target.
+

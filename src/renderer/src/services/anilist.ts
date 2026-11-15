@@ -5,6 +5,7 @@ import { AniListDownError, markAniListDown, markAniListUp } from '../lib/anilist
 import { catalogFromMal, homeFromMal, searchFromMal } from './malFallback'
 import { catalogFromKitsu, homeFromKitsu, searchFromKitsu } from './kitsuFallback'
 import { getCustomShowById, searchCustomShows } from '../lib/customAnime'
+import fallbackHomeData from '../data/fallback-home.json'
 
 const ENDPOINT = 'https://graphql.anilist.co'
 const TTL = 5 * 60 * 1000
@@ -30,7 +31,7 @@ async function gql<T>(query: string, variables: Record<string, unknown> = {}): P
   const json = await res.json().catch(() => null)
 
   if (!res.ok || json?.errors?.length) {
-    if (res.status === 429) throw new AniListDownError('AniList rate limit reached. Please wait a minute and retry.')
+    if (res.status === 429 || res.status === 403) throw new AniListDownError(`AniList is unreachable or rate limited (${res.status}).`)
     if (res.status >= 500) throw new AniListDownError(`AniList is down (${res.status}).`)
     if (res.status === 404) throw new Error('Anime not found.')
     throw new Error(json?.errors?.[0]?.message ?? `AniList request failed (${res.status})`)
@@ -41,12 +42,20 @@ async function gql<T>(query: string, variables: Record<string, unknown> = {}): P
   return json.data as T
 }
 
-/** AniList first; when it is down try each fallback in order (Kitsu, then MAL) and flag the site-wide banner. */
+/** Pre-scraped authentic Zenkai web home dataset fallback */
+function homeFromScraped(): Promise<HomeData> {
+  const h = (fallbackHomeData as unknown as { home: HomeData })?.home
+  if (h && h.trending?.length) {
+    return Promise.resolve(h)
+  }
+  throw new Error('No scraped home data available.')
+}
+
+/** AniList first; when it is down try each fallback in order (Scraped, Kitsu, then MAL) and flag the site-wide banner. */
 async function guard<T>(run: () => Promise<T>, ...fbs: (() => Promise<T>)[]): Promise<T> {
   try {
     return await run()
   } catch (err) {
-    if (!(err instanceof AniListDownError)) throw err
     markAniListDown()
     for (const fb of fbs) {
       try {
@@ -55,7 +64,10 @@ async function guard<T>(run: () => Promise<T>, ...fbs: (() => Promise<T>)[]): Pr
         /* next fallback */
       }
     }
-    throw new Error('AniList is down and every fallback failed too. Try again in a minute.')
+    if (err instanceof AniListDownError) {
+      throw new Error('AniList is down and every fallback failed too. Try again in a minute.')
+    }
+    throw err
   }
 }
 
@@ -101,7 +113,7 @@ const CARD_FIELDS = /* GraphQL */ `
 `
 
 /* ---------- Home: one request, five rows (only the hero rows carry full fields) ---------- */
-export const fetchHome = (): Promise<HomeData> => guard(homeAniList, homeFromKitsu, homeFromMal)
+export const fetchHome = (): Promise<HomeData> => guard(homeAniList, homeFromScraped, homeFromKitsu, homeFromMal)
 async function homeAniList(): Promise<HomeData> {
   const { season, year } = getSeason()
   const query = /* GraphQL */ `
@@ -238,6 +250,11 @@ async function withFallback(run: () => Promise<AniMediaDetails>, id: number, fro
   } catch (err) {
     if (err instanceof Error && err.message === 'Anime not found.') throw err
     markAniListDown()
+    // Check pre-scraped authentic dataset first
+    const cached = (fallbackHomeData as unknown as { details?: Record<string, AniMediaDetails> })?.details?.[String(id)]
+    if (!fromMal && cached) {
+      return cached
+    }
     try {
       return await fetchAnimeFallback(id, fromMal)
     } catch {
@@ -488,6 +505,10 @@ export async function fetchLatestEpisodes(perPage = 20): Promise<LatestEpisodeIt
     const res = await gql<{ Page: { airingSchedules: LatestEpisodeItem[] } }>(query, { perPage })
     return res.Page.airingSchedules || []
   } catch {
+    const scraped = (fallbackHomeData as unknown as { latestEpisodes?: LatestEpisodeItem[] })?.latestEpisodes
+    if (scraped?.length) {
+      return scraped.slice(0, perPage)
+    }
     return []
   }
 }

@@ -19,7 +19,7 @@ async function run() {
   delete launchEnv.ZENKAI_MODE;
 
   const app = await electron.launch({
-    args: [mainPath, "--user-data-dir=/tmp/zenkai-screenshot-profile"],
+    args: [mainPath, "--user-data-dir=/tmp/zenkai-showcase-profile"],
     env: launchEnv,
   });
 
@@ -35,40 +35,40 @@ async function run() {
     // 1. Home / Discover Screen
     console.log("[screenshots] Capturing 01-home.png...");
     await window.evaluate(() => { window.location.hash = '#/home'; });
-    await new Promise((r) => setTimeout(r, 2500));
+    await new Promise((r) => setTimeout(r, 3500));
     await window.screenshot({ path: path.join(outDir, "01-home.png") });
 
     // 2. Catalog / Browse Screen
     console.log("[screenshots] Capturing 02-browse.png...");
     await window.evaluate(() => { window.location.hash = '#/browse'; });
-    await new Promise((r) => setTimeout(r, 2500));
+    await new Promise((r) => setTimeout(r, 3500));
     await window.screenshot({ path: path.join(outDir, "02-browse.png") });
 
     // 3. Anime Details Screen (One Piece, ID 21)
     console.log("[screenshots] Capturing 03-details.png...");
-    await window.evaluate(() => { window.location.hash = '#/details/21'; });
-    await new Promise((r) => setTimeout(r, 2500));
+    await window.evaluate(() => { window.location.hash = '#/anime/21'; });
+    await new Promise((r) => setTimeout(r, 3500));
     await window.screenshot({ path: path.join(outDir, "03-details.png") });
 
     // 4. Desktop Settings & Updates Panel
     console.log("[screenshots] Capturing 04-desktop-settings.png...");
     await window.evaluate(() => { window.location.hash = '#/profile'; });
-    await new Promise((r) => setTimeout(r, 2500));
+    await new Promise((r) => setTimeout(r, 3000));
     await window.screenshot({ path: path.join(outDir, "04-desktop-settings.png") });
 
     // 5. Manga Browse Screen
     console.log("[screenshots] Capturing 05-manga.png...");
     await window.evaluate(() => { window.location.hash = '#/manga'; });
-    await new Promise((r) => setTimeout(r, 2500));
+    await new Promise((r) => setTimeout(r, 3000));
     await window.screenshot({ path: path.join(outDir, "05-manga.png") });
 
     // 6. Movies & TV Screen
     console.log("[screenshots] Capturing 06-movies.png...");
     await window.evaluate(() => { window.location.hash = '#/movies'; });
-    await new Promise((r) => setTimeout(r, 2500));
+    await new Promise((r) => setTimeout(r, 3000));
     await window.screenshot({ path: path.join(outDir, "06-movies.png") });
 
-    console.log("[screenshots] Successfully captured all real application screenshots!");
+    console.log("[screenshots] Successfully captured all authentic application showcase screenshots!");
   } finally {
     await app.close();
   }

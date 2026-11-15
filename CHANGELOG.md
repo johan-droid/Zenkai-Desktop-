@@ -10,6 +10,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Scraped Home & Catalog Fallback Dataset**: Bundled authentic pre-scraped home and catalog dataset (`src/renderer/src/data/fallback-home.json` and `public/home-data.json`) via `scripts/scrape-zenkai-home.mjs`, ensuring discovery shelves and hero carousels remain populated during upstream API rate limits or network outages.
+- **Outbound API Header Normalization**: Added `onBeforeSendHeaders` interceptor in `src/main/security.ts` to attach genuine web origin and user-agent headers to AniList, Kitsu, Jikan, and TMDB queries from the desktop runtime.
+- **Desktop Shield Exemption**: Updated `src/renderer/src/lib/shield.ts` to recognize the native desktop runtime (`window.zenkai` / `file://`), preventing false-positive headless bot locks and 403 "Automated Access Denied" errors in desktop automation and testing.
+- **Authentic Application Showcase Captures**: Captured high-resolution screenshots (`docs/screenshots/`) directly from the populated desktop application displaying real anime titles, hero carousel, catalog shelves, manga, and movies.
 - **Desktop & Updates Settings Hub**: Integrated desktop-specific configuration panel inside `ProfilePage.tsx` with release channel switching (`stable` vs `beta`), manual update checks, and download storage folder opener.
 - **Playback Health Center**: Real-time diagnostic latency probes to AniList GraphQL API, GitHub Releases, and Cloud CDN.
 

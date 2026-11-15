@@ -1,0 +1,2 @@
+16cf472e5e88550a2104b386cf530ed9ff16be33883ce05d30b14baf054dd79a  dist/linux/Zenkai-Desktop-0.0.1-x86_64.AppImage
+9f4a2947d2a7ccd5008cd593254d0a54844b1926a47dcdecc7b3cca0b2a59e86  dist/windows/Zenkai-Desktop-Setup-0.0.1-x64.exe

@@ -6,6 +6,10 @@ directories:
 extraResources:
   - from: resources/tray.png
     to: tray.png
+  - from: resources/icon.png
+    to: icon.png
+  - from: resources/icon.ico
+    to: icon.ico
 files:
   - out/**
   - package.json

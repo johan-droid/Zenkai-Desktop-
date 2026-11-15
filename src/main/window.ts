@@ -1,9 +1,27 @@
-import { BrowserWindow } from "electron";
+import { app, BrowserWindow } from "electron";
 import fs from "node:fs";
 import { join } from "node:path";
 import { WEB_URL } from "../shared/config";
 import { getSettings, updateSettings } from "./settings";
 import { getActiveRendererPath, setupCanaryHealthCheck } from "./renderer-updater";
+
+export function getAppIconPath(): string | undefined {
+  const iconName = process.platform === "win32" ? "icon.ico" : "icon.png";
+  if (app.isPackaged) {
+    const packagedResource = join(process.resourcesPath, iconName);
+    if (fs.existsSync(packagedResource)) return packagedResource;
+  }
+  const localResource = join(__dirname, "../../resources", iconName);
+  if (fs.existsSync(localResource)) return localResource;
+
+  const pngFallback = join(__dirname, "../../resources/icon.png");
+  if (fs.existsSync(pngFallback)) return pngFallback;
+
+  const logoPng = join(__dirname, "../../public/logo.png");
+  if (fs.existsSync(logoPng)) return logoPng;
+
+  return undefined;
+}
 
 export function getAppEntryTarget(): { type: "url" | "file"; path: string } {
   const customUrl = process.env.ZENKAI_WEB_URL;
@@ -37,6 +55,7 @@ export function loadWebPortal(win: BrowserWindow): void {
 
 export function createMainWindow(): BrowserWindow {
   const state = getSettings().windowState;
+  const iconPath = getAppIconPath();
   const win = new BrowserWindow({
     x: state?.x,
     y: state?.y,
@@ -45,7 +64,8 @@ export function createMainWindow(): BrowserWindow {
     minWidth: 960,
     minHeight: 600,
     show: false,
-      titleBarStyle: process.platform === "darwin" ? "hiddenInset" : "default",
+    icon: iconPath,
+    titleBarStyle: process.platform === "darwin" ? "hiddenInset" : "default",
     trafficLightPosition: process.platform === "darwin" ? { x: 16, y: 14 } : undefined,
     webPreferences: {
       preload: join(__dirname, "../preload/index.js"),

@@ -62,8 +62,8 @@
 
 ### Gate F: Cryptographic Hashes & Deliverables
 - **Manifest:** `dist/SHA256SUMS.txt`
-  - Linux AppImage: `16cf472e5e88550a2104b386cf530ed9ff16be33883ce05d30b14baf054dd79a`
-  - Windows Setup EXE: `9f4a2947d2a7ccd5008cd593254d0a54844b1926a47dcdecc7b3cca0b2a59e86`
+  - Linux AppImage: `a88280364a8729aadf11d3114811d2aede1da7daa1614cd150267f1fddb528fa`
+  - Windows Setup EXE: `dc51fde3a865c6cb1e8883da1cbcc27da7c9c0ff47d290188613ee167159f278`
 - **Documentation Delivered:**
   - `docs/releases/PACKAGING_BASELINE_AUDIT.md`
   - `docs/releases/PRODUCTION_DATA_INTEGRITY_AUDIT.md`

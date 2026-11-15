@@ -84,14 +84,14 @@ Before executing downloaded packages, you can verify their cryptographic integri
 ```bash
 sha256sum Zenkai-Desktop-0.0.1-x86_64.AppImage
 # Compare against dist/SHA256SUMS.txt:
-# 16cf472e5e88550a2104b386cf530ed9ff16be33883ce05d30b14baf054dd79a
+# a88280364a8729aadf11d3114811d2aede1da7daa1614cd150267f1fddb528fa
 ```
 
 ### On Windows (PowerShell):
 ```powershell
 Get-FileHash -Algorithm SHA256 .\Zenkai-Desktop-Setup-0.0.1-x64.exe
 # Compare against:
-# 9f4a2947d2a7ccd5008cd593254d0a54844b1926a47dcdecc7b3cca0b2a59e86
+# dc51fde3a865c6cb1e8883da1cbcc27da7c9c0ff47d290188613ee167159f278
 ```
 
 ---

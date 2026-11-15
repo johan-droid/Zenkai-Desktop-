@@ -2,7 +2,7 @@
 // directly from the official Zenkai trademark logo (public/logo.png).
 import fs from "node:fs";
 import path from "node:path";
-import { execSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
 
 const srcLogo = path.resolve("public/logo.png");
 if (!fs.existsSync(srcLogo)) {
@@ -32,9 +32,10 @@ tray.save('resources/tray.png', 'PNG')
 `;
 
 try {
-  execSync(`python3 -c "${pyScript.replace(/\n/g, '; ')}"`, { stdio: "inherit" });
+  execFileSync("python3", ["-c", pyScript], { stdio: "inherit" });
 } catch (e) {
   console.error("Failed to run icon generation script:", e.message);
+  process.exit(1);
 }
 
 // 3. Generate macOS icon.icns from generated PNGs

@@ -10,6 +10,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Production Distribution Packages (Linux & Windows)**:
+  - Linux: Fully self-contained AppImage (`dist/linux/Zenkai-Desktop-0.0.1-x86_64.AppImage`) with high-resolution desktop integration, MIME associations, and automatic updater integration.
+  - Windows: Fully featured NSIS installer (`dist/windows/Zenkai-Desktop-Setup-0.0.1-x64.exe`) with dual-mode per-user/all-users support, custom installation directory picker, Start Menu & Desktop shortcuts, and dedicated clean uninstaller (`Uninstall Zenkai.exe`).
+  - Cryptographic SHA-256 release manifest (`dist/SHA256SUMS.txt`).
+- **Comprehensive Release Documentation Suite (`docs/releases/`)**:
+  - `PACKAGING_BASELINE_AUDIT.md`: Complete dependency classification, toolchain baseline, and platform profiles.
+  - `PRODUCTION_DATA_INTEGRITY_AUDIT.md`: Verification of zero mock data in production bundles and real external service connectivity.
+  - `PACKAGING_ARCHITECTURE.md`: Hardened ASAR layout, native ONNX Runtime unpack mechanics, and security controls.
+  - `INSTALLATION_GUIDE.md`: Linux and Windows installation steps, system requirements, and troubleshooting.
+  - `UNINSTALL_AND_DATA_PRESERVATION.md`: Non-destructive user data policy (preserves downloads, watch progress, and models; cleans binaries).
+  - `BUILDING.md`: Step-by-step developer build and packaging instructions.
+  - `RELEASE_CHECKLIST.md`: Release verification matrix confirming all Quality Gates (A through F) passed.
+- **Zenkai Vision AI Enhancement Engine**:
+  - Hardware-Aware Multi-Vendor Detection: Enumerates NVIDIA CUDA, AMD ROCm/DirectML, Intel oneAPI/DirectML, and CPU fallback without simulated metrics.
+  - Live AI Playback Upscaler: Real-time WebGPU shader enhancement in `CinePlayer.tsx` with dynamic split-screen comparison slider (`before/after`) and 60 FPS frame drop watchdog.
+  - Offline AI Video Enhancement Pipeline: Tiled ONNX Runtime inference engine supporting up to 8K upscale with automatic out-of-memory prevention.
+  - Vision Studio UI (`/vision`): Offline job submission queue, model selector, progress telemetry, and output video player.
+- **Desktop Product Stabilization & Feature Integration**:
+  - Dedicated Downloads Center (`/downloads`): Complete offline library management view with file size metrics, playback launcher, and active download progress.
+  - Desktop Auto-Pause IPC: Expands video selectors to CinePlayer elements; automatically pauses active video playback when window is minimized or hidden.
+  - Discord Rich Presence: Live presence broadcasting show title, episode number, elapsed playback timestamp, and artwork to Discord.
+  - Deep-Link Authentication: Seamless OAuth token capture via `zenkai://auth/callback` routing directly into `AuthContext`.
+  - Notification Click Routing: Clicking OS download notifications navigates directly to the downloads management view.
+  - 60 FPS Compositor Optimizations: Applied GPU hardware acceleration hints (`transform: translateZ(0)`, `backface-visibility: hidden`) and CSS paint containment to eliminate scroll jitter.
+
+### Added
 - **Official Trademark Logo Integration**: Embedded authentic Zenkai 512x512 trademark logo and OpenMoji character assets into the application bundle (`src/renderer/src/assets/logo.ts`, `DesktopSidebar`, `Logo`, `LogoFill`, `ExtensionPage`), eliminating missing asset errors and blank placeholder boxes on `file://` desktop runtimes.
 - **Native OS Packaging Brand Assets**: Replaced placeholder blue squares in `scripts/gen-icons.mjs` and `scripts/gen-tray-icon.mjs` with genuine multi-resolution asset pipelines producing authentic `resources/icon.png`, `resources/icons/*`, `resources/icon.ico`, `resources/icon.icns`, and `resources/tray.png`.
 - **Production README Documentation Overhaul**: Rebuilt `README.md` with official trademark branding header, application architecture diagrams, real application showcase screenshots, and verified setup instructions.

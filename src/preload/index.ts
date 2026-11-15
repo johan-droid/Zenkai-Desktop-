@@ -28,9 +28,11 @@ contextBridge.exposeInMainWorld("zenkai", {
   rpc: { set: call("rpc:set"), clear: call("rpc:clear") },
   app: {
     version: call("app:version"),
-    checkUpdate: call("updater:check"),
-    startUpdateDownload: call("updater:start-download"),
-    installUpdate: call("updater:install"),
+    checkUpdate: call("app:checkUpdate"),
+    startUpdateDownload: call("app:startUpdateDownload"),
+    installUpdate: call("app:installUpdate"),
+    openFile: call("app:openFile"),
+    loadWebPortal: () => ipcRenderer.send("window:loadWebPortal"),
     onStatus: (cb: (p: IpcEvents["updater:status"]) => void) =>
       on("updater:status", cb),
   },

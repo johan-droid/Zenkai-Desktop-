@@ -23,7 +23,7 @@ import {
   type MediaType,
   type MovieDub,
 } from '../services/movies'
-import { useShieldVerified, useShield, getToken } from '../lib/shield'
+import { useShieldVerified, useShield, getToken, isDesktopApp } from '../lib/shield'
 import CinePlayer from '../components/CinePlayer'
 
 const pill = 'rounded-full border px-4 py-2 text-sm font-semibold transition active:scale-95'
@@ -68,10 +68,10 @@ export default function MovieWatchPage() {
   }, [id, season, episode, selectedDub])
 
   const [frameLoaded, setFrameLoaded] = useState(false)
-  const sessionVerified = useShieldVerified()
-  const shieldFailed = useShield().failed
+  const sessionVerified = isDesktopApp() || useShieldVerified()
+  const shieldFailed = isDesktopApp() ? false : useShield().failed
   useEffect(() => {
-    if (sessionVerified) return
+    if (sessionVerified || isDesktopApp()) return
     void getToken()
     const t = window.setInterval(() => void getToken(), 6000)
     return () => window.clearInterval(t)

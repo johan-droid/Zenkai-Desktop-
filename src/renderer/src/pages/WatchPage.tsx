@@ -74,7 +74,7 @@ import { LogoFill } from '../components/LogoFill'
 import { LOGO_URL } from '../lib/constants'
 import { Tour, tourDone, tourSeen, type TourStep } from '../components/Tour'
 import { ServerPopup, type ServerOpt } from '../components/ServerPopup'
-import { useShieldVerified, useShield, getToken } from '../lib/shield'
+import { useShieldVerified, useShield, getToken, isDesktopApp } from '../lib/shield'
 import { StreamProblem } from '../components/StreamProblem'
 
 
@@ -168,16 +168,16 @@ export default function WatchPage() {
 
 
 
-  const shieldOk = useShieldVerified()
+  const shieldOk = isDesktopApp() || useShieldVerified()
   // once verified, stay verified: a token refresh mid-session must not unmount the player (that kicks it out of fullscreen)
-  const [everOk, setEverOk] = useState(shieldOk)
+  const [everOk, setEverOk] = useState(() => isDesktopApp() || shieldOk)
   useEffect(() => {
-    if (shieldOk) setEverOk(true)
+    if (shieldOk || isDesktopApp()) setEverOk(true)
   }, [shieldOk])
-  const sessionVerified = shieldOk || everOk
-  const shieldFailed = useShield().failed
+  const sessionVerified = isDesktopApp() || shieldOk || everOk
+  const shieldFailed = isDesktopApp() ? false : useShield().failed
   useEffect(() => {
-    if (shieldOk) return
+    if (shieldOk || isDesktopApp()) return
     void getToken()
     // keep trying: one failed fetch must never leave the player locked until a manual reload
     const t = window.setInterval(() => void getToken(), 6000)

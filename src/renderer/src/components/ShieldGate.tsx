@@ -2,7 +2,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { ShieldAlert, ShieldCheck } from 'lucide-react'
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { submitCaptcha, useShield } from '../lib/shield'
+import { submitCaptcha, useShield, isDesktopApp } from '../lib/shield'
 import { cn } from '../lib/utils'
 import { DotPattern } from './DotPattern'
 import { ShinyText } from './ShinyText'
@@ -96,7 +96,7 @@ export function ShieldGate() {
     }
   }, [isEmbed, devtools, bot, pathname, search, navigate])
 
-  if (isEmbed) return null
+  if (isEmbed || isDesktopApp()) return null
 
   return (
     <AnimatePresence>

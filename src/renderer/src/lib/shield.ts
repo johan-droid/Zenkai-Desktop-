@@ -31,13 +31,20 @@ try {
 let off = false
 let pending: Promise<string | null> | null = null
 
+export const isDesktopApp = (): boolean =>
+  typeof window !== 'undefined' &&
+  (!!(window as unknown as { zenkai?: unknown }).zenkai ||
+    (typeof window.location !== 'undefined' &&
+      (window.location.protocol === 'file:' || window.location.hostname === 'localhost')) ||
+    (typeof navigator !== 'undefined' && /Electron/i.test(navigator.userAgent)))
+
 const isTokenValid = () => !off && !!token && Date.now() < exp - 30_000
 
 let state: State = {
   devtools: false,
   bot: false,
   captcha: null,
-  verified: import.meta.env.DEV || isTokenValid(),
+  verified: import.meta.env.DEV || isDesktopApp() || isTokenValid(),
   failed: false,
 }
 const subs = new Set<() => void>()
@@ -52,16 +59,19 @@ export const useShield = () =>
   )
 
 export function isShieldVerified(): boolean {
-  return import.meta.env.DEV || off || isTokenValid()
+  return import.meta.env.DEV || isDesktopApp() || off || isTokenValid()
 }
 
 export function useShieldVerified(): boolean {
   const s = useShield()
-  return s.verified
+  return isDesktopApp() || s.verified
 }
 
 /* ---------- token ---------- */
-const nativeFetch = window.fetch.bind(window)
+const nativeFetch =
+  typeof window !== 'undefined' && typeof window.fetch === 'function'
+    ? window.fetch.bind(window)
+    : (globalThis.fetch as typeof fetch)
 
 async function solve(cid: string, salt: string, difficulty: number) {
   const prefix = '0'.repeat(difficulty)
@@ -148,7 +158,7 @@ async function fetchToken(): Promise<string | null> {
 }
 
 export function getToken(): Promise<string | null> {
-  if (off || import.meta.env.DEV) return Promise.resolve(null)
+  if (off || import.meta.env.DEV || isDesktopApp()) return Promise.resolve(null)
   if (token && Date.now() < exp - 30_000) return Promise.resolve(token)
   return (pending ??= fetchToken().finally(() => (pending = null)))
 }
@@ -160,15 +170,19 @@ const forget = () => {
     sessionStorage.removeItem(KEY.tok)
     sessionStorage.removeItem(KEY.exp)
   } catch {}
-  set({ verified: import.meta.env.DEV || off, failed: false })
+  set({ verified: import.meta.env.DEV || isDesktopApp() || off, failed: false })
 }
 
 /* ---------- fetch interceptor ---------- */
-const origins = new Set([location.origin, API ? new URL(API, location.href).origin : ''])
+const origins =
+  typeof location !== 'undefined'
+    ? new Set([location.origin, API ? new URL(API, location.href).origin : ''])
+    : new Set<string>()
 
 const isProtected = (input: RequestInfo | URL) => {
   try {
-    const u = new URL(typeof input === 'string' || input instanceof URL ? String(input) : input.url, location.href)
+    const base = typeof location !== 'undefined' ? location.href : 'http://localhost'
+    const u = new URL(typeof input === 'string' || input instanceof URL ? String(input) : input.url, base)
     return origins.has(u.origin) && (u.pathname.startsWith('/api/') || u.pathname === '/proxy') && !u.pathname.startsWith('/api/shield/')
   } catch {
     return false
@@ -225,12 +239,6 @@ function install() {
 }
 
 /* ---------- bot + DevTools checks ---------- */
-export const isDesktopApp = () =>
-  typeof window !== 'undefined' &&
-  (!!(window as unknown as { zenkai?: unknown }).zenkai ||
-    window.location.protocol === 'file:' ||
-    window.location.hostname === 'localhost')
-
 const AUTOMATION = ['__webdriver_script_fn', '__selenium_evaluate', 'callPhantom', '_phantom', '__nightmare', 'domAutomation', 'domAutomationController']
 
 const looksAutomated = () => {
@@ -298,8 +306,11 @@ let started = false
 export function startShield() {
   if (started) return
   started = true
+  if (import.meta.env.DEV || isDesktopApp()) {
+    set({ verified: true, failed: false, bot: false, devtools: false, captcha: null })
+    return
+  }
   install()
-  if (import.meta.env.DEV || isDesktopApp()) return
   if (looksAutomated()) return set({ bot: true })
   window.addEventListener('keydown', onKey, true)
   window.addEventListener('resize', checkDevTools)

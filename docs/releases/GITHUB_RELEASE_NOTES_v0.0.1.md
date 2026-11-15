@@ -98,3 +98,4 @@ Get-FileHash -Algorithm SHA256 .\Zenkai-Desktop-Setup-0.0.1-x64.exe
 - **Hls.js**: Adaptive bitrate streaming engine.
 - **ONNX Runtime & DirectML**: Hardware-accelerated neural network inference.
 - **Electron & electron-builder**: Modern cross-platform runtime and packaging engine.
+

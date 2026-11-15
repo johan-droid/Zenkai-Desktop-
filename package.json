@@ -1,0 +1,41 @@
+{
+  "name": "zenkai-desktop",
+  "version": "0.0.1",
+  "description": "Zenkai desktop shell — wraps the Zenkai web app in a secure Electron window",
+  "homepage": "https://zenkai-web.pages.dev/",
+  "author": {
+    "name": "Nyyrox",
+    "email": "dev@zenkai.cfd"
+  },
+  "private": true,
+  "main": "out/main/index.js",
+  "license": "UNLICENSED",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "e2e": "playwright test",
+    "dist:linux": "pnpm build && electron-builder --linux",
+    "dist:win": "pnpm build && electron-builder --win",
+    "dist:mac": "pnpm build && electron-builder --mac"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.65.1",
+    "@types/node": "^26.6.6",
+    "electron": "45.3.2",
+    "electron-builder": "26.18.0",
+    "electron-vite": "^6.0.0",
+    "eslint": "^10.15.0",
+    "prettier": "^3.10.1",
+    "typescript": "^7.0.2",
+    "vitest": "^5.1.0"
+  },
+  "dependencies": {
+    "@xhayper/discord-rpc": "^1.5.1",
+    "electron-updater": "6.8.11",
+    "zod": "^4.6.7"
+  },
+  "homepage": "https://github.com/Nyyrox/zenkai-desktop#readme"
+}

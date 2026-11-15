@@ -1,0 +1,35 @@
+import { contextBridge, ipcRenderer } from "electron";
+import type { IpcContract, IpcEvents } from "../shared/ipc-contract";
+
+const call =
+  <K extends keyof IpcContract>(ch: K) =>
+  (...a: Parameters<IpcContract[K]>) =>
+    ipcRenderer.invoke(ch, ...a) as ReturnType<IpcContract[K]>;
+
+const on = <K extends keyof IpcEvents>(
+  ch: K,
+  cb: (p: IpcEvents[K]) => void,
+) => {
+  const h = (_: unknown, p: IpcEvents[K]) => cb(p);
+  ipcRenderer.on(ch, h);
+  return () => ipcRenderer.off(ch, h);
+};
+
+contextBridge.exposeInMainWorld("zenkai", {
+  isDesktop: true as const,
+  platform: process.platform,
+  settings: { get: call("settings:get"), set: call("settings:set") },
+  downloads: {
+    start: call("downloads:start"),
+    resolve: call("downloads:resolve"),
+    list: call("downloads:list"),
+    remove: call("downloads:remove"),
+  },
+  rpc: { set: call("rpc:set"), clear: call("rpc:clear") },
+  app: { version: call("app:version") },
+  onPlaybackPause: (cb: () => void) => on("playback:pause", () => cb()),
+  onNotifyClick: (cb: (p: IpcEvents["notify:click"]) => void) =>
+    on("notify:click", cb),
+  onAuthCallback: (cb: (p: IpcEvents["auth:callback"]) => void) =>
+    on("auth:callback", cb),
+});

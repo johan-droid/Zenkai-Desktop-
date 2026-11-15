@@ -1,0 +1,5 @@
+// Side-effect registration of all IPC handlers. Add one import per *.ipc.ts file.
+import "./app.ipc";
+import "./downloads.ipc";
+import "./rpc.ipc";
+import "./settings.ipc";

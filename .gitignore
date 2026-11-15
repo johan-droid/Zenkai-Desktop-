@@ -9,3 +9,9 @@ skills-lock.json
 .env
 .env.*
 *.log
+dist/**/*.AppImage
+dist/**/*.exe
+dist/**/*.zip
+dist/**/*.deb
+dist/**/*.rpm
+dist/**/*.blockmap

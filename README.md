@@ -184,18 +184,45 @@ TMDB-backed catalog integration for western cinema and television series with mu
 
 ---
 
+## Release Downloads & Checksums
+
+### Certified Production Distributables (v0.0.1)
+
+| Platform | Format | Target File | Size | SHA-256 Checksum |
+|---|---|---|---|---|
+| **Linux** | AppImage (`x86_64`) | [`Zenkai-Desktop-0.0.1-x86_64.AppImage`](dist/linux/Zenkai-Desktop-0.0.1-x86_64.AppImage) | 187 MB | `16cf472e5e88550a2104b386cf530ed9ff16be33883ce05d30b14baf054dd79a` |
+| **Windows** | NSIS Setup (`x64`) | [`Zenkai-Desktop-Setup-0.0.1-x64.exe`](dist/windows/Zenkai-Desktop-Setup-0.0.1-x64.exe) | 213 MB | `9f4a2947d2a7ccd5008cd593254d0a54844b1926a47dcdecc7b3cca0b2a59e86` |
+
+*Cryptographic manifest:* [`dist/SHA256SUMS.txt`](dist/SHA256SUMS.txt)
+
+---
+
+## Installation & Packaging Documentation
+
+Comprehensive technical documentation is maintained under [`docs/releases/`](docs/releases/):
+
+- 📖 **[Installation & User Guide](docs/releases/INSTALLATION_GUIDE.md)**: Linux AppImage and Windows NSIS installation, system requirements, troubleshooting, and verification.
+- 🏗️ **[Packaging Architecture Specification](docs/releases/PACKAGING_ARCHITECTURE.md)**: Hardened ASAR layout, native ONNX Runtime unpack rules, desktop integration, and security controls.
+- 🛡️ **[Production Data Integrity & Zero-Mock Audit](docs/releases/PRODUCTION_DATA_INTEGRITY_AUDIT.md)**: Evidence-backed certification of zero mock data, real API connectivity, and authentic fallback resilience.
+- 📋 **[Packaging Baseline & Readiness Audit](docs/releases/PACKAGING_BASELINE_AUDIT.md)**: Complete dependency classification, toolchain baseline, and platform profiles.
+- ⚙️ **[Building & Compilation Guide](docs/releases/BUILDING.md)**: Step-by-step instructions for building, testing, and packaging from source.
+- 🧹 **[Uninstallation & Data Preservation Architecture](docs/releases/UNINSTALL_AND_DATA_PRESERVATION.md)**: Transparent documentation of what the uninstaller removes vs. what user data is preserved.
+- ✅ **[Release Quality Gates Checklist](docs/releases/RELEASE_CHECKLIST.md)**: Complete status of all six quality gates (Gate A through Gate F).
+
+---
+
 ## Installation Guide
 
 ### Linux
 
 #### Option A: AppImage (Recommended for all distributions)
-The AppImage is fully self-contained and supports seamless in-place delta updates:
+The AppImage is fully self-contained and requires no installation privileges:
 ```bash
 # 1. Make executable
-chmod +x Zenkai-Desktop-*-Linux-x64.AppImage
+chmod +x Zenkai-Desktop-0.0.1-x86_64.AppImage
 
 # 2. Run
-./Zenkai-Desktop-*-Linux-x64.AppImage
+./Zenkai-Desktop-0.0.1-x86_64.AppImage
 ```
 
 #### Option B: Debian / Ubuntu Package (`.deb`)
@@ -214,10 +241,10 @@ sudo rpm -Uvh Zenkai-Desktop-*-Linux-x64.rpm
 ### Windows
 
 #### Option A: Interactive NSIS Setup (`.exe`)
-1. Download `Zenkai-Desktop-*-Windows-x64-Setup.exe`.
-2. Run the installer and select your destination directory.
-3. Choose whether to create desktop and Start Menu shortcuts.
-4. Launch **Zenkai Desktop** from the Start Menu.
+1. Download `Zenkai-Desktop-Setup-0.0.1-x64.exe`.
+2. Run the installer and select your destination directory (default: `%LOCALAPPDATA%\Programs\Zenkai`).
+3. The installer creates desktop and Start Menu shortcuts, associates `.zenkaits` files, and registers the `zenkai://` protocol.
+4. Launch **Zenkai Desktop** from the Start Menu or Desktop shortcut.
 
 #### Option B: Standalone Portable (`.zip`)
 1. Download `Zenkai-Desktop-*-Windows-x64-Portable.zip`.
@@ -243,16 +270,15 @@ You can compile and package the application directly from source:
 git clone https://github.com/johan-droid/Zenkai-Desktop-.git
 cd Zenkai-Desktop-
 
-# 2. Install dependencies (requires Node.js 22+ and pnpm 12+)
+# 2. Install dependencies
 pnpm install --frozen-lockfile
 
 # 3. Build application bundle
 pnpm build
 
 # 4. Package for your platform
-pnpm dist:linux   # Generates AppImage, deb, rpm in release/
-pnpm dist:win     # Generates NSIS exe and portable zip in release/
-pnpm dist:mac     # Generates DMG and zip in release/
+pnpm dist:linux   # Generates AppImage in dist/linux/ and release/
+pnpm dist:win     # Generates NSIS exe in dist/windows/ and release/
 ```
 
 ---
@@ -267,8 +293,7 @@ Official binary packages are published on the GitHub Releases page:
 
 | Release Tag | Status | Date | Highlights |
 |---|---|---|---|
-| **`v0.0.2`** | Current Tag | Nov 15, 2026 | Authentic React 19 webapp integration (36 pages), CinePlayer WebGPU upscaler, dual-track updates, Active Playback Guard, and Playback Health Center. |
-| **`v0.0.1`** | Initial Tag | Nov 15, 2026 | Initial standalone architecture, HLS download engine, in-memory AES-128 decryption, and multi-platform packaging configurations. |
+| **`v0.0.1`** | Certified Production | Nov 15, 2026 | Production packaging for Linux AppImage & Windows NSIS Setup, Zenkai Vision GPU AI upscaling, offline downloads manager, zero mock data policy. |
 
 > [!NOTE]
 > Every published release includes cryptographic SHA-256 checksums in `SHA256SUMS.txt` for binary verification.

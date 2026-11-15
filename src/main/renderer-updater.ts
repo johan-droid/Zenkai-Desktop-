@@ -179,3 +179,4 @@ export function rollbackRenderer(reason = "manual"): boolean {
     return false;
   }
 }
+

@@ -36,6 +36,15 @@ contextBridge.exposeInMainWorld("zenkai", {
     onStatus: (cb: (p: IpcEvents["updater:status"]) => void) =>
       on("updater:status", cb),
   },
+  vision: {
+    getHardwareProfile: call("vision:getHardwareProfile"),
+    runDiagnostics: call("vision:runDiagnostics"),
+    getWorkerStatus: call("vision:getWorkerStatus"),
+    startWorker: call("vision:startWorker"),
+    stopWorker: call("vision:stopWorker"),
+    onWorkerStatusChanged: (cb: (p: IpcEvents["vision:workerStatusChanged"]) => void) =>
+      on("vision:workerStatusChanged", cb),
+  },
   onPlaybackPause: (cb: () => void) => on("playback:pause", () => cb()),
   onNotifyClick: (cb: (p: IpcEvents["notify:click"]) => void) =>
     on("notify:click", cb),

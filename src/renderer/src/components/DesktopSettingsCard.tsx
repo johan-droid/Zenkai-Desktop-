@@ -3,7 +3,9 @@ import {
   Activity,
   AlertCircle,
   CheckCircle2,
+  Cpu,
   Download,
+  Eye,
   FolderOpen,
   Laptop,
   RefreshCw,
@@ -12,6 +14,7 @@ import {
 } from 'lucide-react'
 import type { Settings } from '../../../shared/settings.schema'
 import type { IpcEvents } from '../../../shared/ipc-contract'
+import type { VisionDiagnosticsReport, VisionHardwareProfile, VisionWorkerStatus } from '../../../shared/vision-types'
 import { toast } from '../lib/toast'
 import { cn } from '../lib/utils'
 
@@ -72,12 +75,20 @@ export function DesktopSettingsCard() {
   ])
   const [probing, setProbing] = useState(false)
 
+  // Zenkai Vision Hardware & Diagnostic state
+  const [visionProfile, setVisionProfile] = useState<VisionHardwareProfile | null>(null)
+  const [visionWorkerStatus, setVisionWorkerStatus] = useState<VisionWorkerStatus | null>(null)
+  const [visionReport, setVisionReport] = useState<VisionDiagnosticsReport | null>(null)
+  const [probingVision, setProbingVision] = useState(false)
+
   // 1. Initial Load of settings & version
   useEffect(() => {
     if (typeof window === 'undefined' || !window.zenkai) return
 
     void window.zenkai.settings.get().then((s) => setSettings(s))
     void window.zenkai.app.version().then((v) => setAppVersion(v))
+    void (window.zenkai as any).vision?.getHardwareProfile().then((p: VisionHardwareProfile) => setVisionProfile(p))
+    void (window.zenkai as any).vision?.getWorkerStatus().then((s: VisionWorkerStatus) => setVisionWorkerStatus(s))
 
     const unsubscribe = window.zenkai.app.onStatus((status) => {
       setUpdaterStatus(status)
@@ -90,6 +101,22 @@ export function DesktopSettingsCard() {
 
     return () => {
       unsubscribe?.()
+    }
+  }, [])
+
+  const runVisionDiagnostics = useCallback(async () => {
+    const v = (window.zenkai as any)?.vision
+    if (!v) return
+    setProbingVision(true)
+    try {
+      const report: VisionDiagnosticsReport = await v.runDiagnostics()
+      setVisionReport(report)
+      setVisionProfile(report.hardware)
+      toast('Vision diagnostics complete')
+    } catch (err: any) {
+      toast(err?.message || 'Vision diagnostics failed', 'error')
+    } finally {
+      setProbingVision(false)
     }
   }, [])
 
@@ -402,6 +429,135 @@ export function DesktopSettingsCard() {
             </div>
           ))}
         </div>
+      </section>
+
+      {/* 4. Zenkai Vision Subsystem & Hardware Diagnostics */}
+      <section className="rounded-3xl border border-border bg-card/60 p-5 sm:p-7 shadow-lg space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <div className="flex items-center gap-2">
+              <Eye className="size-5 text-accent" />
+              <h2 className="font-display text-xl font-bold">Zenkai Vision Engine</h2>
+              {visionProfile?.profile && (
+                <span className={cn(
+                  'ml-2 rounded-full px-2.5 py-0.5 text-xs font-mono font-bold uppercase tracking-wider',
+                  visionProfile.profile.profile === 'high_performance' && 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30',
+                  visionProfile.profile.profile === 'advanced' && 'bg-sky-500/15 text-sky-400 border border-sky-500/30',
+                  visionProfile.profile.profile === 'balanced' && 'bg-amber-500/15 text-amber-400 border border-amber-500/30',
+                  visionProfile.profile.profile === 'basic' && 'bg-zinc-500/15 text-zinc-400 border border-zinc-500/30',
+                  visionProfile.profile.profile === 'unsupported' && 'bg-rose-500/15 text-rose-400 border border-rose-500/30',
+                )}>
+                  {visionProfile.profile.profile.replace('_', ' ')}
+                </span>
+              )}
+            </div>
+            <p className="mt-1 text-xs text-muted">
+              Local GPU-accelerated video enhancement, hardware capability qualification, and offline AI processing.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={runVisionDiagnostics}
+            disabled={probingVision}
+            className="inline-flex h-8 items-center gap-1.5 rounded-full border border-border bg-card px-3 text-xs font-semibold text-foreground transition hover:border-foreground/40 active:scale-95 disabled:opacity-50"
+          >
+            <RefreshCw className={cn('size-3.5', probingVision && 'animate-spin')} />
+            <span>{probingVision ? 'Qualifying...' : 'Run Diagnostics'}</span>
+          </button>
+        </div>
+
+        {/* Hardware & Profile Breakdown */}
+        {visionProfile ? (
+          <div className="space-y-3 pt-1">
+            <div className="rounded-2xl border border-border/70 bg-card/40 p-4 space-y-2">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted flex items-center gap-1.5 font-medium">
+                  <Cpu className="size-4 text-accent" /> Primary Hardware
+                </span>
+                <span className="font-semibold text-foreground">
+                  {visionProfile.selectedDevice?.model || 'Standard CPU'}
+                </span>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-border/40 text-xs">
+                <div>
+                  <span className="text-muted block">GPU Type</span>
+                  <span className="font-mono font-medium text-foreground uppercase">
+                    {visionProfile.selectedDevice?.type || 'Integrated'}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-muted block">Max Target</span>
+                  <span className="font-mono font-bold text-accent">
+                    {visionProfile.profile?.maxTargetResolution.toUpperCase() || '1080P'}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-muted block">Memory Budget</span>
+                  <span className="font-mono font-medium text-foreground">
+                    {visionProfile.profile?.memoryBudgetMb || 1024} MB
+                  </span>
+                </div>
+                <div>
+                  <span className="text-muted block">Worker PID</span>
+                  <span className="font-mono font-medium text-foreground">
+                    {visionWorkerStatus?.pid || 'Standby'}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Media Pipeline & Providers */}
+            <div className="rounded-2xl border border-border/70 bg-card/40 p-4 space-y-2 text-xs">
+              <div className="flex items-center justify-between">
+                <span className="text-muted font-medium">Media Engine (FFmpeg)</span>
+                <span className="font-mono text-foreground font-semibold">
+                  {visionProfile.mediaBackend?.ffmpegVersion || 'Bundled static'}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-muted font-medium">Hardware Decoders</span>
+                <span className="font-mono text-foreground">
+                  {visionProfile.mediaBackend?.hwaccels?.length
+                    ? visionProfile.mediaBackend.hwaccels.join(', ')
+                    : 'Standard software decoding'}
+                </span>
+              </div>
+            </div>
+
+            {/* Diagnostic Checks if Run */}
+            {visionReport && (
+              <div className="space-y-2 pt-2">
+                <p className="text-xs font-semibold text-muted uppercase tracking-wider">
+                  Verification Report
+                </p>
+                {visionReport.checks.map((chk) => (
+                  <div
+                    key={chk.name}
+                    className="flex items-center justify-between rounded-xl border border-border/50 bg-card/30 px-3.5 py-2.5 text-xs"
+                  >
+                    <span className="font-medium text-foreground">{chk.name}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-muted font-mono">{chk.detail}</span>
+                      {chk.status === 'pass' && (
+                        <CheckCircle2 className="size-4 text-emerald-400 shrink-0" />
+                      )}
+                      {chk.status === 'warn' && (
+                        <AlertCircle className="size-4 text-amber-400 shrink-0" />
+                      )}
+                      {chk.status === 'fail' && (
+                        <AlertCircle className="size-4 text-rose-400 shrink-0" />
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="rounded-2xl border border-border/70 bg-card/40 p-4 text-xs text-muted text-center">
+            Initializing Zenkai Vision hardware qualification...
+          </div>
+        )}
       </section>
     </div>
   )

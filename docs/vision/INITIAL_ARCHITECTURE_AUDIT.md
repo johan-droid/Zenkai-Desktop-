@@ -297,3 +297,4 @@ To respect the user's non-negotiable staging directives, implementation will str
 - **Architecture Gate (Gate 1) Status**: **PASSED**.
 - **Key Finding**: Decoded frame access is completely feasible for Direct HLS servers and local files via existing WebGPU external texture sampling and FFmpeg pipelines. Embed servers are clearly isolated and will be handled via an explicit, non-disruptive bypass policy.
 - **Next Immediate Step**: Await user review and alignment on Gate 1 findings. Upon approval, proceed to **Phase 1 Foundations** (Hardware discovery, typed IPC contracts, and worker process lifecycle).
+

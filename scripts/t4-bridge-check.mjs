@@ -88,8 +88,22 @@ try {
         "platform",
         "rpc",
         "settings",
+        "vision",
       ]),
     snap.keys.join(","),
+  );
+
+  const hardwareProfile = JSON.parse(
+    await cdp("Runtime.evaluate", {
+      expression: "window.zenkai.vision.getHardwareProfile().then(p => JSON.stringify(p))",
+      awaitPromise: true,
+      returnByValue: true,
+    }),
+  );
+  check(
+    "IPC round trip vision.getHardwareProfile()",
+    hardwareProfile && Array.isArray(hardwareProfile.devices) && Boolean(hardwareProfile.profile),
+    `devices=${hardwareProfile?.devices?.length}, profile=${hardwareProfile?.profile?.profile}`,
   );
 
   const version = await cdp("Runtime.evaluate", {

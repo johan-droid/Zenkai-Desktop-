@@ -79,12 +79,18 @@ export type IpcContract = {
   }>;
   "updater:start-download": () => Promise<{ success: boolean; message?: string }>;
   "updater:install": () => Promise<void>;
+  "vision:getHardwareProfile": () => Promise<import("./vision-types").VisionHardwareProfile>;
+  "vision:runDiagnostics": () => Promise<import("./vision-types").VisionDiagnosticsReport>;
+  "vision:getWorkerStatus": () => Promise<import("./vision-types").VisionWorkerStatus>;
+  "vision:startWorker": () => Promise<{ success: boolean; pid?: number; message?: string }>;
+  "vision:stopWorker": () => Promise<{ success: boolean }>;
 };
 
 export type IpcEvents = {
   "playback:pause": void;
   "notify:click": { id: string };
   "auth:callback": { token: string };
+  "vision:workerStatusChanged": import("./vision-types").VisionWorkerStatus;
   "updater:status": {
     status:
       | "idle"

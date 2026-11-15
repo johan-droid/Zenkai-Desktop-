@@ -132,6 +132,22 @@ export default function MovieWatchPage() {
     document.title = `${details.data?.title ?? 'Watch'} — Zenkai`
   }, [details.data?.title])
 
+  // Desktop Discord Rich Presence synchronization
+  useEffect(() => {
+    const movieTitle = details.data?.title
+    if (!movieTitle || typeof window === 'undefined' || !window.zenkai?.rpc) return
+    const detailText = type === 'tv' ? `S${season} E${episode}` : 'Movie'
+    window.zenkai.rpc.set({
+      title: movieTitle.slice(0, 128),
+      details: detailText,
+      startedAt: Date.now(),
+    }).catch(() => {})
+
+    return () => {
+      window.zenkai?.rpc.clear().catch(() => {})
+    }
+  }, [details.data?.title, type, season, episode])
+
   function go(next: Record<string, string | number | null>) {
     const p = new URLSearchParams(params)
     for (const [k, v] of Object.entries(next)) v === null ? p.delete(k) : p.set(k, String(v))
@@ -312,6 +328,7 @@ export default function MovieWatchPage() {
                 key={src.data}
                 src={src.data}
                 title={title}
+                sandbox="allow-scripts allow-same-origin allow-forms allow-presentation"
                 allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
                 allowFullScreen
                 referrerPolicy="origin"

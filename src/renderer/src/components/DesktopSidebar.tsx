@@ -1,4 +1,4 @@
-import { memo } from 'react'
+import { memo, useState, useEffect } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { LOGO_URL } from '../lib/constants'
 import {
@@ -16,6 +16,7 @@ import {
   MessageSquare,
   Heart,
   Sparkles,
+  Download,
   type LucideIcon,
 } from 'lucide-react'
 import { cn } from '../lib/utils'
@@ -32,11 +33,12 @@ interface DesktopSidebarProps {
 
 type Item = { label: string; icon: LucideIcon; to?: string; match?: (p: string) => boolean; onClick?: () => void; badge?: number }
 
-const MAIN: Item[] = [
+const getMain = (activeDownloads: number): Item[] => [
   { label: 'Home', to: '/home', icon: House, match: (p) => p === '/' || p === '/home' },
   { label: 'Movies & TV', to: '/movies', icon: Clapperboard, match: (p) => p.startsWith('/movies') },
   { label: 'Browse', to: '/browse', icon: Compass, match: (p) => p.startsWith('/browse') || p === '/trending' || p === '/popular' || p === '/top' },
   { label: 'Library', to: '/list', icon: Archive, match: (p) => p.startsWith('/list') },
+  { label: 'Downloads', to: '/downloads', icon: Download, match: (p) => p.startsWith('/downloads'), badge: activeDownloads },
   { label: 'Schedule', to: '/schedule', icon: CalendarDays, match: (p) => p.startsWith('/schedule') },
   { label: 'Manga', to: '/manga', icon: BookOpen, match: (p) => p.startsWith('/manga') },
   { label: 'Novels', to: '/novel', icon: Book, match: (p) => p.startsWith('/novel') },
@@ -95,6 +97,20 @@ export const DesktopSidebar = memo(function DesktopSidebar({ collapsed, onToggle
   const { openSearch } = useSearch()
   const { user } = useAuth()
   const profile = useProfile()
+  const [activeDownloads, setActiveDownloads] = useState(0)
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.zenkai?.downloads) return
+    const update = () => {
+      window.zenkai.downloads.list().then((items) => {
+        const count = (items || []).filter((i) => i.status === 'active' || i.status === 'queued').length
+        setActiveDownloads(count)
+      }).catch(() => {})
+    }
+    update()
+    const timer = window.setInterval(update, 3000)
+    return () => window.clearInterval(timer)
+  }, [])
 
   const isLoggedIn = Boolean(user)
   const displayName = isLoggedIn
@@ -145,7 +161,7 @@ export const DesktopSidebar = memo(function DesktopSidebar({ collapsed, onToggle
         )}
 
         <nav className="w-full space-y-1 pt-0.5">
-          {MAIN.map((item) => (
+          {getMain(activeDownloads).map((item) => (
             <NavItem
               key={item.label}
               item={item}

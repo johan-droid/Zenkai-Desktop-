@@ -573,6 +573,53 @@ export default function WatchPage() {
     if (title) document.title = `${title} · Episode ${ep} — Zenkai`
   }, [title, ep])
 
+  // Desktop Discord Rich Presence synchronization
+  useEffect(() => {
+    if (!title || typeof window === 'undefined' || !window.zenkai?.rpc) return
+    window.zenkai.rpc.set({
+      title: title.slice(0, 128),
+      details: `Episode ${ep}`,
+      startedAt: Date.now(),
+    }).catch(() => {})
+
+    return () => {
+      window.zenkai?.rpc.clear().catch(() => {})
+    }
+  }, [title, ep])
+
+  // Native desktop offline download action
+  const handleDownloadCurrentEpisode = useCallback(() => {
+    if (typeof window === 'undefined' || !window.zenkai?.downloads || !id) {
+      toast('Downloads are only available in Zenkai Desktop', 'info')
+      return
+    }
+    const dlId = `dl-${id}-${ep}-${audio}`
+    const dlName = `${title || 'Anime'} - Episode ${ep} [${audio.toUpperCase()}]`
+    window.zenkai.downloads.start({
+      id: dlId,
+      anilistId: id,
+      episode: ep,
+      audio,
+      server: server.id,
+      withSubtitles: true,
+      name: dlName,
+    }).then(() => {
+      toast(`Started download: Episode ${ep}`)
+    }).catch((err) => {
+      toast(`Download failed: ${err instanceof Error ? err.message : String(err)}`, 'error')
+    })
+  }, [id, ep, audio, server.id, title])
+
+  // Offline downloaded file check for automatic fallback
+  const [offlineFile, setOfflineFile] = useState<string | null>(null)
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.zenkai?.downloads || !id) return
+    window.zenkai.downloads.list().then((list) => {
+      const match = list.find((i) => i.anilistId === id && i.episode === ep && i.status === 'done' && i.path)
+      setOfflineFile(match?.path ?? null)
+    }).catch(() => {})
+  }, [id, ep])
+
   const playerServers = useMemo(
     () =>
       directList.map((s) => {
@@ -711,6 +758,18 @@ export default function WatchPage() {
               <Loading quiet={serverBusy} logo={logo} />
             ) : !cur ? (
               <Problem message={stream.error?.message ?? 'No stream found.'} onReconnect={() => go({ server: altId })}>
+                {offlineFile && (
+                  <button
+                    onClick={() => {
+                      if (window.zenkai?.app.openFile) {
+                        void window.zenkai.app.openFile(offlineFile)
+                      }
+                    }}
+                    className={cn(pill, 'border-transparent bg-accent text-accent-fg font-bold shadow-lg shadow-accent/25')}
+                  >
+                    Play Downloaded Episode Offline
+                  </button>
+                )}
                 <button onClick={() => go({ server: altId })} className={cn(pill, 'border-transparent bg-white text-black')}>
                   Try {altName}
                 </button>
@@ -738,6 +797,7 @@ export default function WatchPage() {
                   format={a.format}
                   directSubtitles={cur.d.subtitles.map((s, i) => ({ id: `s${i}`, label: s.label, lang: s.label, url: s.file }))}
                   audioMode={cur.audio}
+                  onDownload={typeof window !== 'undefined' && window.zenkai?.isDesktop ? handleDownloadCurrentEpisode : undefined}
                   onAudio={(m) => go({ audio: m }, true, applyingPartyAudio.current)}
                   onAudioTracks={(tracks, active) => setAud({ tracks, active })}
                   audioSel={audSel}
@@ -790,12 +850,30 @@ export default function WatchPage() {
               </Problem>
             ) : (
               <Frame>
-                <iframe key={salt.data} src={salt.data} title={title} allow="autoplay; fullscreen; picture-in-picture; encrypted-media" allowFullScreen className="absolute inset-0 size-full border-0" />
+                <iframe
+                  key={salt.data}
+                  src={salt.data}
+                  title={title}
+                  sandbox="allow-scripts allow-same-origin allow-forms allow-presentation"
+                  referrerPolicy="no-referrer"
+                  allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
+                  allowFullScreen
+                  className="absolute inset-0 size-full border-0"
+                />
               </Frame>
             )
           ) : embedSrc ? (
             <Frame>
-              <iframe key={embedSrc} src={embedSrc} title={title} allow="autoplay; fullscreen; picture-in-picture; encrypted-media" allowFullScreen className="absolute inset-0 size-full border-0" />
+              <iframe
+                key={embedSrc}
+                src={embedSrc}
+                title={title}
+                sandbox="allow-scripts allow-same-origin allow-forms allow-presentation"
+                referrerPolicy="no-referrer"
+                allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
+                allowFullScreen
+                className="absolute inset-0 size-full border-0"
+              />
             </Frame>
           ) : bundle === null ? (
             <Loading quiet={serverBusy} logo={logo} />

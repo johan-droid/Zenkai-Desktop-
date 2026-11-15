@@ -27,6 +27,7 @@ import { useSpatialNav } from './lib/spatial'
 import { isDetailsPath, isReaderPath, isWatchPath, sectionOf } from './lib/sections'
 import { useAuth } from './context/AuthContext'
 import { checkDailySync } from './lib/sync'
+import { toast } from './lib/toast'
 import { cn } from './lib/utils'
 
 // Split out lazy pages
@@ -65,6 +66,7 @@ const CallPage = lazy(() => import('./pages/CallPage'))
 const ExtensionGuidePage = lazy(() => import('./pages/ExtensionGuidePage'))
 const SupportPage = lazy(() => import('./pages/SupportPage'))
 const VisionStudioPage = lazy(() => import('./pages/VisionStudioPage'))
+const DownloadsPage = lazy(() => import('./pages/DownloadsPage'))
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage'))
 
 export default function App() {
@@ -121,6 +123,18 @@ export default function App() {
   useEffect(() => {
     if (user?.id) void checkDailySync(user.id)
   }, [user?.id])
+
+  // Handle OS download completion notification click
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.zenkai?.onNotifyClick) return
+    const unbind = window.zenkai.onNotifyClick(({ id: downloadId }) => {
+      navigate('/downloads')
+      toast(`Download completed: ${downloadId}`, 'info')
+    })
+    return () => {
+      unbind?.()
+    }
+  }, [navigate])
 
   useEffect(() => {
     document.documentElement.dataset.section = section ?? 'hub'
@@ -213,6 +227,7 @@ export default function App() {
               <Route path="/api/docs" element={<DocsPage />} />
               <Route path="/docs" element={<DocsPage />} />
               <Route path="/vision" element={<VisionStudioPage />} />
+              <Route path="/downloads" element={<DownloadsPage />} />
               <Route path="/support" element={<SupportPage />} />
               <Route path="/busted" element={<BustedPage />} />
               <Route path="*" element={<NotFoundPage />} />

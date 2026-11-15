@@ -382,3 +382,19 @@ html[data-drawer] .animate-card-in,
 html[data-drawer] .animate-pulse {
   animation-play-state: paused;
 }
+
+/* 60 FPS GPU Acceleration & Compositor Layer Optimization */
+.zp,
+[data-zk-player],
+aside[aria-label="Desktop Navigation"],
+.zp-sh,
+.zp-sw {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
+
+/* Reduce compositor strain during active video playback */
+[data-zk-player] .zp-b,
+[data-zk-player] .zp-bar {
+  contain: layout style paint;
+}

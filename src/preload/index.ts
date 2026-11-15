@@ -76,7 +76,9 @@ if (typeof window !== "undefined") {
     }
 
     ipcRenderer.on("playback:pause", () => {
-      const v = document.getElementById("zenkaiVideo") as HTMLVideoElement | null;
+      const v = (document.getElementById("zenkaiVideo") ||
+        document.querySelector("video.zp-v") ||
+        document.querySelector("video")) as HTMLVideoElement | null;
       if (v && !v.paused) v.pause();
     });
 

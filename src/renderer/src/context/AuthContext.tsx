@@ -118,8 +118,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(false)
     })
 
+    // 3. Listen for desktop deep link auth callback (zenkai://auth?token=...)
+    let unbindDeepLink: (() => void) | undefined
+    if (typeof window !== 'undefined' && window.zenkai?.onAuthCallback) {
+      unbindDeepLink = window.zenkai.onAuthCallback(async ({ token }) => {
+        if (!token) return
+        try {
+          if (token.includes('=')) {
+            const params = new URLSearchParams(token)
+            const access = params.get('access_token')
+            const refresh = params.get('refresh_token') || ''
+            if (access) {
+              const { data, error } = await supabase.auth.setSession({ access_token: access, refresh_token: refresh })
+              if (!error && data.session) {
+                toast('Signed in successfully via desktop link!')
+                return
+              }
+            }
+          }
+          const { data, error } = await supabase.auth.setSession({ access_token: token, refresh_token: '' })
+          if (!error && data.session) {
+            toast('Signed in successfully via desktop link!')
+          } else {
+            console.warn('[auth] deep link setSession failed:', error)
+          }
+        } catch (err) {
+          console.warn('[auth] deep link token processing error:', err)
+        }
+      })
+    }
+
     return () => {
       subscription.unsubscribe()
+      unbindDeepLink?.()
     }
   }, [syncProfile])
 

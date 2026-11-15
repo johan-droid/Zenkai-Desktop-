@@ -364,6 +364,7 @@ export interface CinePlayerProps {
   downloadUrl?: string
   fallbackStreamUrl?: string
   isTmdb?: boolean
+  onDownload?: () => void
   /** called when the direct stream fails to load (e.g. dead URL, CORS, DNS error) */
   onStreamError?: () => void
 }
@@ -805,7 +806,7 @@ export default function CinePlayer({
   episodesInfo, fallbackImg, defaultRuntime, kinds,
   onVideoRef, onPlayerAction, externalControl, onWatchTogetherClick, watchPartyActive, watchPartyPeersCount,
   isPartyGuest = false,
-  qualities, currentQuality, onQualityChange, downloadUrl, fallbackStreamUrl, isTmdb = false, onStreamError,
+  qualities, currentQuality, onQualityChange, downloadUrl, fallbackStreamUrl, isTmdb = false, onStreamError, onDownload,
 }: CinePlayerProps) {
   const isMovie = format === 'MOVIE' || (totalEpisodes <= 1 && format !== 'TV')
   const isEmbed = Boolean(streamUrl && (streamUrl.includes('embed') || streamUrl.includes('iframe')))
@@ -1847,6 +1848,20 @@ const slider = (label: string, key: 'opacity' | 'lh' | 'width' | 'blur' | 'scale
     }
   })
 
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.zenkai?.onPlaybackPause) return
+    const unbind = window.zenkai.onPlaybackPause(() => {
+      const v = vid.current
+      if (v && !v.paused) {
+        v.pause()
+        setPlaying(false)
+      }
+    })
+    return () => {
+      unbind?.()
+    }
+  }, [])
+
   /* ── actions ── */
   const togglePlay = () => {
     if (castOn.current) {
@@ -2279,6 +2294,7 @@ const slider = (label: string, key: 'opacity' | 'lh' | 'width' | 'blur' | 'scale
       onPointerMove={(e) => e.pointerType === 'mouse' && poke()}
     >
       <video
+        id="zenkaiVideo"
         ref={vid}
         className="zp-v"
         style={{ ...aspectStyle(ar), filter: videoFilterStyle, transform: pf.flip || pf.zoom !== 100 ? `scale(${pf.zoom / 100}) scaleX(${pf.flip ? -1 : 1})` : undefined }}
@@ -2674,19 +2690,31 @@ const slider = (label: string, key: 'opacity' | 'lh' | 'width' | 'blur' | 'scale
                   )}
                 </button>
               )}
-              {downloadUrl && (
-                <a
-                  href={downloadUrl}
-                  download
-                  target="_blank"
-                  rel="noreferrer"
-                  className="zp-b"
-                  aria-label="Download MP4"
-                  title="Download video file"
-                  onClick={() => flash('ok', 'Download started')}
-                >
-                  <Download />
-                </a>
+              {(onDownload || downloadUrl) && (
+                onDownload ? (
+                  <button
+                    type="button"
+                    className="zp-b"
+                    aria-label="Download Episode"
+                    title="Download episode for offline playback"
+                    onClick={onDownload}
+                  >
+                    <Download />
+                  </button>
+                ) : (
+                  <a
+                    href={downloadUrl}
+                    download
+                    target="_blank"
+                    rel="noreferrer"
+                    className="zp-b"
+                    aria-label="Download MP4"
+                    title="Download video file"
+                    onClick={() => flash('ok', 'Download started')}
+                  >
+                    <Download />
+                  </a>
+                )
               )}
               <button
                 className={cx('zp-b relative', up && 'on text-emerald-400')}
@@ -2803,23 +2831,38 @@ const slider = (label: string, key: 'opacity' | 'lh' | 'width' | 'blur' | 'scale
                         {lvl === l.i && <Check className="size-3.5 shrink-0 text-accent text-[var(--a,#dc143c)]" />}
                       </motion.button>
                     ))}
-                    {downloadUrl && (
+                    {(onDownload || downloadUrl) && (
                       <div className="mt-2 pt-2 border-t border-white/10">
-                        <a
-                          href={downloadUrl}
-                          download
-                          target="_blank"
-                          rel="noreferrer"
-                          className="zp-row flex items-center justify-between text-accent font-semibold hover:bg-white/10 rounded-lg px-2 py-1.5 transition text-xs"
-                          onClick={() => {
-                            flash('ok', 'Download started')
-                            closePop()
-                          }}
-                        >
-                          <span className="flex items-center gap-2">
-                            <Download className="size-3.5" /> Download MP4
-                          </span>
-                        </a>
+                        {onDownload ? (
+                          <button
+                            type="button"
+                            className="zp-row flex items-center justify-between text-accent font-semibold hover:bg-white/10 rounded-lg px-2 py-1.5 transition text-xs w-full text-left"
+                            onClick={() => {
+                              closePop()
+                              onDownload()
+                            }}
+                          >
+                            <span className="flex items-center gap-2">
+                              <Download className="size-3.5" /> Download Episode
+                            </span>
+                          </button>
+                        ) : (
+                          <a
+                            href={downloadUrl}
+                            download
+                            target="_blank"
+                            rel="noreferrer"
+                            className="zp-row flex items-center justify-between text-accent font-semibold hover:bg-white/10 rounded-lg px-2 py-1.5 transition text-xs"
+                            onClick={() => {
+                              flash('ok', 'Download started')
+                              closePop()
+                            }}
+                          >
+                            <span className="flex items-center gap-2">
+                              <Download className="size-3.5" /> Download MP4
+                            </span>
+                          </a>
+                        )}
                       </div>
                     )}
                   </div>

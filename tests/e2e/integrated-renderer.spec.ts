@@ -44,5 +44,49 @@ test.describe("E2E: Authentic Integrated Website Renderer", () => {
       await app.close();
     }
   });
+
+  test("navigates to /downloads and renders offline downloads UI", async () => {
+    const launchEnv: Record<string, string> = {
+      ...(process.env as Record<string, string>),
+    };
+    delete launchEnv.ELECTRON_RUN_AS_NODE;
+    delete launchEnv.ZENKAI_WEB_URL;
+    delete launchEnv.ZENKAI_MODE;
+
+    const app = await electron.launch({
+      args: [path.join(__dirname, "../../out/main/index.js")],
+      env: launchEnv,
+    });
+
+    try {
+      const win = await app.firstWindow();
+      expect(win).toBeDefined();
+
+      await win.waitForLoadState("domcontentloaded");
+
+      // Navigate to /home first to enter main app layout with sidebar (supports both HashRouter and BrowserRouter)
+      await win.evaluate(() => {
+        if (window.location.protocol === "file:") {
+          window.location.hash = "#/home";
+        } else {
+          window.history.pushState({}, "", "/home");
+          window.dispatchEvent(new PopStateEvent("popstate"));
+        }
+      });
+
+      // Verify the sidebar has the Downloads link (href is #/downloads under HashRouter, /downloads under BrowserRouter)
+      const downloadsLink = win.locator('aside[aria-label="Desktop Navigation"] a[href$="/downloads"]');
+      await expect(downloadsLink.first()).toBeVisible({ timeout: 15000 });
+
+      // Click downloads link
+      await downloadsLink.first().click();
+
+      // Verify the Offline Downloads heading is visible
+      const heading = win.locator('h1:has-text("Offline Downloads")');
+      await expect(heading).toBeVisible({ timeout: 10000 });
+    } finally {
+      await app.close();
+    }
+  });
 });
 

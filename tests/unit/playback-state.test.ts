@@ -15,3 +15,4 @@ describe("Playback State Tracking (Active Playback Guard)", () => {
     expect(isPlaybackActive()).toBe(false);
   });
 });
+

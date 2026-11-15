@@ -16,3 +16,4 @@ ipcMain.on("playback:state", (_e, raw: unknown) => {
 ipcMain.handle("playback:isActive", async () => {
   return isPlaybackActive();
 });
+

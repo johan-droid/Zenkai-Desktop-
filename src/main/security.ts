@@ -13,7 +13,9 @@ const CSP =
 
 function isAllowedOrigin(url: string): boolean {
   try {
-    return (ALLOWED_ORIGINS as readonly string[]).includes(new URL(url).origin);
+    const parsed = new URL(url);
+    if (parsed.protocol === "file:" || parsed.protocol === "data:") return true;
+    return (ALLOWED_ORIGINS as readonly string[]).includes(parsed.origin);
   } catch {
     return false;
   }

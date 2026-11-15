@@ -12,8 +12,8 @@ files:
 asar: true
 publish:
   provider: github
-  owner: Nyyrox # VERIFY: owner of published desktop repo
-  repo: zenkai-desktop
+  owner: johan-droid
+  repo: Zenkai-Desktop-
   releaseType: release
 afterSign: scripts/after-sign.mjs
 
@@ -41,6 +41,7 @@ linux:
   icon: resources/icon.png
   category: AudioVideo
   maintainer: dev@zenkai.cfd
+  syncDesktopName: true # .desktop filename matches StartupWMClass/app_id (desktopName)
   target:
     - { target: AppImage, arch: [x64, arm64] }
     - { target: deb, arch: [x64, arm64] }

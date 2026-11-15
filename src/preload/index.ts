@@ -33,3 +33,18 @@ contextBridge.exposeInMainWorld("zenkai", {
   onAuthCallback: (cb: (p: IpcEvents["auth:callback"]) => void) =>
     on("auth:callback", cb),
 });
+
+// Auto-pause and banner cleanup when viewing the remote web portal
+if (typeof window !== "undefined") {
+  window.addEventListener("DOMContentLoaded", () => {
+    const mobileBanner = document.getElementById("mobileAppBanner");
+    if (mobileBanner) {
+      mobileBanner.style.display = "none";
+    }
+
+    ipcRenderer.on("playback:pause", () => {
+      const v = document.getElementById("zenkaiVideo") as HTMLVideoElement | null;
+      if (v && !v.paused) v.pause();
+    });
+  });
+}

@@ -2,7 +2,11 @@
   "name": "zenkai-desktop",
   "version": "0.0.1",
   "description": "Zenkai desktop shell — wraps the Zenkai web app in a secure Electron window",
-  "homepage": "https://zenkai-web.pages.dev/",
+  "homepage": "https://github.com/johan-droid/Zenkai-Desktop-#readme",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/johan-droid/Zenkai-Desktop-.git"
+  },
   "author": {
     "name": "Nyyrox",
     "email": "dev@zenkai.cfd"
@@ -35,7 +39,8 @@
   "dependencies": {
     "@xhayper/discord-rpc": "^1.5.1",
     "electron-updater": "6.8.11",
+    "hls.js": "^1.7.4",
     "zod": "^4.6.7"
   },
-  "homepage": "https://github.com/Nyyrox/zenkai-desktop#readme"
+  "desktopName": "zenkai.desktop"
 }

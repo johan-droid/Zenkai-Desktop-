@@ -5,13 +5,16 @@ import { resolveStream } from "../../src/main/api/stream";
 
 test.describe("E2E: Zenkai Desktop Application", () => {
   test("launch electron app, verify preload bridge and settings IPC", async () => {
+    const launchEnv: Record<string, string> = {
+      ...(process.env as Record<string, string>),
+      ZENKAI_WEB_URL:
+        "data:text/html,<html><head><title>Zenkai Test</title></head><body><h1>Zenkai Test</h1></body></html>",
+    };
+    delete launchEnv.ELECTRON_RUN_AS_NODE;
+
     const app = await electron.launch({
       args: [path.join(__dirname, "../../out/main/index.js")],
-      env: {
-        ...process.env,
-        ZENKAI_WEB_URL:
-          "data:text/html,<html><head><title>Zenkai Test</title></head><body><h1>Zenkai Test</h1></body></html>",
-      },
+      env: launchEnv,
     });
 
     try {

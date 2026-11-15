@@ -1,5 +1,11 @@
-node_modules
+node_modules/
 out/
 release/
 test-results/
 playwright-report/
+.agents/
+.claude/
+skills-lock.json
+.env
+.env.*
+*.log

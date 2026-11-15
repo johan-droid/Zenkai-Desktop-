@@ -107,6 +107,11 @@ try {
   );
   const focused2 = await waitFocused(app);
   check("auth link also focuses window", focused2, `focused=${focused2}`);
+  check(
+    "auth-link second instance exited (single-instance lock)",
+    t2.exited,
+    `code=${t2.code}`,
+  );
 
   // --- 3. token never in logs ---
   await sleep(500);

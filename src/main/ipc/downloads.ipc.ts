@@ -51,7 +51,16 @@ ipcMain.handle("downloads:resolve", async (_e, raw: unknown) => {
   if (!parsed.success) reject("downloads:resolve", parsed.error.issues);
   try {
     const res = await resolveStream(parsed.data);
-    return { playable: !!res.m3uUrl };
+    return {
+      playable: !!res.m3uUrl,
+      streamUrl: res.m3uUrl,
+      rawUrl: res.rawStreamUrl,
+      subtitles: res.subtitles,
+      audioTracks: res.audioTracks,
+      intro: res.intro,
+      outro: res.outro,
+      referer: res.referer,
+    };
   } catch (err: unknown) {
     return {
       playable: false,

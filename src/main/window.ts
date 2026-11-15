@@ -1,7 +1,38 @@
 import { BrowserWindow } from "electron";
+import fs from "node:fs";
 import { join } from "node:path";
 import { WEB_URL } from "../shared/config";
 import { getSettings, updateSettings } from "./settings";
+
+export function getAppEntryTarget(): { type: "url" | "file"; path: string } {
+  const customUrl = process.env.ZENKAI_WEB_URL;
+  if (customUrl) {
+    return { type: "url", path: customUrl };
+  }
+  if (process.env.ZENKAI_MODE === "web") {
+    return { type: "url", path: WEB_URL };
+  }
+  if (process.env.ELECTRON_RENDERER_URL) {
+    return { type: "url", path: process.env.ELECTRON_RENDERER_URL };
+  }
+  const localRenderer = join(__dirname, "../renderer/index.html");
+  if (fs.existsSync(localRenderer)) {
+    return { type: "file", path: localRenderer };
+  }
+  return { type: "url", path: WEB_URL };
+}
+
+export function loadStandaloneUI(win: BrowserWindow): void {
+  if (process.env.ELECTRON_RENDERER_URL) {
+    void win.loadURL(process.env.ELECTRON_RENDERER_URL);
+  } else {
+    void win.loadFile(join(__dirname, "../renderer/index.html"));
+  }
+}
+
+export function loadWebPortal(win: BrowserWindow): void {
+  void win.loadURL(WEB_URL);
+}
 
 export function createMainWindow(): BrowserWindow {
   const state = getSettings().windowState;
@@ -36,6 +67,13 @@ export function createMainWindow(): BrowserWindow {
   });
 
   win.once("ready-to-show", () => win.show());
-  void win.loadURL(WEB_URL);
+
+  const target = getAppEntryTarget();
+  if (target.type === "file") {
+    void win.loadFile(target.path);
+  } else {
+    void win.loadURL(target.path);
+  }
+
   return win;
 }

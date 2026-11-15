@@ -2,16 +2,19 @@
 // Verifies: (1) non-allowlisted navigation opens externally & not in-app,
 // (2) window.open to non-allowlisted URL denied, (3) geolocation denied,
 // (4) CSP header present (inline script triggers a policy violation).
-import assert from "node:assert/strict";
 import { createRequire } from "node:module";
 import { _electron as electron } from "@playwright/test";
 
 const require = createRequire(import.meta.url);
 const electronPath = require("electron");
 
+const launchEnv = { ...process.env, ZENKAI_MODE: "web" };
+delete launchEnv.ELECTRON_RUN_AS_NODE;
+
 const app = await electron.launch({
   executablePath: electronPath,
   args: ["."],
+  env: launchEnv,
 });
 
 let mainLog = "";

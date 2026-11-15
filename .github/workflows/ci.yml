@@ -22,7 +22,7 @@ jobs:
       - name: Install pnpm
         uses: pnpm/action-setup@v3
         with:
-          version: 9
+          version: 12
 
       - name: Install system dependencies
         run: |
@@ -35,8 +35,14 @@ jobs:
       - name: Typecheck
         run: pnpm typecheck
 
+      - name: Lint
+        run: pnpm lint
+
       - name: Unit tests
         run: pnpm test
 
       - name: Build electron app
         run: pnpm build
+
+      - name: E2E tests (Electron under xvfb)
+        run: xvfb-run -a pnpm e2e

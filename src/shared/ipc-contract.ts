@@ -33,7 +33,17 @@ export type IpcContract = {
     episode: number;
     audio: "sub" | "dub";
     server: string;
-  }) => Promise<{ playable: boolean; reason?: string }>;
+  }) => Promise<{
+    playable: boolean;
+    streamUrl?: string;
+    rawUrl?: string;
+    subtitles?: import("./api-types").SubtitleTrack[];
+    audioTracks?: import("./api-types").AudioTrack[];
+    intro?: { start: number; end: number } | null;
+    outro?: { start: number; end: number } | null;
+    referer?: string;
+    reason?: string;
+  }>;
   "downloads:list": () => Promise<DownloadItem[]>;
   "downloads:remove": (id: string) => Promise<void>;
   "rpc:set": (p: {

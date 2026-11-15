@@ -45,7 +45,6 @@ const server = http.createServer((req, res) => {
     return;
   }
   let start = 0;
-  let status = 200;
   const range = req.headers.range;
   if (range) {
     const m = /^bytes=(\d+)-$/.exec(range);
@@ -55,7 +54,6 @@ const server = http.createServer((req, res) => {
       res.end();
       return;
     }
-    status = 206;
     rangeHits[name] = (rangeHits[name] ?? 0) + 1;
     res.writeHead(206, {
       "Content-Range": `bytes ${start}-${buf.length - 1}/${buf.length}`,

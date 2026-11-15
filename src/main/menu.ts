@@ -4,16 +4,15 @@ import {
   Menu,
   type MenuItemConstructorOptions,
 } from "electron";
+import { loadStandaloneUI, loadWebPortal } from "./window";
 
 export function targetWindow(): BrowserWindow | undefined {
   return BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0];
 }
 
 // T7: native menu. §8.3 accelerators that the web layer CANNOT receive live
-// here (fullscreen, reload, devtools). Play/Pause, PiP, next/prev, settings are
-// deliberately NOT in the menu — no accelerator consumes them, so they reach
-// the web layer directly (per spec: "menu accelerators only where web can't
-// receive them").
+// here (fullscreen, reload, devtools). Standalone / Web Portal switchers added
+// for instant access.
 export function buildMenu(): void {
   const isMac = process.platform === "darwin";
   const template: MenuItemConstructorOptions[] = [
@@ -23,6 +22,25 @@ export function buildMenu(): void {
     {
       label: "View",
       submenu: [
+        {
+          id: "standalone-ui",
+          label: "Switch to Standalone Desktop UI",
+          accelerator: "CmdOrCtrl+Shift+D",
+          click: () => {
+            const w = targetWindow();
+            if (w) loadStandaloneUI(w);
+          },
+        },
+        {
+          id: "web-portal",
+          label: "Switch to Zenkai Web Portal",
+          accelerator: "CmdOrCtrl+Shift+W",
+          click: () => {
+            const w = targetWindow();
+            if (w) loadWebPortal(w);
+          },
+        },
+        { type: "separator" },
         {
           id: "reload",
           label: "Reload",

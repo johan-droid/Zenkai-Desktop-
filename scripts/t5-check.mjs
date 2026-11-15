@@ -13,7 +13,6 @@ const executablePath = require("electron");
 
 const userData = path.join(os.homedir(), ".config", "zenkai-desktop");
 const settingsPath = path.join(userData, "settings.json");
-const backupPath = `${settingsPath}.phase2check.bak`;
 
 // clean slate (preserve any real user settings for restore)
 let original = null;

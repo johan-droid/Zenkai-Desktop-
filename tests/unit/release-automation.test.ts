@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import crypto from "node:crypto";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { isStrictlyNewer, parseSemver } from "../../src/main/updater";
 
@@ -36,7 +37,7 @@ describe("Phase 3 & 4 — Artifact & Integrity Verifications", () => {
     const payload = Buffer.from("Zenkai-Desktop-Production-Package-Test-Payload");
     const expectedHash = crypto.createHash("sha256").update(payload).digest("hex");
 
-    const tmpPath = path.join("/tmp", `zenkai-test-${Date.now()}.bin`);
+    const tmpPath = path.join(os.tmpdir(), `zenkai-test-${Date.now()}.bin`);
     fs.writeFileSync(tmpPath, payload);
 
     try {

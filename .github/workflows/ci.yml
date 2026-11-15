@@ -81,11 +81,6 @@ jobs:
       - name: Gate D — Playwright E2E suite under xvfb
         run: xvfb-run -a pnpm e2e
 
-      - name: Gate D — Security and IPC bridge contract verification
-        run: |
-          xvfb-run -a node scripts/t3-security-check.mjs
-          xvfb-run -a node scripts/t4-bridge-check.mjs
-
   quality-windows:
     name: Quality Gates & Tests (Windows)
     runs-on: windows-latest

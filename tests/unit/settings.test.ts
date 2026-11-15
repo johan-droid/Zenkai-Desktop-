@@ -1,12 +1,14 @@
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { defaultDownloadDir } from "../../src/shared/settings.schema";
 import { readSettings, writeSettings } from "../../src/main/settings";
 
 const dir = (() => {
-  fs.mkdirSync("/tmp/opencode", { recursive: true });
-  return fs.mkdtempSync(path.join("/tmp/opencode", "zenkai-settings-"));
+  const base = path.join(os.tmpdir(), "opencode");
+  fs.mkdirSync(base, { recursive: true });
+  return fs.mkdtempSync(path.join(base, "zenkai-settings-"));
 })();
 const file = path.join(dir, "settings.json");
 

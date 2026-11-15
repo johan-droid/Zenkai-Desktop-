@@ -37,7 +37,7 @@ describe("Renderer Updater (Hybrid Independent Updates)", () => {
 
   it("returns bundled renderer path when no active updated renderer exists", () => {
     const p = getActiveRendererPath();
-    expect(p).toContain("renderer/index.html");
+    expect(p.replace(/\\/g, "/")).toContain("renderer/index.html");
   });
 
   it("detects when desktop version is below minimum required desktop version", async () => {

@@ -68,6 +68,12 @@ Zenkai Desktop brings high-performance, distraction-free anime streaming, offlin
 
 Verify the integrity of downloaded assets using standard SHA-256 tools:
 
+```text
+e0a84c485b1bfa12baa1549de6fb8ef931bafc0aedc9e96aa81c3d53d8b204bc  Zenkai-Desktop-v0.0.1-Linux-x64.AppImage
+87afb965378ffaece5bb802ca5cb0761687e1b9df9f8afcae6eb0d6e1d7a6944  Zenkai-Desktop-v0.0.1-Linux-x64.deb
+18129f56021328e931c266e84a16a53738137807c6bcd28701c3b0a4f8632d13  Zenkai-Desktop-v0.0.1-Windows-x64-Portable.zip
+```
+
 ```bash
 # On Linux / macOS:
 sha256sum -c SHA256SUMS.txt --ignore-missing

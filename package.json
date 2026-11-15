@@ -38,6 +38,7 @@
   },
   "dependencies": {
     "@xhayper/discord-rpc": "^1.5.1",
+    "anime4k-webgpu": "^1.0.0",
     "electron-updater": "6.8.11",
     "hls.js": "^1.7.4",
     "zod": "^4.6.7"

@@ -11,6 +11,9 @@ importers:
       '@xhayper/discord-rpc':
         specifier: ^1.5.1
         version: 1.5.1
+      anime4k-webgpu:
+        specifier: ^1.0.0
+        version: 1.0.0(@webgpu/types@0.1.74)
       electron-updater:
         specifier: 6.8.11
         version: 6.8.11(supports-color@7.2.0)
@@ -626,6 +629,9 @@ packages:
     resolution: {integrity: sha512-Xfe6rpCTxSxfbswi/W/Pz7zp1WWSNn4A0eW4mLkQUewCrXXtMj31lCg+iQyTkh/CkusZSq9eDflu7tjEDXUY6g==}
     engines: {node: '>=v14.0.0', npm: '>=7.0.0'}
 
+  '@webgpu/types@0.1.74':
+    resolution: {integrity: sha512-lgiI4hbuLcI9unnm2cL/tvCaQU45dp0xcLWJh5uB/9MBGvIA4F8XIk7nSiBeg+K4xWGYwgZKn80LmERI5CxoTA==}
+
   '@xhayper/discord-rpc@1.5.1':
     resolution: {integrity: sha512-O/QEEAVe1klBhpvA6WpATzrtC6gnb9dqFFTZV/pl9gZpVlrhk/ZcTw6uPSA6d/FWlAD/hzsxX3ueLfVm8fq5xQ==}
     engines: {node: '>=20'}
@@ -657,6 +663,11 @@ packages:
 
   ajv@8.20.0:
     resolution: {integrity: sha512-Thbli+OlOj+iMPYFBVBfJ3OmCAnaSyNn4M1vz9T6Gka5Jt9ba/HIR56joy65tY6kx/FCF5VXNB819Y7/GUrBGA==}
+
+  anime4k-webgpu@1.0.0:
+    resolution: {integrity: sha512-syZZyDRHYukFnDLxdES4AuMHzKwxlu5Lo52yhEEc1hwKQmvza8DGC62/VDPrrWOu4KArU5jh/0yFJQBwetGuxg==}
+    peerDependencies:
+      '@webgpu/types': ^0.1.38
 
   ansi-regex@5.0.1:
     resolution: {integrity: sha512-quJQXlTSUGL2LH9SUXo8VwsY4soanhgo6LNSm84E1LBcE8s3O0wpdiRzyR9z/ZZJMlMWv37qOOb9pdJlMUEKFQ==}
@@ -2611,6 +2622,8 @@ snapshots:
 
   '@vladfrangu/async_event_emitter@2.4.7': {}
 
+  '@webgpu/types@0.1.74': {}
+
   '@xhayper/discord-rpc@1.5.1':
     dependencies:
       '@discordjs/rest': 2.6.3
@@ -2642,6 +2655,10 @@ snapshots:
       fast-uri: 3.1.9
       json-schema-traverse: 1.0.0
       require-from-string: 2.0.2
+
+  anime4k-webgpu@1.0.0(@webgpu/types@0.1.74):
+    dependencies:
+      '@webgpu/types': 0.1.74
 
   ansi-regex@5.0.1: {}
 

@@ -2,6 +2,7 @@ import type {
   ResolveStreamParams,
   ResolvedStream,
 } from "../../shared/api-types";
+import { getServerDef } from "../../shared/servers";
 import { getStream } from "./routes";
 
 export class StreamResolutionError extends Error {
@@ -20,8 +21,10 @@ export async function resolveStream(
 ): Promise<ResolvedStream> {
   const { anilistId, episode, audio, server, title, format } = params;
 
-  // Rule: server=acdn only valid when audio === 'dub'
-  if (server.toLowerCase() === "acdn" && audio !== "dub") {
+  const serverDef = getServerDef(server);
+
+  // Rule: server=acdn only valid when audio === 'dub' (enforced by registry audioSwitchable)
+  if (serverDef?.id === "acdn" && audio !== "dub") {
     throw new StreamResolutionError(
       "ACDN server is only valid when audio is 'dub'",
     );

@@ -1,5 +1,7 @@
 import Hls from "hls.js";
 import type { DownloadItem } from "../../shared/ipc-contract";
+import { findActiveCue, parseSubtitles, type Cue } from "../../shared/subtitles";
+import { isWebGpuSupported, startAnime4KUpscale, type UpscaleController } from "./upscale";
 
 // Anime Catalog Data Interface
 interface AnimeItem {
@@ -117,10 +119,20 @@ class ZenkaiDesktopApp {
   private toastContainer: HTMLElement;
   private settingsModal: HTMLDialogElement;
   private manualDownloadModal: HTMLDialogElement;
+  private upscaleCanvas: HTMLCanvasElement;
+  private subtitleOverlay: HTMLElement;
+
+  // Subtitle engine & AI upscaler state
+  private currentCues: Cue[] = [];
+  private subtitleDelay = 0;
+  private upscaleController: UpscaleController | null = null;
+  private aiUpscaleEnabled = false;
 
   constructor() {
     this.videoEl = document.getElementById("zenkaiVideoPlayer") as HTMLVideoElement;
     this.autoPauseAlert = document.getElementById("playerAutoPauseAlert") as HTMLElement;
+    this.upscaleCanvas = document.getElementById("zenkaiUpscaleCanvas") as HTMLCanvasElement;
+    this.subtitleOverlay = document.getElementById("zenkaiSubtitleOverlay") as HTMLElement;
     this.selectServer = document.getElementById("selectServer") as HTMLSelectElement;
     this.selectAudio = document.getElementById("selectAudio") as HTMLSelectElement;
     this.selectEpisode = document.getElementById("selectEpisode") as HTMLSelectElement;
@@ -154,6 +166,12 @@ class ZenkaiDesktopApp {
       this.bindSpotlight(card);
     });
 
+    // Check WebGPU availability and adjust AI upscale setting UI (T-API10)
+    const rowAi = document.getElementById("rowAiUpscale");
+    if (rowAi && !isWebGpuSupported) {
+      rowAi.style.display = "none";
+    }
+
     // Skeleton placeholders while live data loads
     this.renderSkeletons(12);
     void this.fetchLiveTrendingAnime();
@@ -170,6 +188,7 @@ class ZenkaiDesktopApp {
     // Cleanup timers and HLS on page unload so renderer can't fire IPC
     // after the main process has quit.
     window.addEventListener("beforeunload", () => {
+      this.disableUpscaler();
       if (this.downloadPollTimer) clearInterval(this.downloadPollTimer);
       if (this.streamResolveTimer) clearTimeout(this.streamResolveTimer);
       this.hls?.destroy();
@@ -666,6 +685,34 @@ class ZenkaiDesktopApp {
 
         if (resolved.playable && resolved.streamUrl) {
           this.playHlsStream(resolved.streamUrl);
+
+          // Unified Subtitle Engine (T-API8)
+          if (resolved.subtitles && resolved.subtitles.length > 0) {
+            const chosen =
+              resolved.subtitles.find(
+                (s) =>
+                  s.default ||
+                  s.language?.toLowerCase() === "english" ||
+                  s.lang?.toLowerCase() === "eng",
+              ) || resolved.subtitles[0];
+            const subUrl = chosen.file || chosen.url;
+            if (subUrl) {
+              void fetch(subUrl)
+                .then((r) => r.text())
+                .then((txt) => {
+                  this.currentCues = parseSubtitles(txt);
+                  this.showToast(
+                    `Loaded ${chosen.language || "English"} subtitles (${this.currentCues.length} cues)`,
+                  );
+                })
+                .catch(() => {
+                  this.currentCues = [];
+                });
+            }
+          } else {
+            this.currentCues = [];
+          }
+
           this.showToast(`Stream connected via ${server.toUpperCase()}!`);
           return;
         }
@@ -684,6 +731,9 @@ class ZenkaiDesktopApp {
   }
 
   private playHlsStream(url: string): void {
+    this.disableUpscaler();
+    if (this.subtitleOverlay) this.subtitleOverlay.textContent = "";
+
     if (this.hls) {
       this.hls.destroy();
       this.hls = null;
@@ -711,23 +761,75 @@ class ZenkaiDesktopApp {
     }
   }
 
+  // --- T-API10: WebGPU Anime4K Real-Time Upscaler ---
+  private async enableUpscaler(): Promise<void> {
+    if (
+      !isWebGpuSupported ||
+      !this.aiUpscaleEnabled ||
+      this.upscaleController?.isActive
+    ) {
+      return;
+    }
+    try {
+      if (this.upscaleCanvas) this.upscaleCanvas.hidden = false;
+      this.upscaleController = await startAnime4KUpscale(
+        this.videoEl,
+        this.upscaleCanvas,
+        "modeA",
+      );
+    } catch (err) {
+      console.warn("[Upscale] WebGPU upscaler failed:", err);
+      this.disableUpscaler();
+    }
+  }
+
+  private disableUpscaler(): void {
+    if (this.upscaleController) {
+      this.upscaleController.stop();
+      this.upscaleController = null;
+    }
+    if (this.upscaleCanvas) {
+      this.upscaleCanvas.hidden = true;
+    }
+  }
+
   private bindPlayerEvents(): void {
     this.videoEl.addEventListener("play", () => {
       this.isPlaying = true;
       this.syncDiscordRpc(true);
+      void this.enableUpscaler();
     });
 
     this.videoEl.addEventListener("pause", () => {
       this.isPlaying = false;
       this.syncDiscordRpc(false);
+      this.disableUpscaler();
     });
 
     this.videoEl.addEventListener("ended", () => {
       this.isPlaying = false;
       this.syncDiscordRpc(false);
+      this.disableUpscaler();
+      if (this.subtitleOverlay) this.subtitleOverlay.textContent = "";
       // Auto-advance to next episode if available
       if (this.activeEpisode < this.activeAnime.episodes) {
         this.loadAnimeIntoPlayer(this.activeAnime, this.activeEpisode + 1);
+      }
+    });
+
+    // Unified Subtitle Cue Rendering (T-API8)
+    this.videoEl.addEventListener("timeupdate", () => {
+      if (this.currentCues.length > 0 && this.subtitleOverlay) {
+        const text = findActiveCue(
+          this.currentCues,
+          this.videoEl.currentTime,
+          this.subtitleDelay,
+        );
+        this.subtitleOverlay.textContent = text || "";
+        this.subtitleOverlay.style.display = text ? "block" : "none";
+      } else if (this.subtitleOverlay) {
+        this.subtitleOverlay.textContent = "";
+        this.subtitleOverlay.style.display = "none";
       }
     });
 
@@ -752,6 +854,31 @@ class ZenkaiDesktopApp {
           searchInput.dispatchEvent(new Event("input", { bubbles: true }));
           e.preventDefault();
         }
+      }
+
+      // Hotkeys '[' and ']' for Subtitle Timing Sync (T-API8)
+      if (
+        (e.key === "[" || e.key === "]") &&
+        document.activeElement?.tagName !== "INPUT"
+      ) {
+        if (e.key === "[") {
+          this.subtitleDelay = Math.max(
+            -5,
+            Math.round((this.subtitleDelay - 0.25) * 100) / 100,
+          );
+        } else {
+          this.subtitleDelay = Math.min(
+            5,
+            Math.round((this.subtitleDelay + 0.25) * 100) / 100,
+          );
+        }
+        const inputDelay = document.getElementById(
+          "settingSubtitleDelay",
+        ) as HTMLInputElement | null;
+        if (inputDelay) inputDelay.value = this.subtitleDelay.toFixed(2);
+        this.showToast(
+          `Subtitle sync: ${this.subtitleDelay >= 0 ? "+" : ""}${this.subtitleDelay.toFixed(2)}s`,
+        );
       }
     });
 
@@ -1222,6 +1349,8 @@ class ZenkaiDesktopApp {
       const s = await window.zenkai.settings.get();
       const chkPause = document.getElementById("settingPauseOnClose") as HTMLInputElement;
       const chkHw = document.getElementById("settingHwDecode") as HTMLInputElement;
+      const chkAi = document.getElementById("settingAiUpscale") as HTMLInputElement;
+      const inputDelay = document.getElementById("settingSubtitleDelay") as HTMLInputElement;
       const chkRpc = document.getElementById("settingRpcEnabled") as HTMLInputElement;
       const selTheme = document.getElementById("settingTheme") as HTMLSelectElement;
       const selChannel = document.getElementById("settingChannel") as HTMLSelectElement;
@@ -1229,6 +1358,14 @@ class ZenkaiDesktopApp {
 
       if (chkPause) chkPause.checked = s.pauseOnClose;
       if (chkHw) chkHw.checked = s.hwDecode;
+      if (chkAi) {
+        chkAi.checked = !!s.aiUpscale;
+        this.aiUpscaleEnabled = chkAi.checked;
+      }
+      if (inputDelay) {
+        inputDelay.value = String(s.subtitleDelay ?? 0);
+        this.subtitleDelay = Number(inputDelay.value) || 0;
+      }
       if (chkRpc) chkRpc.checked = s.rpcEnabled;
       if (selTheme) selTheme.value = s.theme;
       if (selChannel && s.channel) selChannel.value = s.channel;
@@ -1259,6 +1396,8 @@ class ZenkaiDesktopApp {
     btnSave?.addEventListener("click", () => {
       const chkPause = document.getElementById("settingPauseOnClose") as HTMLInputElement;
       const chkHw = document.getElementById("settingHwDecode") as HTMLInputElement;
+      const chkAi = document.getElementById("settingAiUpscale") as HTMLInputElement;
+      const inputDelay = document.getElementById("settingSubtitleDelay") as HTMLInputElement;
       const chkRpc = document.getElementById("settingRpcEnabled") as HTMLInputElement;
       const selTheme = document.getElementById("settingTheme") as HTMLSelectElement;
       const selChannel = document.getElementById("settingChannel") as HTMLSelectElement;
@@ -1266,10 +1405,20 @@ class ZenkaiDesktopApp {
       const patch = {
         pauseOnClose: chkPause.checked,
         hwDecode: chkHw.checked,
+        aiUpscale: chkAi ? chkAi.checked : false,
+        subtitleDelay: inputDelay ? Number(inputDelay.value) || 0 : 0,
         rpcEnabled: chkRpc.checked,
         theme: selTheme.value as "system" | "dark" | "light",
         channel: (selChannel?.value as "stable" | "beta") || "stable",
       };
+
+      this.aiUpscaleEnabled = patch.aiUpscale;
+      this.subtitleDelay = patch.subtitleDelay;
+      if (this.isPlaying && this.aiUpscaleEnabled) {
+        void this.enableUpscaler();
+      } else {
+        this.disableUpscaler();
+      }
 
       if (window.zenkai?.settings) {
         void window.zenkai.settings.set(patch).then(() => {

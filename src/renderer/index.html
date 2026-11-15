@@ -271,19 +271,28 @@
 
               <!-- Stats Bar -->
               <div class="stats-bar">
-                <div class="stat-card">
-                  <div class="stat-label">Active Downloads</div>
-                  <div class="stat-value" id="statActiveCount">0</div>
-                </div>
-                <div class="stat-card">
-                  <div class="stat-label">Completed Files</div>
-                  <div class="stat-value" id="statDoneCount">0</div>
-                </div>
-                <div class="stat-card">
-                  <div class="stat-label">Download Directory</div>
-                  <div class="stat-value" style="font-size: 13px; font-weight: 600; word-break: break-all;" id="statDownloadDir">
-                    ~/Downloads/Zenkai
+                <div class="stat-card" id="statCardActive">
+                  <div class="stat-card-info">
+                    <div class="stat-label">Active Downloads</div>
+                    <div class="stat-value" id="statActiveCount">0</div>
                   </div>
+                  <div class="stat-ring" id="ringActive" aria-hidden="true"></div>
+                </div>
+                <div class="stat-card" id="statCardDone">
+                  <div class="stat-card-info">
+                    <div class="stat-label">Completed Files</div>
+                    <div class="stat-value" id="statDoneCount">0</div>
+                  </div>
+                  <div class="stat-ring" id="ringDone" aria-hidden="true"></div>
+                </div>
+                <div class="stat-card" id="statCardDir">
+                  <div class="stat-card-info">
+                    <div class="stat-label">Download Directory</div>
+                    <div class="stat-value" style="font-size: 13px; font-weight: 600; word-break: break-all;" id="statDownloadDir">
+                      ~/Downloads/Zenkai
+                    </div>
+                  </div>
+                  <div class="stat-ring" id="ringDir" aria-hidden="true"></div>
                 </div>
               </div>
 

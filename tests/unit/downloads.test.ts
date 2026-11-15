@@ -163,4 +163,16 @@ describe("downloads index (T8)", () => {
       "total",
     ]);
   });
+
+  it("canFitDownload checks disk space with 15% safety headroom (B3)", async () => {
+    const m = await freshManager();
+    const fit = await m.canFitDownload(100 * 1024 * 1024);
+    expect(fit.requiredBytes).toBe(115 * 1024 * 1024);
+    expect(typeof fit.ok).toBe("boolean");
+  });
+
+  it("updateTaskbarProgress runs safely without BrowserWindow throwing (B1)", async () => {
+    const m = await freshManager();
+    expect(() => m.updateTaskbarProgress()).not.toThrow();
+  });
 });

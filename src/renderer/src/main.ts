@@ -149,6 +149,11 @@ class ZenkaiDesktopApp {
     this.bindActions();
     this.bindBridgeEvents();
 
+    // Bind spotlight cursor glow on stat cards (A2)
+    document.querySelectorAll<HTMLElement>(".stat-card").forEach((card) => {
+      this.bindSpotlight(card);
+    });
+
     // Skeleton placeholders while live data loads
     this.renderSkeletons(12);
     void this.fetchLiveTrendingAnime();
@@ -204,9 +209,9 @@ class ZenkaiDesktopApp {
       sidebar?.setAttribute("data-collapsed", isCollapsed ? "false" : "true");
     });
 
-    // Theme toggle button (§2 View Transitions)
+    // Theme toggle button (A5 View Transitions & Circular Clip-Path Reveal)
     const btnTheme = document.getElementById("btnThemeToggle");
-    btnTheme?.addEventListener("click", () => {
+    btnTheme?.addEventListener("click", async (e: MouseEvent) => {
       const current = document.documentElement.dataset.theme;
       const next = current === "oled" ? "clay" : current === "clay" ? "system" : "oled";
 
@@ -220,9 +225,39 @@ class ZenkaiDesktopApp {
         this.showToast(`Theme switched to ${next.toUpperCase()}`);
       };
 
-      if ((document as any).startViewTransition) {
-        (document as any).startViewTransition(() => apply());
-      } else {
+      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+      const x = rect.left + rect.width / 2;
+      const y = rect.top + rect.height / 2;
+      const endRadius = Math.hypot(
+        Math.max(x, window.innerWidth - x),
+        Math.max(y, window.innerHeight - y),
+      );
+
+      const hasViewTransition = typeof (document as any).startViewTransition === "function";
+      const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+      if (!hasViewTransition || prefersReducedMotion) {
+        apply();
+        return;
+      }
+
+      try {
+        const transition = (document as any).startViewTransition(() => apply());
+        await transition.ready;
+        document.documentElement.animate(
+          {
+            clipPath: [
+              `circle(0px at ${x}px ${y}px)`,
+              `circle(${endRadius}px at ${x}px ${y}px)`,
+            ],
+          },
+          {
+            duration: 650,
+            easing: "ease-in-out",
+            pseudoElement: "::view-transition-new(root)",
+          },
+        );
+      } catch {
         apply();
       }
     });
@@ -503,12 +538,84 @@ class ZenkaiDesktopApp {
       const titleEl = card.querySelector(".anime-card-title");
       if (titleEl) titleEl.textContent = anime.title;
 
+      const cover = card.querySelector<HTMLElement>(".anime-card-cover");
+      if (cover) this.bindTilt(cover);
+
       card.addEventListener("click", () => {
         this.loadAnimeIntoPlayer(anime, 1);
       });
 
       this.trendingGrid.appendChild(card);
     });
+  }
+
+  // --- A1: 3D-Tilt Card (Mouse Only, Cheap RAF) ---
+  private bindTilt(cover: HTMLElement): void {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    let raf = 0;
+    cover.addEventListener("pointermove", (e: PointerEvent) => {
+      if (e.pointerType !== "mouse") return;
+      const r = cover.getBoundingClientRect();
+      if (r.width === 0 || r.height === 0) return;
+      const x = (e.clientX - r.left) / r.width;
+      const y = (e.clientY - r.top) / r.height;
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => {
+        cover.style.transform = `perspective(900px) rotateX(${(0.5 - y) * 14}deg) rotateY(${(x - 0.5) * 14}deg)`;
+      });
+    });
+    cover.addEventListener("pointerleave", () => {
+      cancelAnimationFrame(raf);
+      cover.style.transform = "";
+    });
+  }
+
+  // --- A2: Spotlight Card (Cursor-Following Radial Glow) ---
+  private bindSpotlight(el: HTMLElement): void {
+    if (el.querySelector(".spotlight-glow")) return;
+    const glow = document.createElement("div");
+    glow.className = "spotlight-glow";
+    el.appendChild(glow);
+
+    el.addEventListener("mousemove", (e: MouseEvent) => {
+      const r = el.getBoundingClientRect();
+      const x = e.clientX - r.left;
+      const y = e.clientY - r.top;
+      glow.style.background = `radial-gradient(240px circle at ${x}px ${y}px, var(--accent-glow), transparent 70%)`;
+    });
+    el.addEventListener("mouseenter", () => {
+      glow.style.opacity = "1";
+    });
+    el.addEventListener("mouseleave", () => {
+      glow.style.opacity = "0";
+    });
+  }
+
+  // --- A6: Score Ring (Animated Circular Meter) ---
+  private renderScoreRing(container: HTMLElement, pct: number, size = 52, stroke = 5): void {
+    const r = (size - stroke) / 2;
+    const c = 2 * Math.PI * r;
+    const clampedPct = Math.max(0, Math.min(1, pct));
+    const offset = c * (1 - clampedPct);
+
+    let circle = container.querySelector<SVGCircleElement>(".score-ring-progress");
+    if (!circle) {
+      container.innerHTML = `
+        <svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
+          <circle cx="${size / 2}" cy="${size / 2}" r="${r}" fill="none" stroke="var(--border)" stroke-width="${stroke}" />
+          <circle class="score-ring-progress" cx="${size / 2}" cy="${size / 2}" r="${r}" fill="none" stroke="var(--accent)" stroke-width="${stroke}"
+            stroke-linecap="round" stroke-dasharray="${c}" stroke-dashoffset="${c}"
+            style="transition: stroke-dashoffset 1.4s cubic-bezier(0.16, 1, 0.3, 1);" />
+        </svg>
+      `;
+      circle = container.querySelector<SVGCircleElement>(".score-ring-progress");
+    }
+
+    if (circle) {
+      requestAnimationFrame(() => {
+        if (circle) circle.style.strokeDashoffset = String(offset);
+      });
+    }
   }
 
   // --- 3. Video Player & Stream Engine ---
@@ -810,6 +917,26 @@ class ZenkaiDesktopApp {
       if (statActive) statActive.textContent = String(activeCount);
       if (statDone) statDone.textContent = String(doneCount);
 
+      // Score Rings (A6)
+      const ringActive = document.getElementById("ringActive");
+      const ringDone = document.getElementById("ringDone");
+      const ringDir = document.getElementById("ringDir");
+
+      const activeItems = items.filter((i) => i.status === "active");
+      const activeAvg =
+        activeItems.length > 0
+          ? activeItems.reduce((acc, i) => acc + (i.total > 0 ? i.bytes / i.total : 0), 0) / activeItems.length
+          : activeCount > 0
+            ? 0.35
+            : 0;
+
+      const totalTracked = activeCount + doneCount;
+      const doneRatio = totalTracked > 0 ? doneCount / totalTracked : doneCount > 0 ? 1 : 0;
+
+      if (ringActive) this.renderScoreRing(ringActive, activeAvg);
+      if (ringDone) this.renderScoreRing(ringDone, doneRatio);
+      if (ringDir) this.renderScoreRing(ringDir, 1);
+
       this.renderDownloadsQueue(items);
       this.renderOfflineLibrary(items.filter((i) => i.status === "done"));
     } catch {
@@ -840,6 +967,7 @@ class ZenkaiDesktopApp {
     items.forEach((item) => {
       const card = document.createElement("div");
       card.className = "download-card";
+      this.bindSpotlight(card);
 
       const percent = item.total > 0 ? Math.min(100, Math.round((item.bytes / item.total) * 100)) : 0;
       const mbDone = (item.bytes / (1024 * 1024)).toFixed(1);

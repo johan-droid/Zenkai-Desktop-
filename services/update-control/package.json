@@ -1,0 +1,18 @@
+{
+  "name": "@zenkai/update-control",
+  "version": "1.0.0",
+  "description": "Zenkai Desktop Update-Control Service (Webhook ingestion, rollout governance & metadata delivery)",
+  "private": true,
+  "main": "dist/server.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.0.0",
+    "vitest": "^5.1.0"
+  }
+}
+

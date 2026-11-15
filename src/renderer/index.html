@@ -304,6 +304,50 @@
 
           <div class="setting-row">
             <div class="setting-info">
+              <div class="setting-title">Release Channel</div>
+              <div class="setting-desc">Choose between official Stable releases or opt-in Beta preview releases.</div>
+            </div>
+            <select id="settingChannel" class="player-select">
+              <option value="stable" selected>Stable (Recommended)</option>
+              <option value="beta">Beta (Preview)</option>
+            </select>
+          </div>
+
+          <div class="setting-row" style="flex-direction: column; align-items: stretch; gap: 10px;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <div>
+                <div class="setting-title" id="updateStatusTitle">Updates & Rollout</div>
+                <div class="setting-desc" id="updateStatusDesc">Check for new versions from Zenkai update infrastructure.</div>
+              </div>
+              <button class="action-btn" id="btnCheckUpdate" type="button">Check for Updates</button>
+            </div>
+
+            <div id="updateCardContainer" style="display: none; background: rgba(255, 255, 255, 0.03); border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: 12px; margin-top: 4px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <span style="font-weight: 600; font-size: 13px;" id="updateCardVersion">Version 0.0.2</span>
+                <span class="brand-badge" id="updateCardBadge">NEW</span>
+              </div>
+              <p style="font-size: 12px; color: var(--color-text-muted); margin-bottom: 12px;" id="updateCardNotes"></p>
+              
+              <div id="updateProgressBox" style="display: none; margin-bottom: 10px;">
+                <div style="height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; overflow: hidden;">
+                  <div id="updateProgressBar" style="height: 100%; width: 0%; background: var(--color-primary); transition: width 0.2s;"></div>
+                </div>
+                <div style="display: flex; justify-content: space-between; font-size: 11px; color: var(--color-text-muted); margin-top: 4px;">
+                  <span id="updateProgressPercent">0%</span>
+                  <span id="updateProgressBytes">0 MB / 0 MB</span>
+                </div>
+              </div>
+
+              <div style="display: flex; gap: 8px; justify-content: flex-end;">
+                <button class="action-btn primary" id="btnDownloadUpdate" type="button" style="display: inline-flex;">Download Update</button>
+                <button class="action-btn primary" id="btnRestartUpdate" type="button" style="display: none; background: #10b981;">Restart & Install</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="setting-row">
+            <div class="setting-info">
               <div class="setting-title">Application Engine & Version</div>
               <div class="setting-desc" id="settingAppVersionInfo">Zenkai Desktop v0.0.1 • Electron 45.3.2 • Secure Preload Bridge</div>
             </div>

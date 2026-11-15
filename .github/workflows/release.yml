@@ -66,6 +66,7 @@ jobs:
             release/Zenkai-Desktop-*.AppImage
             release/Zenkai-Desktop-*.deb
             release/Zenkai-Desktop-*.rpm
+            release/latest-linux*.yml
             release/checksums-linux.txt
           retention-days: 14
 
@@ -115,6 +116,8 @@ jobs:
           path: |
             release/Zenkai-Desktop-*.exe
             release/Zenkai-Desktop-*.zip
+            release/latest*.yml
+            release/*.blockmap
             release/checksums-windows.txt
           retention-days: 14
 
@@ -165,6 +168,8 @@ jobs:
           path: |
             release/Zenkai-Desktop-*.dmg
             release/Zenkai-Desktop-*.zip
+            release/latest-mac*.yml
+            release/*.blockmap
             release/checksums-macos.txt
           retention-days: 14
 
@@ -180,17 +185,26 @@ jobs:
         with:
           path: downloaded-artifacts
 
-      - name: Consolidate packages and generate SHA256SUMS.txt
+      - name: Consolidate packages, metadata, and validate
         shell: bash
         run: |
           mkdir -p dist
-          # Copy all package binaries into dist/
-          find downloaded-artifacts -type f \( -name "Zenkai-Desktop-*" ! -name "*.txt" \) -exec cp {} dist/ \;
+          # Copy binaries, metadata YAMLs, and blockmaps
+          find downloaded-artifacts -type f \( -name "Zenkai-Desktop-*" -o -name "latest*.yml" -o -name "*.blockmap" \) ! -name "*.txt" -exec cp {} dist/ \;
           # Combine checksum files into unified SHA256SUMS.txt
           find downloaded-artifacts -type f -name "checksums-*.txt" -exec cat {} + | sort -u > dist/SHA256SUMS.txt
-          echo "=== Release Artifacts & SHA256SUMS.txt ==="
+
+          echo "=== Release Artifacts & Checksums ==="
           ls -lh dist/
           cat dist/SHA256SUMS.txt
+
+          # Pre-publish validation: Ensure every file is non-empty
+          for f in dist/*; do
+            if [ ! -s "$f" ]; then
+              echo "::error::Release file $f is empty or corrupt!"
+              exit 1
+            fi
+          done
 
       - name: Publish Release to GitHub
         uses: softprops/action-gh-release@v2
@@ -198,6 +212,6 @@ jobs:
           files: dist/*
           generate_release_notes: true
           draft: false
-          prerelease: false
+          prerelease: ${{ contains(github.ref, '-beta') || contains(github.ref, '-alpha') || contains(github.ref, '-rc') }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

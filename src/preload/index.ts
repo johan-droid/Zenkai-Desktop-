@@ -26,7 +26,14 @@ contextBridge.exposeInMainWorld("zenkai", {
     remove: call("downloads:remove"),
   },
   rpc: { set: call("rpc:set"), clear: call("rpc:clear") },
-  app: { version: call("app:version") },
+  app: {
+    version: call("app:version"),
+    checkUpdate: call("updater:check"),
+    startUpdateDownload: call("updater:start-download"),
+    installUpdate: call("updater:install"),
+    onStatus: (cb: (p: IpcEvents["updater:status"]) => void) =>
+      on("updater:status", cb),
+  },
   onPlaybackPause: (cb: () => void) => on("playback:pause", () => cb()),
   onNotifyClick: (cb: (p: IpcEvents["notify:click"]) => void) =>
     on("notify:click", cb),

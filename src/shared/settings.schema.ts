@@ -34,6 +34,9 @@ export const SettingsSchema = z.object({
     })
     .optional(),
   theme: z.enum(["system", "dark", "light"]).default("system"),
+  channel: z.enum(["stable", "beta"]).default("stable"),
+  installationId: z.string().default("zenkai-client-cohort"),
+  updateServerUrl: z.string().default("https://update.zenkai.cfd"),
 });
 
 export type Settings = z.infer<typeof SettingsSchema>;

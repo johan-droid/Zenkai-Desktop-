@@ -684,6 +684,76 @@ class ZenkaiDesktopApp {
     window.zenkai.onAuthCallback(() => {
       this.showToast("Zenkai desktop authentication received!");
     });
+
+    // Auto-Updater status listener (Hybrid Update Infrastructure)
+    if (window.zenkai.app?.onStatus) {
+      window.zenkai.app.onStatus((status) => {
+        const desc = document.getElementById("updateStatusDesc");
+        const card = document.getElementById("updateCardContainer");
+        const cardVer = document.getElementById("updateCardVersion");
+        const cardNotes = document.getElementById("updateCardNotes");
+        const progressBox = document.getElementById("updateProgressBox");
+        const progressBar = document.getElementById("updateProgressBar");
+        const progressPercent = document.getElementById("updateProgressPercent");
+        const progressBytes = document.getElementById("updateProgressBytes");
+        const btnDownload = document.getElementById("btnDownloadUpdate");
+        const btnRestart = document.getElementById("btnRestartUpdate");
+
+        switch (status.status) {
+          case "checking":
+            if (desc) desc.textContent = "Checking update servers...";
+            break;
+          case "available":
+            if (desc) desc.textContent = `New update available: v${status.version || ""}`;
+            if (card) card.style.display = "block";
+            if (cardVer) cardVer.textContent = `Version ${status.version || "New"}`;
+            if (cardNotes) {
+              cardNotes.textContent = status.notes || "A new update is ready for installation.";
+            }
+            if (progressBox) progressBox.style.display = "none";
+            if (btnDownload) {
+              btnDownload.style.display = "inline-flex";
+              btnDownload.removeAttribute("disabled");
+              btnDownload.textContent = "Download Update";
+            }
+            if (btnRestart) btnRestart.style.display = "none";
+            this.showToast(`Update available: v${status.version || ""}. Open Settings to install.`);
+            break;
+          case "not-available":
+            if (desc) desc.textContent = "You are running the latest version.";
+            if (card) card.style.display = "none";
+            break;
+          case "downloading":
+            if (desc) desc.textContent = "Downloading update package...";
+            if (card) card.style.display = "block";
+            if (progressBox) progressBox.style.display = "block";
+            {
+              const pct = Math.round(status.progress || 0);
+              if (progressBar) progressBar.style.width = `${pct}%`;
+              if (progressPercent) progressPercent.textContent = `${pct}%`;
+              if (progressBytes) {
+                progressBytes.textContent = `${pct}% completed`;
+              }
+            }
+            if (btnDownload) {
+              btnDownload.setAttribute("disabled", "true");
+              btnDownload.textContent = "Downloading...";
+            }
+            break;
+          case "downloaded":
+            if (desc) desc.textContent = "Update ready to install.";
+            if (progressBox) progressBox.style.display = "none";
+            if (btnDownload) btnDownload.style.display = "none";
+            if (btnRestart) btnRestart.style.display = "inline-flex";
+            this.showToast("Update downloaded successfully! Restart to apply.");
+            break;
+          case "error":
+            if (desc) desc.textContent = `Update check failed: ${status.error || "Unknown error"}`;
+            if (btnDownload) btnDownload.removeAttribute("disabled");
+            break;
+        }
+      });
+    }
   }
 
   private showAutoPauseAlert(): void {
@@ -704,12 +774,14 @@ class ZenkaiDesktopApp {
       const chkHw = document.getElementById("settingHwDecode") as HTMLInputElement;
       const chkRpc = document.getElementById("settingRpcEnabled") as HTMLInputElement;
       const selTheme = document.getElementById("settingTheme") as HTMLSelectElement;
+      const selChannel = document.getElementById("settingChannel") as HTMLSelectElement;
       const statDir = document.getElementById("statDownloadDir");
 
       if (chkPause) chkPause.checked = s.pauseOnClose;
       if (chkHw) chkHw.checked = s.hwDecode;
       if (chkRpc) chkRpc.checked = s.rpcEnabled;
       if (selTheme) selTheme.value = s.theme;
+      if (selChannel && s.channel) selChannel.value = s.channel;
       if (statDir && s.downloadDir) statDir.textContent = s.downloadDir;
 
       this.applyTheme(s.theme);
@@ -739,12 +811,14 @@ class ZenkaiDesktopApp {
       const chkHw = document.getElementById("settingHwDecode") as HTMLInputElement;
       const chkRpc = document.getElementById("settingRpcEnabled") as HTMLInputElement;
       const selTheme = document.getElementById("settingTheme") as HTMLSelectElement;
+      const selChannel = document.getElementById("settingChannel") as HTMLSelectElement;
 
       const patch = {
         pauseOnClose: chkPause.checked,
         hwDecode: chkHw.checked,
         rpcEnabled: chkRpc.checked,
         theme: selTheme.value as "system" | "dark" | "light",
+        channel: (selChannel?.value as "stable" | "beta") || "stable",
       };
 
       if (window.zenkai?.settings) {
@@ -753,6 +827,48 @@ class ZenkaiDesktopApp {
           this.showToast("Settings saved successfully.");
         });
       }
+    });
+
+    // Update action buttons inside Settings modal
+    const btnCheck = document.getElementById("btnCheckUpdate");
+    btnCheck?.addEventListener("click", async () => {
+      if (!window.zenkai?.app?.checkUpdate) return;
+      const desc = document.getElementById("updateStatusDesc");
+      if (desc) desc.textContent = "Checking update servers...";
+      btnCheck.setAttribute("disabled", "true");
+      try {
+        const res = await window.zenkai.app.checkUpdate();
+        if (!res.updateAvailable) {
+          if (desc) desc.textContent = "You are on the latest version.";
+          this.showToast("You are on the latest version.");
+        }
+      } catch {
+        if (desc) desc.textContent = "Failed to check for updates.";
+        this.showToast("Update check failed.");
+      } finally {
+        btnCheck.removeAttribute("disabled");
+      }
+    });
+
+    const btnDownload = document.getElementById("btnDownloadUpdate");
+    btnDownload?.addEventListener("click", async () => {
+      if (!window.zenkai?.app?.startUpdateDownload) return;
+      const desc = document.getElementById("updateStatusDesc");
+      if (desc) desc.textContent = "Downloading update package...";
+      btnDownload.setAttribute("disabled", "true");
+      try {
+        await window.zenkai.app.startUpdateDownload();
+      } catch {
+        if (desc) desc.textContent = "Download failed.";
+        this.showToast("Update download failed.");
+        btnDownload.removeAttribute("disabled");
+      }
+    });
+
+    const btnRestart = document.getElementById("btnRestartUpdate");
+    btnRestart?.addEventListener("click", async () => {
+      if (!window.zenkai?.app?.installUpdate) return;
+      await window.zenkai.app.installUpdate();
     });
   }
 

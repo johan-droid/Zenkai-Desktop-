@@ -1,4 +1,4 @@
-import { app, BrowserWindow } from "electron";
+import { app, BrowserWindow, globalShortcut } from "electron";
 import "./ipc";
 import { buildMenu } from "./menu";
 import { registerPlayback } from "./playback";
@@ -30,9 +30,27 @@ app.whenReady().then(() => {
   const initial = findDeepLink(process.argv);
   if (initial) handleDeepLink(initial);
 
+  // B8: Global quick-summon hotkey
+  try {
+    globalShortcut.register("CommandOrControl+Shift+Z", () => {
+      const win = BrowserWindow.getAllWindows().find((w) => !w.isDestroyed());
+      if (win) {
+        if (win.isMinimized()) win.restore();
+        win.show();
+        win.focus();
+      }
+    });
+  } catch (err) {
+    console.warn("[hotkey] failed to register global quick-summon shortcut:", err);
+  }
+
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) setupWindow();
   });
+});
+
+app.on("will-quit", () => {
+  globalShortcut.unregisterAll();
 });
 
 app.on("window-all-closed", () => {

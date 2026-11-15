@@ -16,6 +16,10 @@ publish:
   repo: Zenkai-Desktop-
   releaseType: release
 afterSign: scripts/after-sign.mjs
+fileAssociations:
+  - ext: zenkaits
+    name: Zenkai Episode
+    role: Viewer
 
 win:
   icon: resources/icon.ico

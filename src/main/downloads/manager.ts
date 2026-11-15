@@ -1,4 +1,4 @@
-import { app } from "electron";
+import { app, BrowserWindow } from "electron";
 import { once } from "node:events";
 import fs from "node:fs";
 import fsp from "node:fs/promises";
@@ -53,6 +53,44 @@ function persist(): void {
   const tmp = `${file}.tmp`;
   fs.writeFileSync(tmp, JSON.stringify([...items.values()], null, 2));
   fs.renameSync(tmp, file);
+}
+
+export function updateTaskbarProgress(): void {
+  try {
+    if (typeof BrowserWindow === "undefined" || !BrowserWindow.getAllWindows) return;
+    const win = BrowserWindow.getAllWindows().find((w) => !w.isDestroyed());
+    if (!win || typeof win.setProgressBar !== "function") return;
+    const active = [...items.values()].filter((d) => d.status === "active");
+    if (active.length === 0) {
+      win.setProgressBar(-1);
+      return;
+    }
+    const avg =
+      active.reduce(
+        (acc, d) => acc + (d.total > 0 ? d.bytes / d.total : 0),
+        0,
+      ) / active.length;
+    win.setProgressBar(Math.max(0, Math.min(1, avg)));
+  } catch {
+    // Non-fatal if running in headless or test environment
+  }
+}
+
+export async function canFitDownload(estimatedBytes = 250 * 1024 * 1024): Promise<{
+  ok: boolean;
+  freeBytes: number;
+  requiredBytes: number;
+}> {
+  const dir = downloadDir();
+  try {
+    fs.mkdirSync(dir, { recursive: true });
+    const st = await fsp.statfs(dir);
+    const freeBytes = st.bavail * st.bsize;
+    const requiredBytes = Math.round(estimatedBytes * 1.15); // 15% safety headroom
+    return { ok: freeBytes >= requiredBytes, freeBytes, requiredBytes };
+  } catch {
+    return { ok: true, freeBytes: 0, requiredBytes: estimatedBytes };
+  }
 }
 
 function loadIndex(): void {
@@ -129,7 +167,32 @@ async function run(e: DownloadEntry): Promise<void> {
   const controller = new AbortController();
   controllers.set(e.id, controller);
   persist();
+  updateTaskbarProgress();
   try {
+    // Disk space guard (B3)
+    const dir = downloadDir();
+    try {
+      fs.mkdirSync(dir, { recursive: true });
+      const st = await fsp.statfs(dir);
+      const freeBytes = st.bavail * st.bsize;
+      const estimated = e.total > 0 ? e.total : 250 * 1024 * 1024;
+      const required = Math.round(estimated * 1.15); // 15% safety margin
+      if (freeBytes > 0 && freeBytes < required) {
+        const needMb = Math.round(required / (1024 * 1024));
+        const freeMb = Math.round(freeBytes / (1024 * 1024));
+        throw new Error(
+          `Insufficient disk space: need at least ${needMb}MB, available ${freeMb}MB`,
+        );
+      }
+    } catch (err) {
+      if (
+        err instanceof Error &&
+        err.message.startsWith("Insufficient disk space")
+      ) {
+        throw err;
+      }
+    }
+
     if (e.anilistId && e.episode && e.server && e.audio) {
       await downloadHls(e, controller.signal);
     } else {
@@ -162,6 +225,7 @@ async function run(e: DownloadEntry): Promise<void> {
   } finally {
     controllers.delete(e.id);
     if (items.has(e.id)) persist();
+    updateTaskbarProgress();
     pump();
   }
 }
@@ -197,6 +261,7 @@ async function downloadHls(
       e.bytes = done;
       e.total = total;
       persist();
+      updateTaskbarProgress();
     },
   });
 
@@ -388,6 +453,7 @@ export function removeDownload(id: string): void {
     } catch {}
   }
   persist();
+  updateTaskbarProgress();
 }
 
 export function resumeDownloads(): void {

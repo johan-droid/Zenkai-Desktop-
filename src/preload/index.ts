@@ -42,6 +42,9 @@ contextBridge.exposeInMainWorld("zenkai", {
     getWorkerStatus: call("vision:getWorkerStatus"),
     startWorker: call("vision:startWorker"),
     stopWorker: call("vision:stopWorker"),
+    getModels: call("vision:getModels"),
+    verifyModel: call("vision:verifyModel"),
+    runBenchmark: call("vision:runBenchmark"),
     onWorkerStatusChanged: (cb: (p: IpcEvents["vision:workerStatusChanged"]) => void) =>
       on("vision:workerStatusChanged", cb),
   },

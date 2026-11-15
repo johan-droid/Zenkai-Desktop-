@@ -25,3 +25,4 @@ describe('Vision Diagnostics Engine', () => {
     expect(Array.isArray(report.recommendations)).toBe(true);
   });
 });
+

@@ -266,3 +266,4 @@ export class VisionWorkerManager {
 
 // Global singleton instance
 export const visionWorker = new VisionWorkerManager();
+

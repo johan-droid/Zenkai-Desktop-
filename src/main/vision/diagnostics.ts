@@ -135,3 +135,4 @@ export async function runVisionDiagnostics(): Promise<VisionDiagnosticsReport> {
     recommendations: Array.from(new Set(recommendations)),
   };
 }
+

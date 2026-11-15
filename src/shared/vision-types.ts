@@ -102,3 +102,4 @@ export interface VisionWorkerStatus {
   lastError?: string;
   lastHeartbeat?: number;
 }
+

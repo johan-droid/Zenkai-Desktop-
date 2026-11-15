@@ -84,6 +84,9 @@ export type IpcContract = {
   "vision:getWorkerStatus": () => Promise<import("./vision-types").VisionWorkerStatus>;
   "vision:startWorker": () => Promise<{ success: boolean; pid?: number; message?: string }>;
   "vision:stopWorker": () => Promise<{ success: boolean }>;
+  "vision:getModels": () => Promise<import("./vision-models").VisionModelManifest[]>;
+  "vision:verifyModel": (modelId: string) => Promise<import("./vision-models").ModelVerificationResult>;
+  "vision:runBenchmark": (p: { modelId: string; provider?: import("./vision-types").InferenceProvider }) => Promise<import("./vision-models").InferenceBenchmarkResult>;
 };
 
 export type IpcEvents = {

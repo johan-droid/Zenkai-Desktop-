@@ -106,6 +106,19 @@ try {
     `devices=${hardwareProfile?.devices?.length}, profile=${hardwareProfile?.profile?.profile}`,
   );
 
+  const models = JSON.parse(
+    await cdp("Runtime.evaluate", {
+      expression: "window.zenkai.vision.getModels().then(m => JSON.stringify(m))",
+      awaitPromise: true,
+      returnByValue: true,
+    }),
+  );
+  check(
+    "IPC round trip vision.getModels()",
+    Array.isArray(models) && models.length >= 4,
+    `modelsCount=${models?.length}`,
+  );
+
   const version = await cdp("Runtime.evaluate", {
     expression: "window.zenkai.app.version()",
     awaitPromise: true,

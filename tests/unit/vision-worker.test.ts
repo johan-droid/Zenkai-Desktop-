@@ -68,3 +68,4 @@ describe('Vision Worker Process Lifecycle & Fault Tolerance', () => {
     expect(statusAfter.lastError).toMatch(/terminated unexpectedly/i);
   });
 });
+

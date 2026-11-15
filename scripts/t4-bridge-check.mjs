@@ -21,7 +21,7 @@ delete procEnv.ELECTRON_RUN_AS_NODE;
 
 const proc = spawn(
   "node_modules/electron/dist/electron",
-  [".", "--remote-debugging-port=9335", "--user-data-dir=/tmp/zenkai-t4-profile"],
+  [".", "--no-sandbox", "--remote-debugging-port=9335", "--user-data-dir=/tmp/zenkai-t4-profile"],
   {
     stdio: ["ignore", "ignore", "inherit"],
     env: procEnv,

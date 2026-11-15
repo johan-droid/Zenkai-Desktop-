@@ -83,8 +83,8 @@ jobs:
 
       - name: Gate D — Security and IPC bridge contract verification
         run: |
-          node scripts/t3-security-check.mjs
-          node scripts/t4-bridge-check.mjs
+          xvfb-run -a node scripts/t3-security-check.mjs
+          xvfb-run -a node scripts/t4-bridge-check.mjs
 
   quality-windows:
     name: Quality Gates & Tests (Windows)

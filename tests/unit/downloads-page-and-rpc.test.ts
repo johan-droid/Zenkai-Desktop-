@@ -67,3 +67,4 @@ describe("Phase 1 & 2 Integration: Discord RPC & Offline Downloads IPC", () => {
     await expect(handler!({}, { unexpected: true })).rejects.toThrow("invalid payload for rpc:clear");
   });
 });
+

@@ -92,3 +92,4 @@ Get-FileHash -Algorithm SHA256 Zenkai-Desktop-v0.0.1-Windows-x64-Setup.exe
 * **AniList API**: Anime metadata and media discovery GraphQL services.
 * **Hls.js Team**: Robust JavaScript HLS client for HTML5 video playback.
 * **Electron & electron-builder**: Desktop application runtime and packaging infrastructure.
+

@@ -60,3 +60,4 @@ This is the inaugural release of **Zenkai Desktop**, transitioning from a web-wr
   * Automated `SHA256SUMS.txt` cryptographic checksum verification for every release asset.
 
 ---
+

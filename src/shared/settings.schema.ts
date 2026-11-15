@@ -36,7 +36,7 @@ export const SettingsSchema = z.object({
     })
     .optional(),
   theme: z.enum(["system", "dark", "light"]).default("system"),
-  channel: z.enum(["stable", "beta"]).default("stable"), // kept explicit so renderer can safely send a channel patch
+  channel: z.enum(["stable", "beta", "internal"]).default("stable"), // explicit channel model: stable, beta, internal
   installationId: z.string().default("zenkai-client-cohort"),
   updateServerUrl: z.string().default("https://update.zenkai.cfd"),
 });

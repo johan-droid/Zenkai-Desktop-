@@ -6,15 +6,23 @@ on:
   pull_request:
     branches: [main]
 
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
 jobs:
-  test:
+  quality-linux:
+    name: Quality Gates & Tests (Linux)
     runs-on: ubuntu-22.04
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
+      - name: Setup Node.js 22
         uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -23,26 +31,91 @@ jobs:
         uses: pnpm/action-setup@v3
         with:
           version: 12
+          run_install: false
+
+      - name: Get pnpm store directory
+        shell: bash
+        run: echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+
+      - name: Setup pnpm cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
 
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y rpm libnotify-bin libnotify-dev
+          sudo apt-get install -y rpm libnotify-bin libnotify-dev xvfb
 
-      - name: Install dependencies
+      - name: Install dependencies from frozen lockfile
         run: pnpm install --frozen-lockfile
 
-      - name: Typecheck
+      - name: Gate A — Static TypeScript check
         run: pnpm typecheck
 
-      - name: Lint
+      - name: Gate A — ESLint analysis
         run: pnpm lint
 
-      - name: Unit tests
+      - name: Gate A — Secret & sensitive data scan
+        shell: bash
+        run: |
+          echo "Scanning for accidentally committed secrets or tokens..."
+          if grep -rnE "ghp_[A-Za-z0-9]{36}|github_pat_[A-Za-z0-9]{82}|AIza[0-9A-Za-z-_]{35}|-----BEGIN (RSA|EC|OPENSSH) PRIVATE KEY-----" src/ .github/ scripts/ 2>/dev/null; then
+            echo "::error::Potential secret detected in repository files!"
+            exit 1
+          fi
+          echo "Secret scan clean."
+
+      - name: Gate B — Zero-Mock Production Data Integrity Check
+        run: node scripts/verify-zero-mock.mjs
+
+      - name: Gate C — Unit & Integration tests
         run: pnpm test
 
-      - name: Build electron app
+      - name: Gate C — Build production electron bundles
         run: pnpm build
 
-      - name: E2E tests (Electron under xvfb)
+      - name: Gate D — Playwright E2E suite under xvfb
         run: xvfb-run -a pnpm e2e
+
+      - name: Gate D — Security and IPC bridge contract verification
+        run: |
+          node scripts/t3-security-check.mjs
+          node scripts/t4-bridge-check.mjs
+
+  quality-windows:
+    name: Quality Gates & Tests (Windows)
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 12
+          run_install: false
+
+      - name: Install dependencies from frozen lockfile
+        run: pnpm install --frozen-lockfile
+
+      - name: Gate A — Static TypeScript check (Windows)
+        run: pnpm typecheck
+
+      - name: Gate B — Zero-Mock Production Data Integrity Check (Windows)
+        run: node scripts/verify-zero-mock.mjs
+
+      - name: Gate C — Unit tests (Windows)
+        run: pnpm test
+
+      - name: Gate C — Build production bundles (Windows)
+        run: pnpm build

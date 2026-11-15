@@ -23,7 +23,10 @@
     "e2e": "playwright test",
     "dist:linux": "pnpm build && electron-builder --linux AppImage deb -p never",
     "dist:win": "pnpm build && electron-builder --win -p never",
-    "dist:mac": "pnpm build && electron-builder --mac -p never"
+    "dist:mac": "pnpm build && electron-builder --mac -p never",
+    "release:check": "node scripts/verify-zero-mock.mjs",
+    "release:verify": "node scripts/verify-artifacts.mjs",
+    "release:version": "node scripts/release-version.mjs"
   },
   "devDependencies": {
     "@playwright/test": "^1.65.1",

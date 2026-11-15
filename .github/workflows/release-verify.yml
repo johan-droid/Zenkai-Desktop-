@@ -1,0 +1,60 @@
+name: Release — Artifact Verification Gate
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        required: true
+        type: string
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Application version to verify"
+        required: false
+        default: "0.0.1"
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Independent Artifact Verification & Smoke Testing
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Download all package artifacts from CI builders
+        uses: actions/download-artifact@v4
+        with:
+          path: downloaded-artifacts
+
+      - name: Consolidate packages, metadata, and validate
+        shell: bash
+        run: |
+          mkdir -p dist
+          # Copy binaries, metadata YAMLs, and blockmaps
+          find downloaded-artifacts -type f \( -name "Zenkai-Desktop-*" -o -name "latest*.yml" -o -name "*.blockmap" \) ! -name "*.txt" -exec cp {} dist/ \;
+          # Combine checksum files into authoritative SHA256SUMS.txt
+          find downloaded-artifacts -type f -name "checksums-*.txt" -exec cat {} + | sort -u > dist/SHA256SUMS.txt
+
+          echo "=== Staged Release Distribution Bundle ==="
+          ls -lh dist/
+          cat dist/SHA256SUMS.txt
+
+      - name: Gate D & E — Execute Independent Verification & Container Smoke Test
+        run: node scripts/verify-artifacts.mjs --dir dist
+
+      - name: Upload verified release artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: verified-release-bundle
+          path: dist/*
+          retention-days: 14

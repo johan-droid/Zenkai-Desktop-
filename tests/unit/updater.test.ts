@@ -168,4 +168,26 @@ describe("auto-updater decisions (T14)", () => {
     expect(res.message).toMatch(/media playback is in progress/);
     setPlaybackState(false);
   });
+
+  it("downgrade prevention & semver comparison (Phase 8)", async () => {
+    const { isStrictlyNewer } = await freshSetup();
+    expect(isStrictlyNewer("0.0.2", "0.0.1")).toBe(true);
+    expect(isStrictlyNewer("0.1.0", "0.0.9")).toBe(true);
+    expect(isStrictlyNewer("1.0.0", "0.9.9")).toBe(true);
+    expect(isStrictlyNewer("0.0.1", "0.0.1")).toBe(false);
+    expect(isStrictlyNewer("0.0.1", "0.0.2")).toBe(false); // downgrade rejected
+    expect(isStrictlyNewer("0.0.2", "0.0.2-beta.1")).toBe(true); // stable newer than beta
+    expect(isStrictlyNewer("0.0.2-beta.1", "0.0.2")).toBe(false); // beta not newer than stable
+  });
+
+  it("local update diagnostics provides privacy-first observability (Phase 11)", async () => {
+    const { getUpdateDiagnostics } = await freshSetup();
+    const diag = getUpdateDiagnostics();
+    expect(diag).toBeDefined();
+    expect(diag.currentVersion).toBe("0.0.1");
+    expect(diag.channel).toBe("stable");
+    expect(diag.downloadState).toBe("idle");
+    expect(diag.verificationState).toBe("none");
+    expect(diag.installationState).toBe("idle");
+  });
 });

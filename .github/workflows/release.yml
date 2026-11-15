@@ -2,22 +2,83 @@ name: Release
 
 on:
   push:
+    branches: [main]
     tags:
       - "v*"
   workflow_dispatch:
     inputs:
-      publish_release:
-        description: "Publish assets to GitHub Releases"
+      force_bump:
+        description: "Force semver bump (patch, minor, major, or auto)"
         required: false
-        type: boolean
-        default: true
+        default: "auto"
+        type: choice
+        options:
+          - auto
+          - patch
+          - minor
+          - major
+
+concurrency:
+  group: release-pipeline
+  cancel-in-progress: false
 
 permissions:
   contents: write
 
 jobs:
+  determine-version:
+    name: Semantic Versioning & Conventional Commit Analysis
+    runs-on: ubuntu-22.04
+    outputs:
+      should_release: ${{ steps.versioning.outputs.should_release }}
+      version: ${{ steps.versioning.outputs.version }}
+      tag: ${{ steps.versioning.outputs.tag }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 12
+          run_install: false
+
+      - name: Calculate release version from Conventional Commits
+        id: versioning
+        shell: bash
+        run: |
+          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            TAG="${GITHUB_REF#refs/tags/}"
+            VERSION="${TAG#v}"
+            echo "Triggered by tag: $TAG ($VERSION)"
+            echo "should_release=true" >> $GITHUB_OUTPUT
+            echo "version=$VERSION" >> $GITHUB_OUTPUT
+            echo "tag=$TAG" >> $GITHUB_OUTPUT
+          else
+            echo "Analyzing commits since latest tag on main..."
+            node scripts/release-version.mjs --apply
+          fi
+
+      - name: Upload temporary release notes
+        if: steps.versioning.outputs.should_release == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-notes
+          path: RELEASE_NOTES.tmp.md
+          if-no-files-found: ignore
+
   build-linux:
     name: Build Linux Packages
+    needs: [determine-version]
+    if: needs.determine-version.outputs.should_release == 'true'
     runs-on: ubuntu-22.04
 
     steps:
@@ -33,14 +94,25 @@ jobs:
         uses: pnpm/action-setup@v3
         with:
           version: 12
+          run_install: false
 
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y rpm libnotify-bin libnotify-dev
+          sudo apt-get install -y rpm libnotify-bin libnotify-dev xvfb
 
-      - name: Install dependencies
+      - name: Install dependencies from lockfile
         run: pnpm install --frozen-lockfile
+
+      - name: Gate B — Zero-Mock Production Data Integrity Check
+        run: node scripts/verify-zero-mock.mjs
+
+      - name: Synchronize package version
+        shell: bash
+        run: |
+          VERSION="${{ needs.determine-version.outputs.version }}"
+          npm version "$VERSION" --no-git-tag-version --allow-same-version
+          echo "Packaging version: $(node -p "require('./package.json').version")"
 
       - name: Build application bundle
         run: pnpm build
@@ -72,6 +144,8 @@ jobs:
 
   build-windows:
     name: Build Windows Packages
+    needs: [determine-version]
+    if: needs.determine-version.outputs.should_release == 'true'
     runs-on: windows-latest
 
     steps:
@@ -87,9 +161,20 @@ jobs:
         uses: pnpm/action-setup@v3
         with:
           version: 12
+          run_install: false
 
-      - name: Install dependencies
+      - name: Install dependencies from lockfile
         run: pnpm install --frozen-lockfile
+
+      - name: Gate B — Zero-Mock Production Data Integrity Check
+        run: node scripts/verify-zero-mock.mjs
+
+      - name: Synchronize package version
+        shell: bash
+        run: |
+          VERSION="${{ needs.determine-version.outputs.version }}"
+          npm version "$VERSION" --no-git-tag-version --allow-same-version
+          echo "Packaging version: $(node -p "require('./package.json').version")"
 
       - name: Build application bundle
         run: pnpm build
@@ -121,9 +206,10 @@ jobs:
             release/checksums-windows.txt
           retention-days: 14
 
-  build-macos:
-    name: Build macOS Packages
-    runs-on: macos-14
+  verify-artifacts:
+    name: Independent Artifact Verification & Smoke Testing
+    needs: [determine-version, build-linux, build-windows]
+    runs-on: ubuntu-22.04
 
     steps:
       - name: Checkout repository
@@ -134,84 +220,98 @@ jobs:
         with:
           node-version: 22
 
-      - name: Install pnpm
-        uses: pnpm/action-setup@v3
-        with:
-          version: 12
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Build application bundle
-        run: pnpm build
-
-      - name: Package macOS distributions (DMG & Zip)
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-        run: pnpm exec electron-builder --mac -p never
-
-      - name: Generate macOS SHA-256 checksums
-        shell: bash
-        run: |
-          cd release
-          shasum -a 256 Zenkai-Desktop-* > checksums-macos.txt
-          cat checksums-macos.txt
-
-      - name: Upload macOS artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: macos-artifacts
-          path: |
-            release/Zenkai-Desktop-*.dmg
-            release/Zenkai-Desktop-*.zip
-            release/latest-mac*.yml
-            release/*.blockmap
-            release/checksums-macos.txt
-          retention-days: 14
-
-  publish-release:
-    name: Publish GitHub Release
-    needs: [build-linux, build-windows, build-macos]
-    runs-on: ubuntu-22.04
-    if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.publish_release == true)
-
-    steps:
-      - name: Download all build artifacts
+      - name: Download all package artifacts
         uses: actions/download-artifact@v4
         with:
           path: downloaded-artifacts
 
-      - name: Consolidate packages, metadata, and validate
+      - name: Consolidate packages, metadata, and checksums
         shell: bash
         run: |
           mkdir -p dist
-          # Copy binaries, metadata YAMLs, and blockmaps
+          # Copy all binaries, update metadata YAMLs, and blockmaps
           find downloaded-artifacts -type f \( -name "Zenkai-Desktop-*" -o -name "latest*.yml" -o -name "*.blockmap" \) ! -name "*.txt" -exec cp {} dist/ \;
-          # Combine checksum files into unified SHA256SUMS.txt
+          # Generate consolidated, authoritative SHA256SUMS.txt
           find downloaded-artifacts -type f -name "checksums-*.txt" -exec cat {} + | sort -u > dist/SHA256SUMS.txt
 
-          echo "=== Release Artifacts & Checksums ==="
+          echo "=== Staged Release Distribution Bundle ==="
           ls -lh dist/
           cat dist/SHA256SUMS.txt
 
-          # Pre-publish validation: Ensure every file is non-empty
+      - name: Gate D & E — Execute Independent Verification & Container Smoke Test
+        run: node scripts/verify-artifacts.mjs --dir dist
+
+      - name: Upload verified release distribution bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: verified-dist-bundle
+          path: dist/*
+          retention-days: 14
+
+  publish-release:
+    name: Publish Production GitHub Release
+    needs: [determine-version, verify-artifacts]
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download verified release bundle
+        uses: actions/download-artifact@v4
+        with:
+          name: verified-dist-bundle
+          path: dist
+
+      - name: Download release notes if generated
+        uses: actions/download-artifact@v4
+        with:
+          name: release-notes
+          path: release-notes-dir
+        continue-on-error: true
+
+      - name: Pre-publish validation — Ensure all critical platform assets exist
+        shell: bash
+        run: |
+          echo "Validating release assets before publication..."
+          ls -lh dist/
+
+          # 1. Require Linux AppImage
+          if ! ls dist/Zenkai-Desktop-*.AppImage 1> /dev/null 2>&1; then
+            echo "::error::Linux AppImage is missing! Publication aborted."
+            exit 1
+          fi
+
+          # 2. Require Windows NSIS Setup
+          if ! ls dist/Zenkai-Desktop-*.exe 1> /dev/null 2>&1; then
+            echo "::error::Windows NSIS installer is missing! Publication aborted."
+            exit 1
+          fi
+
+          # 3. Require SHA256SUMS.txt
+          if [ ! -s "dist/SHA256SUMS.txt" ]; then
+            echo "::error::Authoritative SHA256SUMS.txt is missing or empty! Publication aborted."
+            exit 1
+          fi
+
+          # 4. Require non-empty files
           for f in dist/*; do
             if [ ! -s "$f" ]; then
               echo "::error::Release file $f is empty or corrupt!"
               exit 1
             fi
           done
+          echo "All release assets validated."
 
       - name: Publish Release to GitHub
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ needs.determine-version.outputs.tag }}
+          name: "Zenkai Desktop ${{ needs.determine-version.outputs.tag }}"
+          body_path: ${{ hashFiles('release-notes-dir/RELEASE_NOTES.tmp.md') != '' && 'release-notes-dir/RELEASE_NOTES.tmp.md' || '' }}
           files: dist/*
-          generate_release_notes: true
+          generate_release_notes: ${{ hashFiles('release-notes-dir/RELEASE_NOTES.tmp.md') == '' }}
           draft: false
-          prerelease: ${{ contains(github.ref, '-beta') || contains(github.ref, '-alpha') || contains(github.ref, '-rc') }}
+          prerelease: ${{ contains(needs.determine-version.outputs.tag, '-beta') || contains(needs.determine-version.outputs.tag, '-alpha') || contains(needs.determine-version.outputs.tag, '-rc') }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

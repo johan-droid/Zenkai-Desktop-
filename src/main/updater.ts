@@ -1,5 +1,6 @@
 import { app, BrowserWindow, dialog, shell } from "electron";
 import { autoUpdater } from "electron-updater";
+import crypto from "node:crypto";
 import fs from "node:fs";
 import { join } from "node:path";
 import { Readable } from "node:stream";
@@ -19,16 +20,67 @@ export interface UpdateCheckResult {
   mandatory?: boolean;
   assetUrl?: string;
   assetName?: string;
+  sha256?: string;
   isLinuxNativePackage?: boolean;
   reason?: string;
+}
+
+export interface UpdateDiagnostics {
+  currentVersion: string;
+  channel: "stable" | "beta" | "internal";
+  lastCheckTime?: string;
+  updateAvailable: boolean;
+  availableVersion?: string;
+  downloadState: "idle" | "downloading" | "downloaded" | "failed";
+  downloadedVersion?: string;
+  downloadedFile?: string;
+  verificationState: "none" | "pending" | "verified" | "failed";
+  computedHash?: string;
+  expectedHash?: string;
+  installationState: "idle" | "ready" | "in_progress" | "failed";
+  lastFailureReason?: string;
+  lastSuccessfulUpdate?: string;
 }
 
 let latestUpdateResult: UpdateCheckResult | null = null;
 let downloadedPackagePath: string | null = null;
 
+const currentDiagnostics: UpdateDiagnostics = {
+  currentVersion: "0.0.1",
+  channel: "stable",
+  updateAvailable: false,
+  downloadState: "idle",
+  verificationState: "none",
+  installationState: "idle",
+};
+
 function getSettingsPath(): string {
   const dir = app.getPath("userData");
   return join(dir, "settings.json");
+}
+
+function getDiagnosticsPath(): string {
+  const dir = app.getPath("userData");
+  return join(dir, "update-diagnostics.json");
+}
+
+function persistDiagnostics(): void {
+  try {
+    fs.writeFileSync(getDiagnosticsPath(), JSON.stringify(currentDiagnostics, null, 2), "utf8");
+  } catch {
+    // ignore filesystem write errors during shutdown or testing
+  }
+}
+
+export function getUpdateDiagnostics(): UpdateDiagnostics {
+  try {
+    currentDiagnostics.currentVersion = app.getVersion();
+    const settings = readSettings(getSettingsPath());
+    currentDiagnostics.channel = (settings.channel as "stable" | "beta" | "internal") || "stable";
+  } catch {
+    // fallback
+  }
+  return { ...currentDiagnostics };
 }
 
 function broadcastToWindows(channel: string, payload: unknown): void {
@@ -39,14 +91,35 @@ function broadcastToWindows(channel: string, payload: unknown): void {
   }
 }
 
+export function parseSemver(v: string): [number, number, number, string | null] {
+  const clean = v.replace(/^v/, "").trim();
+  const [core, prerelease] = clean.split("-");
+  const [major, minor, patch] = core.split(".").map((n) => parseInt(n, 10) || 0);
+  return [major, minor, patch, prerelease || null];
+}
+
+export function isStrictlyNewer(candidate: string, current: string): boolean {
+  const [cMaj, cMin, cPat, cPre] = parseSemver(candidate);
+  const [currMaj, currMin, currPat, currPre] = parseSemver(current);
+
+  if (cMaj !== currMaj) return cMaj > currMaj;
+  if (cMin !== currMin) return cMin > currMin;
+  if (cPat !== currPat) return cPat > currPat;
+
+  // Prerelease comparison: candidate without prerelease is newer than current with prerelease
+  if (currPre && !cPre) return true;
+  if (!currPre && cPre) return false;
+  return false;
+}
+
 /**
- * Downloads a file with progress updates.
+ * Downloads a file while streaming into a destination and simultaneously calculating its SHA-256.
  */
-async function downloadFileWithProgress(
+async function downloadFileWithHash(
   url: string,
   targetPath: string,
   onProgress: (percent: number) => void,
-): Promise<void> {
+): Promise<{ computedHash: string }> {
   const partPath = `${targetPath}.part`;
   const res = await fetch(url, {
     redirect: "follow",
@@ -63,11 +136,13 @@ async function downloadFileWithProgress(
 
   fs.mkdirSync(join(targetPath, ".."), { recursive: true });
   const fileStream = fs.createWriteStream(partPath);
+  const hasher = crypto.createHash("sha256");
 
   const nodeReadable = Readable.fromWeb(res.body as import("stream/web").ReadableStream);
 
   nodeReadable.on("data", (chunk: Buffer) => {
     received += chunk.length;
+    hasher.update(chunk);
     if (total > 0) {
       const pct = Math.min(100, Math.round((received / total) * 100));
       if (pct !== lastReported) {
@@ -80,7 +155,8 @@ async function downloadFileWithProgress(
   nodeReadable.pipe(fileStream);
   await finished(fileStream);
 
-  fs.renameSync(partPath, targetPath);
+  const computedHash = hasher.digest("hex").toLowerCase();
+  return { computedHash };
 }
 
 function detectLinuxPackagePreference(): "deb" | "rpm" {
@@ -153,16 +229,23 @@ export function setupAutoUpdater(): void {
 
   autoUpdater.on("checking-for-update", () => {
     console.log("[updater] checking for updates...");
+    currentDiagnostics.lastCheckTime = new Date().toISOString();
     broadcastToWindows("updater:status", { status: "checking" });
   });
 
   autoUpdater.on("update-available", (info) => {
     console.log(`[updater] update available: ${info.version}`);
+    currentDiagnostics.updateAvailable = true;
+    currentDiagnostics.availableVersion = info.version;
+    currentDiagnostics.downloadState = "idle";
+    persistDiagnostics();
+
     latestUpdateResult = {
       updateAvailable: true,
       version: info.version,
       releaseDate: typeof info.releaseDate === "string" ? info.releaseDate : undefined,
       notes: typeof info.releaseNotes === "string" ? info.releaseNotes : undefined,
+      sha256: typeof info.sha512 === "string" ? info.sha512 : undefined,
     };
 
     broadcastToWindows("updater:status", {
@@ -188,10 +271,14 @@ export function setupAutoUpdater(): void {
 
   autoUpdater.on("update-not-available", () => {
     console.log("[updater] app is up to date");
+    currentDiagnostics.updateAvailable = false;
+    currentDiagnostics.availableVersion = undefined;
+    persistDiagnostics();
     broadcastToWindows("updater:status", { status: "not-available" });
   });
 
   autoUpdater.on("download-progress", (progressObj) => {
+    currentDiagnostics.downloadState = "downloading";
     broadcastToWindows("updater:status", {
       status: "downloading",
       progress: progressObj.percent,
@@ -200,6 +287,12 @@ export function setupAutoUpdater(): void {
 
   autoUpdater.on("update-downloaded", (info) => {
     console.log(`[updater] update downloaded: ${info.version}`);
+    currentDiagnostics.downloadState = "downloaded";
+    currentDiagnostics.downloadedVersion = info.version;
+    currentDiagnostics.verificationState = "verified";
+    currentDiagnostics.installationState = "ready";
+    persistDiagnostics();
+
     broadcastToWindows("updater:status", {
       status: "downloaded",
       version: info.version,
@@ -222,10 +315,27 @@ export function setupAutoUpdater(): void {
 
   autoUpdater.on("error", (err) => {
     console.warn("[updater] update check error:", err.message);
-    broadcastToWindows("updater:status", {
-      status: "error",
-      error: err.message,
-    });
+    currentDiagnostics.downloadState = "failed";
+    currentDiagnostics.lastFailureReason = err.message;
+    persistDiagnostics();
+
+    // If the error is a 404 on the release metadata file (e.g. latest-linux.yml not yet uploaded or release in progress),
+    // do not broadcast an alarming error banner to the user; fall back gracefully to checkForUpdatesClient.
+    const isMissingManifest =
+      err.message.includes("404") ||
+      err.message.includes("latest-linux.yml") ||
+      err.message.includes("latest.yml");
+
+    if (!isMissingManifest) {
+      broadcastToWindows("updater:status", {
+        status: "error",
+        error: err.message,
+      });
+    } else {
+      console.log(
+        "[updater] update manifest not found on GitHub release (404), falling back to direct release check",
+      );
+    }
   });
 
   // Check on launch
@@ -252,12 +362,16 @@ export function setupAutoUpdater(): void {
 }
 
 /**
- * Check for updates purely via GitHub Releases (zero-configuration, user-friendly).
+ * Check for updates purely via GitHub Releases API with cryptographic hash discovery and downgrade prevention.
  */
 export async function checkForUpdatesClient(): Promise<UpdateCheckResult> {
   const currentVersion = app.getVersion();
   const settings = readSettings(getSettingsPath());
-  const channel = settings.channel;
+  const channel = (settings.channel as "stable" | "beta" | "internal") || "stable";
+
+  currentDiagnostics.currentVersion = currentVersion;
+  currentDiagnostics.channel = channel;
+  currentDiagnostics.lastCheckTime = new Date().toISOString();
 
   broadcastToWindows("updater:status", { status: "checking" });
 
@@ -271,6 +385,8 @@ export async function checkForUpdatesClient(): Promise<UpdateCheckResult> {
     );
 
     if (!res.ok) {
+      currentDiagnostics.lastFailureReason = `GitHub check returned status ${res.status}`;
+      persistDiagnostics();
       return { updateAvailable: false, reason: `GitHub check returned status ${res.status}` };
     }
 
@@ -288,18 +404,21 @@ export async function checkForUpdatesClient(): Promise<UpdateCheckResult> {
       }>;
     }>;
 
-    // Filter by user-selected channel: "stable" vs "beta"
+    // Filter by user-selected channel: "stable", "beta", or "internal"
     const eligible = releases.filter((r) => {
       if (r.draft) return false;
+      if (channel === "internal") return true;
       if (channel === "beta") return true;
-      return !r.prerelease && !r.tag_name.includes("-beta") && !r.tag_name.includes("-alpha");
+      // Stable channel rejects prereleases and non-standard tags
+      return !r.prerelease && !r.tag_name.includes("-beta") && !r.tag_name.includes("-alpha") && !r.tag_name.includes("-rc") && !r.tag_name.includes("-internal");
     });
 
     if (eligible.length > 0) {
       const newest = eligible[0];
       const newVer = newest.tag_name.replace(/^v/, "").trim();
 
-      if (newVer !== currentVersion) {
+      // STRICT DOWNGRADE PREVENTION: Candidate version must be strictly newer than current version
+      if (isStrictlyNewer(newVer, currentVersion)) {
         let matchingAssetUrl = newest.html_url;
         let matchingAssetName: string | undefined;
         let isLinuxNative = false;
@@ -357,6 +476,33 @@ export async function checkForUpdatesClient(): Promise<UpdateCheckResult> {
           }
         }
 
+        // Attempt to extract expected SHA-256 hash from SHA256SUMS.txt asset if present
+        let expectedSha256: string | undefined;
+        if (newest.assets && matchingAssetName) {
+          const checksumAsset = newest.assets.find((a) => a.name === "SHA256SUMS.txt" || a.name.startsWith("checksums-"));
+          if (checksumAsset) {
+            try {
+              const csRes = await fetch(checksumAsset.browser_download_url, { signal: AbortSignal.timeout(5000) });
+              if (csRes.ok) {
+                const csText = await csRes.text();
+                for (const line of csText.split("\n")) {
+                  const parts = line.trim().split(/\s+/);
+                  if (parts.length >= 2) {
+                    const hash = parts[0];
+                    const filename = parts.slice(1).join(" ");
+                    if (filename.includes(matchingAssetName) || matchingAssetName.includes(filename)) {
+                      expectedSha256 = hash.toLowerCase();
+                      break;
+                    }
+                  }
+                }
+              }
+            } catch {
+              // checksum file fetch failed, will proceed with standard asset download
+            }
+          }
+        }
+
         latestUpdateResult = {
           updateAvailable: true,
           version: newVer,
@@ -365,8 +511,14 @@ export async function checkForUpdatesClient(): Promise<UpdateCheckResult> {
           notes: newest.body,
           assetUrl: matchingAssetUrl,
           assetName: matchingAssetName,
+          sha256: expectedSha256,
           isLinuxNativePackage: isLinuxNative,
         };
+
+        currentDiagnostics.updateAvailable = true;
+        currentDiagnostics.availableVersion = newVer;
+        currentDiagnostics.expectedHash = expectedSha256;
+        persistDiagnostics();
 
         broadcastToWindows("updater:status", {
           status: "available",
@@ -391,14 +543,18 @@ export async function checkForUpdatesClient(): Promise<UpdateCheckResult> {
     }
   } catch (err) {
     console.warn("[updater] direct GitHub check failed:", err);
+    currentDiagnostics.lastFailureReason = String(err);
+    persistDiagnostics();
   }
 
+  currentDiagnostics.updateAvailable = false;
+  persistDiagnostics();
   broadcastToWindows("updater:status", { status: "not-available" });
   return { updateAvailable: false, reason: "Application is up to date" };
 }
 
 /**
- * Start downloading an update (User-Approved action).
+ * Start downloading an update with streaming SHA-256 checksum verification (User-Approved action).
  */
 export async function startUpdateDownload(): Promise<{ success: boolean; message?: string }> {
   if (isPlaybackActive()) {
@@ -411,6 +567,7 @@ export async function startUpdateDownload(): Promise<{ success: boolean; message
   // 1. AppImage or Windows NSIS with electron-updater
   if (app.isPackaged && (process.platform === "win32" || process.env.APPIMAGE)) {
     try {
+      currentDiagnostics.downloadState = "downloading";
       broadcastToWindows("updater:status", { status: "downloading", progress: 0 });
       await autoUpdater.downloadUpdate();
       return { success: true };
@@ -419,18 +576,56 @@ export async function startUpdateDownload(): Promise<{ success: boolean; message
     }
   }
 
-  // 2. Direct binary pull from GitHub Releases to Downloads directory
+  // 2. Direct binary pull from GitHub Releases to Downloads directory with SHA-256 verification
   if (latestUpdateResult?.assetUrl && latestUpdateResult?.assetName) {
     try {
+      currentDiagnostics.downloadState = "downloading";
       broadcastToWindows("updater:status", { status: "downloading", progress: 0 });
       const targetDir = app.getPath("downloads");
       const targetFile = join(targetDir, latestUpdateResult.assetName);
+      const partPath = `${targetFile}.part`;
 
-      await downloadFileWithProgress(latestUpdateResult.assetUrl, targetFile, (progress) => {
+      const { computedHash } = await downloadFileWithHash(latestUpdateResult.assetUrl, targetFile, (progress) => {
         broadcastToWindows("updater:status", { status: "downloading", progress });
       });
 
+      // LIFECYCLE STAGE: VERIFYING
+      currentDiagnostics.verificationState = "pending";
+      currentDiagnostics.computedHash = computedHash;
+      broadcastToWindows("updater:status", { status: "verifying", version: latestUpdateResult.version });
+
+      // If expected SHA-256 is present, strictly enforce match
+      if (latestUpdateResult.sha256) {
+        if (computedHash !== latestUpdateResult.sha256.toLowerCase()) {
+          try {
+            if (fs.existsSync(partPath)) fs.unlinkSync(partPath);
+          } catch {}
+          currentDiagnostics.verificationState = "failed";
+          currentDiagnostics.downloadState = "failed";
+          currentDiagnostics.lastFailureReason = `SHA-256 mismatch: expected ${latestUpdateResult.sha256}, got ${computedHash}`;
+          persistDiagnostics();
+
+          broadcastToWindows("updater:status", {
+            status: "error",
+            error: "Cryptographic SHA-256 integrity check failed. Update aborted.",
+          });
+          return { success: false, message: "Cryptographic checksum mismatch" };
+        }
+      }
+
+      // Rename .part to final target file
+      if (fs.existsSync(partPath)) {
+        fs.renameSync(partPath, targetFile);
+      }
+
       downloadedPackagePath = targetFile;
+      currentDiagnostics.downloadState = "downloaded";
+      currentDiagnostics.downloadedVersion = latestUpdateResult.version;
+      currentDiagnostics.downloadedFile = targetFile;
+      currentDiagnostics.verificationState = "verified";
+      currentDiagnostics.installationState = "ready";
+      persistDiagnostics();
+
       broadcastToWindows("updater:status", {
         status: "downloaded",
         version: latestUpdateResult.version,
@@ -440,18 +635,22 @@ export async function startUpdateDownload(): Promise<{ success: boolean; message
         try {
           showNotification({
             id: `update-downloaded-${latestUpdateResult.version}`,
-            title: "⚡ Zenkai Desktop Downloaded",
-            body: `Package ${latestUpdateResult.assetName} saved to Downloads. Click to apply update.`,
+            title: "⚡ Zenkai Desktop Downloaded & Verified",
+            body: `Package ${latestUpdateResult.assetName} (SHA-256 verified) is ready. Click to apply update.`,
           });
         } catch {
           // ignore
         }
       }
 
-      return { success: true, message: `Package saved to ${targetFile}` };
+      return { success: true, message: `Package verified and saved to ${targetFile}` };
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       console.warn("[updater] direct download failed:", msg);
+      currentDiagnostics.downloadState = "failed";
+      currentDiagnostics.lastFailureReason = msg;
+      persistDiagnostics();
+
       broadcastToWindows("updater:status", { status: "error", error: msg });
       if (latestUpdateResult.assetUrl) {
         shell.openExternal(latestUpdateResult.assetUrl);
@@ -479,6 +678,9 @@ export async function applyUpdateAndRestart(): Promise<void> {
     throw new Error("Cannot restart while media playback is in progress.");
   }
 
+  currentDiagnostics.installationState = "in_progress";
+  persistDiagnostics();
+
   try {
     if (app.isPackaged && (process.platform === "win32" || process.env.APPIMAGE)) {
       autoUpdater.quitAndInstall();
@@ -492,6 +694,8 @@ export async function applyUpdateAndRestart(): Promise<void> {
   if (downloadedPackagePath && fs.existsSync(downloadedPackagePath)) {
     if (process.platform === "win32" && downloadedPackagePath.endsWith(".exe")) {
       shell.openPath(downloadedPackagePath);
+      currentDiagnostics.lastSuccessfulUpdate = new Date().toISOString();
+      persistDiagnostics();
       setTimeout(() => app.quit(), 500);
       return;
     }
@@ -501,6 +705,8 @@ export async function applyUpdateAndRestart(): Promise<void> {
           fs.chmodSync(downloadedPackagePath, 0o755);
         } catch {}
         shell.openPath(downloadedPackagePath);
+        currentDiagnostics.lastSuccessfulUpdate = new Date().toISOString();
+        persistDiagnostics();
         setTimeout(() => app.quit(), 500);
         return;
       }

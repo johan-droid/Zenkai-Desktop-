@@ -4,6 +4,7 @@ import {
   checkForUpdatesClient,
   startUpdateDownload,
   applyUpdateAndRestart,
+  getUpdateDiagnostics,
 } from "../updater";
 
 const VoidInput = z.undefined();
@@ -60,4 +61,22 @@ ipcMain.handle("app:installUpdate", async (_e, raw: unknown) => {
     throw new Error("invalid payload for app:installUpdate");
   }
   return await applyUpdateAndRestart();
+});
+
+ipcMain.handle("app:updateDiagnostics", async (_e, raw: unknown) => {
+  const parsed = VoidInput.safeParse(raw);
+  if (!parsed.success) {
+    console.error("[ipc] invalid payload for app:updateDiagnostics");
+    throw new Error("invalid payload for app:updateDiagnostics");
+  }
+  return getUpdateDiagnostics();
+});
+
+ipcMain.handle("updater:diagnostics", async (_e, raw: unknown) => {
+  const parsed = VoidInput.safeParse(raw);
+  if (!parsed.success) {
+    console.error("[ipc] invalid payload for updater:diagnostics");
+    throw new Error("invalid payload for updater:diagnostics");
+  }
+  return getUpdateDiagnostics();
 });

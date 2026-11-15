@@ -5,6 +5,7 @@
 //   3. IPC round trip: window.zenkai.app.version() → package version
 //   4. bridge exposes only the contract surface
 import { spawn } from "node:child_process";
+import fs from "node:fs";
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const results = [];
@@ -137,7 +138,8 @@ try {
     awaitPromise: true,
     returnByValue: true,
   });
-  check("IPC round trip app.version()", version === "0.0.1", version);
+  const pkg = JSON.parse(fs.readFileSync(new URL("../package.json", import.meta.url), "utf8"));
+  check("IPC round trip app.version()", version === pkg.version, version);
 
   ws.close();
 } catch (e) {

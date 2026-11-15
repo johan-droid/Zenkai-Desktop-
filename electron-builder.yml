@@ -46,7 +46,10 @@ nsis:
   createStartMenuShortcut: true
   shortcutName: Zenkai Desktop
   uninstallDisplayName: Zenkai Desktop
-  artifactName: "${productName}-Desktop-v${version}-Windows-${arch}-Setup.${ext}"
+  artifactName: "${productName}-Desktop-Setup-${version}-x64.${ext}"
+
+appImage:
+  artifactName: "${productName}-Desktop-${version}-x86_64.AppImage"
 
 mac:
   category: public.app-category.entertainment

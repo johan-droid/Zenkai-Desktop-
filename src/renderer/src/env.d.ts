@@ -24,6 +24,7 @@ declare global {
         checkUpdate: IpcContract["updater:check"];
         startUpdateDownload: IpcContract["updater:start-download"];
         installUpdate: IpcContract["updater:install"];
+        diagnostics?: IpcContract["app:updateDiagnostics"];
         openFile?: (path: string) => Promise<void>;
         loadWebPortal?: () => void;
         onStatus: (cb: (p: IpcEvents["updater:status"]) => void) => () => void;

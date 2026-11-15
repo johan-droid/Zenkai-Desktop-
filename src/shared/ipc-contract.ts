@@ -16,6 +16,23 @@ export type DownloadItem = {
   error?: string;
 };
 
+export type UpdateDiagnostics = {
+  currentVersion: string;
+  channel: "stable" | "beta" | "internal";
+  lastCheckTime?: string;
+  updateAvailable: boolean;
+  availableVersion?: string;
+  downloadState: "idle" | "downloading" | "downloaded" | "failed";
+  downloadedVersion?: string;
+  downloadedFile?: string;
+  verificationState: "none" | "pending" | "verified" | "failed";
+  computedHash?: string;
+  expectedHash?: string;
+  installationState: "idle" | "ready" | "in_progress" | "failed";
+  lastFailureReason?: string;
+  lastSuccessfulUpdate?: string;
+};
+
 export type IpcContract = {
   "settings:get": () => Promise<Settings>;
   "settings:set": (patch: Partial<Settings>) => Promise<Settings>;
@@ -65,6 +82,7 @@ export type IpcContract = {
   }>;
   "app:startUpdateDownload": () => Promise<{ success: boolean; message?: string }>;
   "app:installUpdate": () => Promise<void>;
+  "app:updateDiagnostics": () => Promise<UpdateDiagnostics>;
   "app:openFile": (path: string) => Promise<void>;
   "window:loadWebPortal": () => void;
   "updater:check": () => Promise<{
@@ -79,6 +97,7 @@ export type IpcContract = {
   }>;
   "updater:start-download": () => Promise<{ success: boolean; message?: string }>;
   "updater:install": () => Promise<void>;
+  "updater:diagnostics": () => Promise<UpdateDiagnostics>;
   "vision:getHardwareProfile": () => Promise<import("./vision-types").VisionHardwareProfile>;
   "vision:runDiagnostics": () => Promise<import("./vision-types").VisionDiagnosticsReport>;
   "vision:getWorkerStatus": () => Promise<import("./vision-types").VisionWorkerStatus>;
@@ -111,7 +130,9 @@ export type IpcEvents = {
       | "available"
       | "not-available"
       | "downloading"
+      | "verifying"
       | "downloaded"
+      | "ready_to_install"
       | "error";
     version?: string;
     notes?: string;

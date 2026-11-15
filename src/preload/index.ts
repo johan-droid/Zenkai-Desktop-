@@ -31,6 +31,7 @@ contextBridge.exposeInMainWorld("zenkai", {
     checkUpdate: call("app:checkUpdate"),
     startUpdateDownload: call("app:startUpdateDownload"),
     installUpdate: call("app:installUpdate"),
+    diagnostics: call("app:updateDiagnostics"),
     openFile: call("app:openFile"),
     loadWebPortal: () => ipcRenderer.send("window:loadWebPortal"),
     onStatus: (cb: (p: IpcEvents["updater:status"]) => void) =>

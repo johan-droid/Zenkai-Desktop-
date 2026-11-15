@@ -1,0 +1,83 @@
+name: Release — Windows Package Builder
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        required: true
+        type: string
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Application version to package (e.g. 0.0.3)"
+        required: false
+        default: "0.0.1"
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  build-windows:
+    name: Package Windows Distributions (NSIS Setup & Portable Zip)
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 12
+          run_install: false
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Gate B — Zero-Mock Production Data Integrity Check
+        run: node scripts/verify-zero-mock.mjs
+
+      - name: Synchronize package version
+        shell: bash
+        run: |
+          VERSION="${{ inputs.version }}"
+          if [ -n "$VERSION" ] && [ "$VERSION" != "null" ]; then
+            npm version "$VERSION" --no-git-tag-version --allow-same-version
+          fi
+          echo "Building Windows package for version $(node -p "require('./package.json').version")"
+
+      - name: Build application bundle
+        run: pnpm build
+
+      - name: Package Windows distributions (NSIS Setup & Portable Zip)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+        run: pnpm exec electron-builder --win -p never
+
+      - name: Generate Windows SHA-256 checksums
+        shell: pwsh
+        run: |
+          cd release
+          Get-FileHash -Algorithm SHA256 (Get-Item Zenkai-Desktop-*) | ForEach-Object { "$($_.Hash.ToLower())  $($_.Path | Split-Path -Leaf)" } | Out-File -Encoding utf8 checksums-windows.txt
+          Get-Content checksums-windows.txt
+
+      - name: Upload Windows build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-artifacts
+          path: |
+            release/Zenkai-Desktop-*.exe
+            release/Zenkai-Desktop-*.zip
+            release/latest*.yml
+            release/*.blockmap
+            release/checksums-windows.txt
+          retention-days: 14

@@ -4,21 +4,27 @@ on:
   push:
     tags:
       - "v*"
+  workflow_dispatch:
+    inputs:
+      publish_release:
+        description: "Publish assets to GitHub Releases"
+        required: false
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
 
 jobs:
-  publish:
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-22.04, windows-latest, macos-14]
-
-    runs-on: ${{ matrix.os }}
+  build-linux:
+    name: Build Linux Packages
+    runs-on: ubuntu-22.04
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
+      - name: Setup Node.js 22
         uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -28,8 +34,7 @@ jobs:
         with:
           version: 12
 
-      - name: Install system dependencies (Linux)
-        if: runner.os == 'Linux'
+      - name: Install system dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y rpm libnotify-bin libnotify-dev
@@ -37,25 +42,155 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build electron app
+      - name: Build application bundle
         run: pnpm build
 
-      - name: Package and publish
+      - name: Package Linux distributions (AppImage, deb, rpm)
+        run: pnpm exec electron-builder --linux -c.linux.target=AppImage -c.linux.target=deb -c.linux.target=rpm
+
+      - name: Generate Linux SHA-256 checksums
+        shell: bash
+        run: |
+          cd release
+          sha256sum Zenkai-Desktop-* > checksums-linux.txt
+          cat checksums-linux.txt
+
+      - name: Upload Linux artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-artifacts
+          path: |
+            release/Zenkai-Desktop-*.AppImage
+            release/Zenkai-Desktop-*.deb
+            release/Zenkai-Desktop-*.rpm
+            release/checksums-linux.txt
+          retention-days: 14
+
+  build-windows:
+    name: Build Windows Packages
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 12
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build application bundle
+        run: pnpm build
+
+      - name: Package Windows distributions (NSIS Setup & Portable Zip)
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Apple signing/notarization (if configured per B4)
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+        run: pnpm exec electron-builder --win -c.win.target=nsis -c.win.target=zip
+
+      - name: Generate Windows SHA-256 checksums
+        shell: pwsh
+        run: |
+          cd release
+          Get-FileHash -Algorithm SHA256 (Get-Item Zenkai-Desktop-*) | ForEach-Object { "$($_.Hash.ToLower())  $($_.Path | Split-Path -Leaf)" } | Out-File -Encoding utf8 checksums-windows.txt
+          Get-Content checksums-windows.txt
+
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-artifacts
+          path: |
+            release/Zenkai-Desktop-*.exe
+            release/Zenkai-Desktop-*.zip
+            release/checksums-windows.txt
+          retention-days: 14
+
+  build-macos:
+    name: Build macOS Packages
+    runs-on: macos-14
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 12
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build application bundle
+        run: pnpm build
+
+      - name: Package macOS distributions (DMG & Zip)
+        env:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-          # Windows code signing (if configured per B4)
-          CSC_LINK: ${{ secrets.CSC_LINK }}
-          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
-        run: |
-          if [ "$RUNNER_OS" = "Linux" ]; then
-            pnpm exec electron-builder --linux -p always
-          elif [ "$RUNNER_OS" = "macOS" ]; then
-            pnpm exec electron-builder --mac -p always
-          else
-            pnpm exec electron-builder --win -p always
-          fi
+        run: pnpm exec electron-builder --mac -c.mac.target=dmg -c.mac.target=zip
+
+      - name: Generate macOS SHA-256 checksums
         shell: bash
+        run: |
+          cd release
+          shasum -a 256 Zenkai-Desktop-* > checksums-macos.txt
+          cat checksums-macos.txt
+
+      - name: Upload macOS artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-artifacts
+          path: |
+            release/Zenkai-Desktop-*.dmg
+            release/Zenkai-Desktop-*.zip
+            release/checksums-macos.txt
+          retention-days: 14
+
+  publish-release:
+    name: Publish GitHub Release
+    needs: [build-linux, build-windows, build-macos]
+    runs-on: ubuntu-22.04
+    if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.publish_release == true)
+
+    steps:
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: downloaded-artifacts
+
+      - name: Consolidate packages and generate SHA256SUMS.txt
+        shell: bash
+        run: |
+          mkdir -p dist
+          # Copy all package binaries into dist/
+          find downloaded-artifacts -type f \( -name "Zenkai-Desktop-*" ! -name "*.txt" \) -exec cp {} dist/ \;
+          # Combine checksum files into unified SHA256SUMS.txt
+          find downloaded-artifacts -type f -name "checksums-*.txt" -exec cat {} + | sort -u > dist/SHA256SUMS.txt
+          echo "=== Release Artifacts & SHA256SUMS.txt ==="
+          ls -lh dist/
+          cat dist/SHA256SUMS.txt
+
+      - name: Publish Release to GitHub
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+          generate_release_notes: true
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

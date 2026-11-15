@@ -19,13 +19,26 @@ afterSign: scripts/after-sign.mjs
 
 win:
   icon: resources/icon.ico
+  executableName: Zenkai
   target:
-    - { target: nsis, arch: [x64, arm64] }
-    - { target: portable, arch: [x64] }
+    - target: nsis
+      arch: [x64]
+    - target: zip
+      arch: [x64]
+  artifactName: "${productName}-Desktop-v${version}-Windows-${arch}-Portable.${ext}"
   # §9 wrote signingHashAlgorithms at win level; electron-builder 26 schema
   # (additionalProperties: false) nests it under signtoolOptions — same value.
   signtoolOptions:
     signingHashAlgorithms: [sha256]
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: always
+  createStartMenuShortcut: true
+  shortcutName: Zenkai Desktop
+  uninstallDisplayName: Zenkai Desktop
+  artifactName: "${productName}-Desktop-v${version}-Windows-${arch}-Setup.${ext}"
 
 mac:
   category: public.app-category.entertainment
@@ -34,15 +47,21 @@ mac:
   entitlements: resources/entitlements.mac.plist
   entitlementsInherit: resources/entitlements.mac.plist
   target:
-    - { target: dmg, arch: [universal] }
-    - { target: zip, arch: [universal] }
+    - target: dmg
+      arch: [universal]
+    - target: zip
+      arch: [universal]
+  artifactName: "${productName}-Desktop-v${version}-macOS-${arch}.${ext}"
 
 linux:
   icon: resources/icon.png
   category: AudioVideo
   maintainer: dev@zenkai.cfd
   syncDesktopName: true # .desktop filename matches StartupWMClass/app_id (desktopName)
+  executableName: zenkai-desktop
   target:
-    - { target: AppImage, arch: [x64, arm64] }
-    - { target: deb, arch: [x64, arm64] }
-    - { target: rpm, arch: [x64, arm64] }
+    - target: AppImage
+      arch: [x64]
+    - target: deb
+      arch: [x64]
+  artifactName: "${productName}-Desktop-v${version}-Linux-x64.${ext}"

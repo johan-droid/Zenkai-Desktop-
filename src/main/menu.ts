@@ -91,14 +91,14 @@ export function buildMenu(): void {
       ],
     },
   ];
-  const menu = Menu.buildFromTemplate(template);
-  Menu.setApplicationMenu(menu);
-
-  if (!isMac) {
+  if (isMac) {
+    const menu = Menu.buildFromTemplate(template);
+    Menu.setApplicationMenu(menu);
+  } else {
+    Menu.setApplicationMenu(null);
     for (const win of BrowserWindow.getAllWindows()) {
       if (!win.isDestroyed()) {
-        win.setAutoHideMenuBar(true);
-        win.setMenuBarVisibility(false);
+        win.removeMenu();
       }
     }
   }

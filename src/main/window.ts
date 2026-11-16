@@ -100,8 +100,30 @@ export function createMainWindow(): BrowserWindow {
   }
 
   if (process.platform !== "darwin") {
-    win.setMenuBarVisibility(false);
+    win.removeMenu();
   }
+
+  win.webContents.on("before-input-event", (event, input) => {
+    if (input.type !== "keyDown") return;
+    if (input.key === "F11") {
+      win.setFullScreen(!win.isFullScreen());
+      event.preventDefault();
+    } else if (
+      (input.control || input.meta) &&
+      input.key.toLowerCase() === "r"
+    ) {
+      win.webContents.reload();
+      event.preventDefault();
+    } else if (
+      !app.isPackaged &&
+      (input.control || input.meta) &&
+      input.shift &&
+      input.key.toLowerCase() === "i"
+    ) {
+      win.webContents.toggleDevTools();
+      event.preventDefault();
+    }
+  });
 
   return win;
 }

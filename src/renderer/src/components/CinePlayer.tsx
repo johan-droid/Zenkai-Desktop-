@@ -4,7 +4,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import Hls from 'hls.js'
 import {
   Activity, Airplay, AudioLines, Cast, Check, CheckCircle2, ChevronDown, Download, Eye, FastForward, Flag, FlipHorizontal, Languages, Layers, List, Loader2, Maximize, MessageSquare, Minimize, Music, Palette, Pause, PictureInPicture2, Play, RotateCcw, RotateCw,
-  Search, Server, Settings, SkipBack, SkipForward, Sliders, SlidersHorizontal, Sparkles, Sun, TriangleAlert, Upload, Users, Volume1, Volume2, VolumeX, X, Zap,
+  Search, Server, Settings, SkipBack, SkipForward, Sliders, SlidersHorizontal, Sparkles, Split, Sun, TriangleAlert, Upload, Users, Volume1, Volume2, VolumeX, X, Zap,
 } from 'lucide-react'
 import { apiUrl, fetchStream, type EpInfo, type EpKind } from '../services/api'
 import { KIND } from './EpisodeList'
@@ -1171,7 +1171,43 @@ export default function CinePlayer({
   const setUpSplit = (on: boolean) => {
     setUpSplitRaw(on)
     saveNum('zp-upsplit', on ? 1 : 0)
-    liveHandleRef.current?.setSplitPercent(on ? upSplitPct : 100)
+    liveHandleRef.current?.setSplitPercent(on ? 100 - upSplitPct : 100)
+  }
+
+  const isDraggingSplit = useRef(false)
+  const [splitDragging, setSplitDragging] = useState(false)
+  const splitDragRef = useRef<HTMLDivElement>(null)
+
+  const onSplitPointerDown = (e: RPointerEvent<HTMLDivElement>) => {
+    e.preventDefault()
+    e.stopPropagation()
+    try {
+      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
+    } catch {}
+    isDraggingSplit.current = true
+    setSplitDragging(true)
+  }
+
+  const onSplitPointerMove = (e: RPointerEvent<HTMLDivElement>) => {
+    if (!isDraggingSplit.current || !root.current) return
+    e.preventDefault()
+    e.stopPropagation()
+    const rect = root.current.getBoundingClientRect()
+    if (rect.width <= 0) return
+    const rawPct = ((e.clientX - rect.left) / rect.width) * 100
+    const pct = Math.max(5, Math.min(95, Math.round(rawPct)))
+    setUpSplitPct(pct)
+    liveHandleRef.current?.setSplitPercent(100 - pct)
+  }
+
+  const onSplitPointerUp = (e: RPointerEvent<HTMLDivElement>) => {
+    if (isDraggingSplit.current) {
+      try {
+        (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId)
+      } catch {}
+      isDraggingSplit.current = false
+      setSplitDragging(false)
+    }
   }
 
   const setShowMetrics = (on: boolean) => {
@@ -1911,7 +1947,7 @@ const slider = (label: string, key: 'opacity' | 'lh' | 'width' | 'blur' | 'scale
     setUpErr(null)
     startUpscale(v, c, {
       mode: upMode,
-      splitPercent: upSplit ? upSplitPct : 100,
+      splitPercent: upSplit ? 100 - upSplitPct : 100,
       onMetrics: (m) => {
         if (!dead) setUpMetrics(m)
       },
@@ -2505,6 +2541,108 @@ const slider = (label: string, key: 'opacity' | 'lh' | 'width' | 'blur' | 'scale
       />
       {up && !upErr && <canvas ref={cv} className="zp-v" style={{ ...aspectStyle(ar), opacity: upInt / 100, pointerEvents: 'none', filter: videoFilterStyle, background: 'transparent' }} />}
 
+      {/* Draggable Splitter Overlay (GPU vs Non-GPU Real-Time Comparison) */}
+      {up && upSplit && !upErr && (
+        <div
+          className="absolute inset-0 z-20 pointer-events-none select-none overflow-hidden"
+          aria-label="Split comparison overlay"
+        >
+          {/* Top Comparison Floating Pill & Badges */}
+          <div className="absolute top-4 inset-x-4 flex items-center justify-between pointer-events-none z-30">
+            {/* Left Badge: Native / Non-GPU */}
+            <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-black/85 backdrop-blur-md border border-white/15 text-zinc-300 text-xs font-semibold shadow-xl">
+              <span className="size-2 rounded-full bg-zinc-400" />
+              <span>Native Stream (Non-GPU)</span>
+            </div>
+
+            {/* Center Pill: Quick Presets & Close */}
+            <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-black/90 backdrop-blur-md border border-white/20 text-xs text-white shadow-2xl pointer-events-auto">
+              <span className="font-mono text-zinc-400 text-[11px] font-bold">{upSplitPct}% / {100 - upSplitPct}%</span>
+              <div className="h-3 w-px bg-white/20" />
+              <button
+                type="button"
+                onClick={() => {
+                  setUpSplitPct(25)
+                  liveHandleRef.current?.setSplitPercent(75)
+                }}
+                className={cx('px-1.5 py-0.5 rounded text-[10px] font-bold transition-all cursor-pointer', upSplitPct === 25 ? 'bg-emerald-500 text-black' : 'text-zinc-400 hover:text-white')}
+              >
+                25%
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setUpSplitPct(50)
+                  liveHandleRef.current?.setSplitPercent(50)
+                }}
+                className={cx('px-1.5 py-0.5 rounded text-[10px] font-bold transition-all cursor-pointer', upSplitPct === 50 ? 'bg-emerald-500 text-black' : 'text-zinc-400 hover:text-white')}
+              >
+                50%
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setUpSplitPct(75)
+                  liveHandleRef.current?.setSplitPercent(25)
+                }}
+                className={cx('px-1.5 py-0.5 rounded text-[10px] font-bold transition-all cursor-pointer', upSplitPct === 75 ? 'bg-emerald-500 text-black' : 'text-zinc-400 hover:text-white')}
+              >
+                75%
+              </button>
+              <div className="h-3 w-px bg-white/20" />
+              <button
+                type="button"
+                onClick={() => setUpSplit(false)}
+                className="text-zinc-400 hover:text-white text-[11px] font-bold ml-0.5 cursor-pointer"
+                title="Close Split View"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Right Badge: Vision AI / WebGPU */}
+            <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-950/90 backdrop-blur-md border border-emerald-500/40 text-emerald-300 text-xs font-semibold shadow-xl ring-1 ring-emerald-500/30">
+              <Sparkles className="size-3 text-emerald-400 animate-pulse" />
+              <span>Vision AI ({upMode === 'fast' ? 'Fast CNN' : upMode.toUpperCase()}) · WebGPU</span>
+            </div>
+          </div>
+
+          {/* Draggable Divider Line & Handle */}
+          <div
+            ref={splitDragRef}
+            className="absolute inset-y-0 -ml-5 w-10 pointer-events-auto cursor-ew-resize group flex items-center justify-center transition-colors z-25"
+            style={{ left: `${upSplitPct}%` }}
+            onPointerDown={onSplitPointerDown}
+            onPointerMove={onSplitPointerMove}
+            onPointerUp={onSplitPointerUp}
+            onPointerCancel={onSplitPointerUp}
+            title="Drag left/right to compare Native vs WebGPU AI"
+          >
+            {/* Glowing Vertical Line */}
+            <div className={cx(
+              'w-0.5 h-full transition-all duration-150',
+              splitDragging
+                ? 'bg-emerald-400 shadow-[0_0_16px_#10b981]'
+                : 'bg-emerald-500/80 group-hover:bg-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.5)]'
+            )} />
+
+            {/* Center Circular Medallion / Handle */}
+            <div className={cx(
+              'absolute top-1/2 -translate-y-1/2 size-9 rounded-full bg-zinc-950/95 border-2 border-emerald-400 shadow-2xl flex items-center justify-center transition-all duration-150 backdrop-blur-md',
+              splitDragging
+                ? 'scale-115 ring-4 ring-emerald-500/40 shadow-emerald-500/40'
+                : 'group-hover:scale-110 group-hover:ring-2 group-hover:ring-emerald-500/30'
+            )}>
+              <div className="flex items-center gap-0.5 text-emerald-300 text-[10px] font-black select-none pointer-events-none">
+                <span>◀</span>
+                <span className="w-0.5 h-3 bg-emerald-400/60 rounded-full mx-0.5" />
+                <span>▶</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Live Vision Performance HUD Overlay */}
       {showMetrics && up && upMetrics && !upErr && (
         <div className="absolute top-4 left-4 z-30 pointer-events-none rounded-xl bg-black/85 p-3 text-xs font-mono text-emerald-400 backdrop-blur border border-emerald-500/30 space-y-1 shadow-2xl ring-1 ring-emerald-500/20">
@@ -2872,6 +3010,28 @@ const slider = (label: string, key: 'opacity' | 'lh' | 'width' | 'blur' | 'scale
                 <Sparkles className={cx('size-4', up && 'text-emerald-400 animate-pulse')} />
                 {up && (
                   <span className="absolute -top-1 -right-1 flex size-2 rounded-full bg-emerald-400 animate-ping" />
+                )}
+              </button>
+              <button
+                className={cx('zp-b relative', up && upSplit && 'on text-emerald-400')}
+                onClick={() => {
+                  closePop()
+                  if (!up) {
+                    setUp(true)
+                    setUpSplit(true)
+                    toast('Vision AI & Split Comparison activated. Drag the divider to compare GPU vs Native!', 'info')
+                  } else {
+                    const next = !upSplit
+                    setUpSplit(next)
+                    toast(next ? 'Split Comparison active: Drag divider across screen to compare' : 'Split Comparison hidden', 'info')
+                  }
+                }}
+                aria-label="Split GPU Comparison"
+                title={upSplit ? 'Exit Split Comparison' : 'Split View: Compare GPU vs Native'}
+              >
+                <Split className="size-4" />
+                {up && upSplit && (
+                  <span className="absolute -top-1 -right-1 flex size-2 rounded-full bg-emerald-400 animate-pulse" />
                 )}
               </button>
               <button className="zp-b" data-tour="p-set" onClick={() => (closePop(), setSheet('set'))} aria-label="Settings" title="Settings">
@@ -3791,7 +3951,7 @@ const slider = (label: string, key: 'opacity' | 'lh' | 'width' | 'blur' | 'scale
                           onChange={(e) => {
                             const val = +e.target.value
                             setUpSplitPct(val)
-                            liveHandleRef.current?.setSplitPercent(val)
+                            liveHandleRef.current?.setSplitPercent(100 - val)
                           }}
                           aria-label="Split position"
                         />

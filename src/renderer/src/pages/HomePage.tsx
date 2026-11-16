@@ -49,7 +49,7 @@ export default function HomePage() {
 
   return (
     <main>
-      {/* Hero Carousel: cinematic viewport height on desktop with smooth content overlap */}
+      {/* Hero Carousel: cinematic viewport height on desktop */}
       {home.loading ? (
         <div className="relative h-[76svh] min-h-[520px] max-h-[760px] overflow-hidden lg:h-[82svh] lg:max-h-[820px]">
           <HeroLoader />
@@ -62,7 +62,7 @@ export default function HomePage() {
         <HeroCarousel items={heroItems} />
       )}
 
-      <div className="relative z-20 mt-4 md:-mt-14 lg:-mt-20 space-y-10 md:space-y-16 pb-28">
+      <div className="relative z-20 mt-2 md:mt-4 space-y-10 md:space-y-16 pb-28">
         {/* Continue Watching Row */}
         <ContinueRow />
 

@@ -165,7 +165,7 @@ export const DesktopSidebar = memo(function DesktopSidebar({ collapsed, onToggle
   return (
     <aside
       className={cn(
-        'fixed inset-y-0 left-0 z-40 hidden md:flex isolate flex-col justify-between bg-background border-r border-border select-none transition-[width] duration-200 ease-out py-3.5',
+        'fixed inset-y-0 left-0 z-40 hidden md:flex isolate flex-col justify-between overflow-y-auto no-scrollbar bg-background border-r border-border select-none transition-[width] duration-200 ease-out py-3.5',
         collapsed ? 'w-[68px] px-2 items-center' : 'w-56 px-3',
       )}
       aria-label="Desktop Navigation"

@@ -9,12 +9,13 @@ import { AnimeHoverPreview } from './AnimeHoverPreview'
 
 function formatTimeAgo(timestampSeconds: number): string {
   const diffSec = Math.max(0, Math.floor(Date.now() / 1000 - timestampSeconds))
+  const plural = (n: number, unit: string) => `${n} ${unit}${n === 1 ? '' : 's'} ago`
   const diffMin = Math.floor(diffSec / 60)
-  if (diffMin < 60) return `${Math.max(1, diffMin)} mins ago`
+  if (diffMin < 60) return plural(Math.max(1, diffMin), 'min')
   const diffHours = Math.floor(diffMin / 60)
-  if (diffHours < 24) return `${diffHours} hours ago`
+  if (diffHours < 24) return plural(diffHours, 'hour')
   const diffDays = Math.floor(diffHours / 24)
-  return `${diffDays} days ago`
+  return plural(diffDays, 'day')
 }
 
 interface LatestEpisodeCardProps {

@@ -39,7 +39,14 @@ export function UpdatePrompt() {
     }
   }, [])
 
-  if (dismissed || status.status === 'idle' || status.status === 'not-available') {
+  // Only statuses with content render; checking/verifying used to leave an empty card on screen.
+  const visible =
+    status.status === 'available' ||
+    status.status === 'downloading' ||
+    status.status === 'downloaded' ||
+    status.status === 'error'
+
+  if (dismissed || !visible) {
     return null
   }
 

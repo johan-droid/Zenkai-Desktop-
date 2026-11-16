@@ -195,10 +195,10 @@ export function HeroCarousel({ items }: { items: AniMedia[] }) {
       {/* Seamless cinematic bottom dark gradient: smoothly blends hero into page background */}
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-x-0 -bottom-1 h-44 sm:h-64 bg-gradient-to-t from-background via-background/95 via-background/60 to-transparent z-10"
+        className="pointer-events-none absolute inset-x-0 -bottom-1 h-16 sm:h-24 bg-gradient-to-t from-background via-background/80 to-transparent z-10"
       />
 
-      <div className="relative z-20 mx-auto flex h-full w-full max-w-7xl flex-col justify-end px-5 pb-6 sm:px-8 lg:pb-14">
+      <div className="relative z-20 mx-auto flex h-full w-full max-w-7xl flex-col justify-end px-5 pb-24 sm:px-8">
         <AnimatePresence mode="wait">
           <motion.div
             key={item.id}

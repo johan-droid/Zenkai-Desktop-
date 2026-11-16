@@ -283,7 +283,7 @@ export function HeroCarousel({ items }: { items: AniMedia[] }) {
 
         {/* Pager: story-style pill indicator + dots, perfectly matching mobile & desktop */}
         <div className="mt-6 flex items-center justify-between">
-          <div role="tablist" aria-label="Featured anime" className="mx-auto flex items-center gap-2 lg:mx-0">
+          <div role="tablist" aria-label="Featured anime" className="mx-auto flex items-center gap-2">
             {items.slice(0, 10).map((it, i) => (
               <button
                 key={it.id}

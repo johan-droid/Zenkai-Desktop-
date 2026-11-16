@@ -734,7 +734,7 @@ export default function WatchPage() {
       <div className="mx-auto max-w-7xl lg:px-6 lg:pt-6">
         <div className="min-w-0">
           {/* Player */}
-          {!sessionVerified && server.kind !== 'embed' ? (
+          {!sessionVerified && server.kind !== 'embed' && !isDesktopApp() ? (
             <Frame>
               <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/95 p-6 text-center select-none">
                 <div className="relative mb-3 grid size-16 place-items-center rounded-2xl border border-accent/30 bg-accent/10 text-accent shadow-xl shadow-black/50">

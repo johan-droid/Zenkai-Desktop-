@@ -17,15 +17,21 @@ const h = vi.hoisted(() => {
     getVersion: vi.fn(() => "0.0.1"),
     getPath: vi.fn(() => "/tmp/zenkai-test-data"),
   };
-  return { autoUpdater, app };
+  const fetchMock = vi.fn();
+  const BrowserWindow = {
+    getAllWindows: vi.fn(() => []),
+  };
+  return { autoUpdater, app, fetchMock, BrowserWindow };
 });
 
 vi.mock("electron", () => ({
   app: h.app,
+  BrowserWindow: h.BrowserWindow,
   dialog: {},
-  shell: {},
+  shell: { openExternal: vi.fn(), openPath: vi.fn(), showItemInFolder: vi.fn() },
 }));
 vi.mock("electron-updater", () => ({ autoUpdater: h.autoUpdater }));
+vi.stubGlobal("fetch", h.fetchMock);
 
 const ORIG_PLATFORM = process.platform;
 
@@ -49,6 +55,13 @@ beforeEach(() => {
   h.autoUpdater.autoInstallOnAppQuit = false;
   h.autoUpdater.channel = "";
   h.autoUpdater.handlers = {};
+  h.fetchMock.mockResolvedValue({
+    ok: false,
+    status: 404,
+    json: async () => [],
+    headers: { get: () => null },
+    body: null,
+  });
   delete process.env.APPLE_ID;
   delete process.env.APPIMAGE;
   setPlatform("linux");
@@ -189,5 +202,40 @@ describe("auto-updater decisions (T14)", () => {
     expect(diag.downloadState).toBe("idle");
     expect(diag.verificationState).toBe("none");
     expect(diag.installationState).toBe("idle");
+  });
+
+  it("stable channel ignores prerelease-only releases (Issue D)", async () => {
+    h.fetchMock.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => [
+        {
+          tag_name: "v0.0.2-beta.1",
+          prerelease: true,
+          draft: false,
+          body: "",
+          published_at: "",
+          html_url: "",
+          assets: [],
+        },
+      ],
+      headers: { get: () => null },
+    });
+    const { checkForUpdatesClient } = await freshSetup();
+    const result = await checkForUpdatesClient();
+    expect(result.updateAvailable).toBe(false);
+  });
+
+  it("checkForUpdatesClient returns not-available on GitHub API non-200 (3f)", async () => {
+    h.fetchMock.mockResolvedValueOnce({
+      ok: false,
+      status: 429,
+      json: async () => [],
+      headers: { get: () => null },
+    });
+    const { checkForUpdatesClient } = await freshSetup();
+    const result = await checkForUpdatesClient();
+    expect(result.updateAvailable).toBe(false);
+    expect(result.reason).toMatch(/429/);
   });
 });

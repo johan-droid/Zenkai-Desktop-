@@ -3,6 +3,7 @@ const FORBIDDEN_HOSTNAMES = new Set([
   "127.0.0.1",
   "0.0.0.0",
   "::1",
+  "[::1]",
   "169.254.169.254", // AWS/Cloud metadata
   "metadata.google.internal",
   "instance-data"

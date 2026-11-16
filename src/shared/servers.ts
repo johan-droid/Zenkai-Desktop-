@@ -102,6 +102,7 @@ export const SERVERS: ServerDef[] = [
     idType: "anilist",
     audioSwitchable: true,
     multiTrack: false,
+    buildEmbedUrl: (ctx) => `https://zokoanime.example/embed/${ctx.id}/${ctx.episode}?audio=${ctx.audio || "sub"}`,
   },
   {
     id: "tryembed",
@@ -110,6 +111,7 @@ export const SERVERS: ServerDef[] = [
     idType: "anilist",
     audioSwitchable: true,
     multiTrack: false,
+    buildEmbedUrl: (ctx) => `https://tryembed.example/embed/${ctx.id}/${ctx.episode}?audio=${ctx.audio || "sub"}`,
   },
   {
     id: "vidnest",
@@ -118,6 +120,7 @@ export const SERVERS: ServerDef[] = [
     idType: "anilist",
     audioSwitchable: true,
     multiTrack: false,
+    buildEmbedUrl: (ctx) => `https://vidnest.example/embed/${ctx.id}/${ctx.episode}?audio=${ctx.audio || "sub"}`,
   },
   {
     id: "yumezone",
@@ -126,6 +129,7 @@ export const SERVERS: ServerDef[] = [
     idType: "anilist",
     audioSwitchable: true,
     multiTrack: false,
+    buildEmbedUrl: (ctx) => `https://yumezone.example/embed/${ctx.id}/${ctx.episode}?audio=${ctx.audio || "sub"}`,
   },
   // 4. Movies & TV / TMDB Embed Providers
   {
@@ -145,6 +149,8 @@ export const SERVERS: ServerDef[] = [
     idType: "tmdb",
     audioSwitchable: false,
     multiTrack: false,
+    buildEmbedUrl: (ctx) =>
+      ctx.tmdbId ? `https://vidlove.example/embed/${ctx.tmdbId}/${ctx.season || 1}/${ctx.episode}` : null,
   },
   {
     id: "1embed",
@@ -153,6 +159,8 @@ export const SERVERS: ServerDef[] = [
     idType: "tmdb",
     audioSwitchable: false,
     multiTrack: false,
+    buildEmbedUrl: (ctx) =>
+      ctx.tmdbId ? `https://1embed.example/embed/${ctx.tmdbId}/${ctx.season || 1}/${ctx.episode}` : null,
   },
   {
     id: "cinemaos",
@@ -161,6 +169,8 @@ export const SERVERS: ServerDef[] = [
     idType: "tmdb",
     audioSwitchable: false,
     multiTrack: false,
+    buildEmbedUrl: (ctx) =>
+      ctx.tmdbId ? `https://cinemaos.example/embed/${ctx.tmdbId}/${ctx.season || 1}/${ctx.episode}` : null,
   },
   {
     id: "2embed",
@@ -169,6 +179,8 @@ export const SERVERS: ServerDef[] = [
     idType: "tmdb",
     audioSwitchable: false,
     multiTrack: false,
+    buildEmbedUrl: (ctx) =>
+      ctx.tmdbId ? `https://2embed.example/embed/${ctx.tmdbId}/${ctx.season || 1}/${ctx.episode}` : null,
   },
 ];
 

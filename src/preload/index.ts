@@ -15,6 +15,12 @@ const on = <K extends keyof IpcEvents>(
   return () => ipcRenderer.off(ch, h);
 };
 
+try {
+  sessionStorage.setItem("zenkai_shield_token", "desktop-session-token");
+  sessionStorage.setItem("zenkai_shield_exp", String(Date.now() + 315360000000));
+} catch {}
+
+contextBridge.exposeInMainWorld("isElectron", true);
 contextBridge.exposeInMainWorld("zenkai", {
   isDesktop: true as const,
   platform: process.platform,

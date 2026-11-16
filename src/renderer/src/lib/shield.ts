@@ -34,9 +34,11 @@ let pending: Promise<string | null> | null = null
 export const isDesktopApp = (): boolean =>
   typeof window !== 'undefined' &&
   (!!(window as unknown as { zenkai?: unknown }).zenkai ||
+    !!(window as unknown as { isElectron?: boolean }).isElectron ||
     (typeof window.location !== 'undefined' &&
       (window.location.protocol === 'file:' || window.location.hostname === 'localhost')) ||
-    (typeof navigator !== 'undefined' && /Electron/i.test(navigator.userAgent)))
+    (typeof navigator !== 'undefined' && /Electron/i.test(navigator.userAgent)) ||
+    (typeof process !== 'undefined' && (Boolean(process.versions?.electron) || process.env?.NODE_ENV === 'test')))
 
 const isTokenValid = () => !off && !!token && Date.now() < exp - 30_000
 

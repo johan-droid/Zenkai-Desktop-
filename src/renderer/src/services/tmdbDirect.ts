@@ -1,4 +1,5 @@
-import { apiUrl, type Mapping, type Tmdb, type TmdbBundle } from './api'
+import { apiUrl } from './apiBase'
+import type { Mapping, Tmdb, TmdbBundle } from './api'
 
 /**
  * Anime TMDB info straight from the browser, the same way Movies already works (no Worker request).

@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from 'react'
-import { cell } from './library'
+import { cell } from './cell'
 import { supabase } from './supabase'
 
 /** Local and cloud profile interface */

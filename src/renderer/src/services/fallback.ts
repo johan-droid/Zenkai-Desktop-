@@ -1,4 +1,4 @@
-import { apiUrl } from './api'
+import { apiUrl } from './apiBase'
 import type { AniMediaDetails } from '../types/anime'
 
 /**

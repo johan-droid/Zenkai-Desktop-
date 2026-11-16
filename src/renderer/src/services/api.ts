@@ -1,17 +1,9 @@
+import { DEFAULT_API_BASE, BASE, apiUrl } from './apiBase'
+export { DEFAULT_API_BASE, BASE, apiUrl }
 import { tmdbDirect, tmdbEpisodesDirect } from './tmdbDirect'
 import { isCompanionActive, companionHas } from '../lib/useCompanion'
 import { resolveAcdnClient, getResolveTrace, type ClientStream } from '../lib/acdnClient'
 import { toast } from '../lib/toast'
-import { isDesktopApp } from '../lib/shield'
-
-/** Client for the Zenkai API (Cloudflare Pages Functions in production, Vite middleware in dev). */
-const DEFAULT_API_BASE = 'https://zenkaii.pages.dev'
-const BASE =
-  (import.meta.env.VITE_API_BASE as string | undefined) ||
-  (typeof window !== 'undefined' && (window.location.protocol === 'file:' || isDesktopApp()) ? DEFAULT_API_BASE : DEFAULT_API_BASE)
-
-/** Root-relative API paths (e.g. the proxied HLS url) are prefixed with VITE_API_BASE when it is set. */
-export const apiUrl = (path: string) => (path.startsWith('/') ? BASE + path : path)
 
 /** Cloudflare answers 429 (or its own HTML error page) once the free Workers quota is used up. */
 export const failMsg = (res: Response, data: { error?: string } | null) =>

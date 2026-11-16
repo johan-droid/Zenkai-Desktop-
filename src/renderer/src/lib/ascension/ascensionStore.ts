@@ -1,4 +1,4 @@
-import { cell } from '../library'
+import { cell } from '../cell'
 import { supabase } from '../supabase'
 import {
   calculateLevelFromXp,

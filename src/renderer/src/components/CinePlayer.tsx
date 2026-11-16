@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 import Hls from 'hls.js'
 import {
-  Airplay, AudioLines, Cast, Check, CheckCircle2, ChevronDown, Download, FastForward, Flag, Languages, List, Loader2, Maximize, Minimize, Music, Pause, PictureInPicture2, Play, RotateCcw, RotateCw,
+  Airplay, AudioLines, Cast, Check, CheckCircle2, ChevronDown, Download, FastForward, Flag, Languages, List, Loader2, Maximize, MessageSquare, Minimize, Music, Pause, PictureInPicture2, Play, RotateCcw, RotateCw,
   Search, Server, Settings, SkipBack, SkipForward, Sliders, Sparkles, TriangleAlert, Upload, Users, Volume1, Volume2, VolumeX, X,
 } from 'lucide-react'
 import { apiUrl, fetchStream, type EpInfo, type EpKind } from '../services/api'
@@ -349,6 +349,11 @@ export interface CinePlayerProps {
   } | null
   onWatchTogetherClick?: () => void
   watchPartyActive?: boolean
+  /** party chat: toggle button (with unread badge); `chatPanel` is shown over the video in fullscreen, the page docks it beside the player otherwise */
+  onChatClick?: () => void
+  chatOpen?: boolean
+  chatUnread?: number
+  chatPanel?: React.ReactNode
   watchPartyPeersCount?: number
   /** When watching together in a room as a guest (non-host), timestamp and episode changes are host-controlled */
   isPartyGuest?: boolean
@@ -804,7 +809,7 @@ export default function CinePlayer({
   autoNext = true, onAutoNext, autoSkip = false, onAutoSkip,
   nextEpisode, episodeKind, skipFiller = false, onSkipFiller, switching = false,
   episodesInfo, fallbackImg, defaultRuntime, kinds,
-  onVideoRef, onPlayerAction, externalControl, onWatchTogetherClick, watchPartyActive, watchPartyPeersCount,
+  onVideoRef, onPlayerAction, externalControl, onWatchTogetherClick, watchPartyActive, watchPartyPeersCount, onChatClick, chatOpen = false, chatUnread = 0, chatPanel,
   isPartyGuest = false,
   qualities, currentQuality, onQualityChange, downloadUrl, fallbackStreamUrl, isTmdb = false, onStreamError, onDownload,
 }: CinePlayerProps) {
@@ -2279,7 +2284,7 @@ const slider = (label: string, key: 'opacity' | 'lh' | 'width' | 'blur' | 'scale
   const adj = (d: number) => setOffset((o) => Math.round((o + d) * 10) / 10)
   const avail = availableEpisodes ?? totalEpisodes
   const target = fs ? (root.current ?? document.body) : document.body
-  const seg = (s: Seg) => (s && dur > 0 && s.end > s.start ? { left: `${(s.start / dur) * 100}%`, width: `${((s.end - s.start) / dur) * 100}%` } : null)
+  const seg = (s: Seg) => (s && dur > 0 && s.end > s.start && s.start < dur ? { left: `${(s.start / dur) * 100}%`, width: `${((Math.min(s.end, dur) - s.start) / dur) * 100}%` } : null)
   const si = seg(intro)
   const so = seg(outro)
   const isPopTop = activeAnchor?.top !== undefined
@@ -2293,6 +2298,16 @@ const slider = (label: string, key: 'opacity' | 'lh' | 'width' | 'blur' | 'scale
       className={cx('zp', fs && 'zp-fs', fake && 'zp-fake', (show || tour) && 'show', !playing && 'zp-paused', fb && !show && 'zp-mini')}
       onPointerMove={(e) => e.pointerType === 'mouse' && poke()}
     >
+      {fs && chatOpen && chatPanel && (
+        <div
+          className="absolute inset-y-0 right-0 z-[60] w-[24%] min-w-[280px] max-w-[380px] p-3"
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={(e) => e.stopPropagation()}
+          onDoubleClick={(e) => e.stopPropagation()}
+        >
+          {chatPanel}
+        </div>
+      )}
       <video
         id="zenkaiVideo"
         ref={vid}
@@ -2686,6 +2701,23 @@ const slider = (label: string, key: 'opacity' | 'lh' | 'width' | 'blur' | 'scale
                   {watchPartyActive && (
                     <span className="absolute -top-1 -right-1 flex size-3.5 items-center justify-center rounded-full bg-accent text-[8px] font-bold text-accent-fg animate-pulse">
                       {watchPartyPeersCount || 1}
+                    </span>
+                  )}
+                </button>
+              )}
+              {onChatClick && watchPartyActive && (
+                <button
+                  type="button"
+                  className={cx('zp-b relative', chatOpen && 'text-accent')}
+                  onClick={onChatClick}
+                  aria-label="Party chat"
+                  aria-pressed={chatOpen}
+                  title="Party chat"
+                >
+                  <MessageSquare />
+                  {!chatOpen && chatUnread > 0 && (
+                    <span className="absolute -top-1 -right-1 flex min-w-3.5 items-center justify-center rounded-full bg-accent px-1 text-[8px] font-bold text-accent-fg">
+                      {chatUnread > 9 ? '9+' : chatUnread}
                     </span>
                   )}
                 </button>

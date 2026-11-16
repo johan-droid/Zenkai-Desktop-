@@ -2,7 +2,9 @@ import { createContext, useContext, useEffect, useState, useCallback, useMemo, t
 import type { User, Session } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabase'
 import { setProfileStore, resetProfileStore } from '../lib/profile'
+import { syncAscensionWithCloud, clearAscensionCache } from '../lib/ascension/ascensionStore'
 import { toast } from '../lib/toast'
+import { pushWatchHistory } from '../lib/sync'
 
 interface AuthContextValue {
   user: User | null
@@ -45,12 +47,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const assignedHandle = data.username || cleanHandle
         setProfileUsername(assignedHandle)
         setProfileStore({
-          name: data.display_name || userOAuthName || assignedHandle,
-          avatar: data.avatar_url || userOAuthAvatar,
+          // ponytail: existing rows are the source of truth; Google name/avatar only seed first login
+          name: data.display_name || assignedHandle,
+          avatar: data.avatar_url || null,
           banner: data.banner_url || null,
           frame: data.frame || null,
           bio: data.bio || '',
+          nameColor: data.name_color || null,
         })
+        void syncAscensionWithCloud(u.id)
       } else {
         // First login for this account: initialize with this account's credentials
         setProfileUsername(cleanHandle)
@@ -106,11 +111,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // 2. Listen for auth state changes
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, s) => {
+    } = supabase.auth.onAuthStateChange((event, s) => {
       setSession(s)
       setUser(s?.user ?? null)
       if (s?.user) {
-        void syncProfile(s.user)
+        // token refreshes / metadata updates must not re-pull the profile over local edits
+        if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') void syncProfile(s.user)
       } else {
         setProfileUsername(null)
         resetProfileStore()
@@ -302,6 +308,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = useCallback(async () => {
     try {
+      // Upload this device's data once before the local copy is cleared (capped so sign out never hangs).
+      if (user?.id) {
+        await Promise.race([pushWatchHistory(user.id), new Promise((r) => setTimeout(r, 6000))]).catch(() => {})
+      }
       if (user?.id) {
         try {
           localStorage.removeItem(`zk:username_chosen:${user.id}`)
@@ -309,6 +319,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       localStorage.removeItem('zk_my_sent_msgs')
       resetProfileStore()
+      clearAscensionCache()
       await supabase.auth.signOut()
       setSession(null)
       setUser(null)

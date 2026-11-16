@@ -1,14 +1,17 @@
 import { useEffect, useState } from 'react'
-import { useParams, Link, useNavigate } from 'react-router-dom'
-import { ArrowLeft, UserX, Compass, MessageSquare } from 'lucide-react'
+import { useParams, Link } from 'react-router-dom'
+import { UserX, Compass, MessageSquare, Bookmark, Lock } from 'lucide-react'
 import { fetchPublicProfile, type PublicUserData } from '../lib/profile'
 import { PublicProfileCard } from '../components/PublicProfileCard'
 import { useAuth } from '../context/AuthContext'
+import { useCustomLists, useList } from '../lib/library'
+import { WatchlistPanel } from '../components/WatchlistPanel'
 
 export default function PublicProfilePage() {
   const { username } = useParams<{ username: string }>()
-  const navigate = useNavigate()
   const { username: authUsername } = useAuth()
+  const selfList = useList()
+  const selfLists = useCustomLists()
 
   const [loading, setLoading] = useState(true)
   const [userData, setUserData] = useState<PublicUserData | null>(null)
@@ -46,48 +49,62 @@ export default function PublicProfilePage() {
     !!username &&
     authUsername.toLowerCase() === username.toLowerCase()
 
+  const activeWatchlist = (isSelf ? (selfList.length > 0 ? selfList : userData?.watchlist) : userData?.watchlist) || []
+
   return (
     <main className="mx-auto max-w-4xl space-y-6 px-4 pb-28 pt-6 sm:px-6 sm:pt-8 md:pt-10">
-      {/* Top Back Navigation Bar */}
-      <div className="flex items-center justify-between">
-        <button
-          type="button"
-          onClick={() => navigate(-1)}
-          className="inline-flex items-center gap-2 rounded-full border border-border bg-card/70 px-4 py-2 text-xs font-semibold text-foreground backdrop-blur-md transition hover:border-accent hover:text-accent active:scale-95"
-        >
-          <ArrowLeft className="size-4" />
-          <span>Back</span>
-        </button>
-
-        <div className="flex items-center gap-2 text-xs font-semibold text-muted">
-          <span>Public Profile</span>
-          {username && <span className="text-accent">@{username}</span>}
-        </div>
-      </div>
-
       {/* Loading Skeleton */}
       {loading ? (
-        <div className="overflow-hidden rounded-3xl border border-border bg-card/60 shadow-xl">
-          <div className="skeleton h-44 w-full sm:h-64" />
-          <div className="relative px-6 pb-8 pt-4">
-            <div className="flex items-end gap-5">
-              <div className="skeleton -mt-16 size-24 shrink-0 rounded-full ring-4 ring-card sm:-mt-20 sm:size-28" />
+        <div className="pb-8 border-b border-border/40">
+          <div className="relative pt-4">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-5 sm:gap-6">
+              <div className="skeleton size-24 shrink-0 rounded-full" />
               <div className="space-y-2 flex-1 pb-2">
                 <div className="skeleton h-7 w-48 rounded-xl" />
                 <div className="skeleton h-4 w-28 rounded-lg" />
+                <div className="skeleton h-4 w-64 rounded-lg" />
               </div>
             </div>
-            <div className="mt-6 skeleton h-20 w-full rounded-2xl" />
-            <div className="mt-5 grid grid-cols-3 gap-3">
-              <div className="skeleton h-16 rounded-2xl" />
-              <div className="skeleton h-16 rounded-2xl" />
-              <div className="skeleton h-16 rounded-2xl" />
+            <div className="mt-5 grid grid-cols-3 gap-3 max-w-sm sm:ml-auto">
+              <div className="skeleton h-14 rounded-2xl" />
+              <div className="skeleton h-14 rounded-2xl" />
+              <div className="skeleton h-14 rounded-2xl" />
             </div>
           </div>
         </div>
       ) : userData ? (
-        /* Public Profile Card */
-        <PublicProfileCard data={userData} isSelf={isSelf} />
+        <div className="space-y-6">
+              {/* Public Profile Card */}
+              <PublicProfileCard data={userData} isSelf={isSelf} watchlist={activeWatchlist} />
+
+              <section className="space-y-4" aria-label="User Watchlist">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <Bookmark className="size-5 text-foreground" />
+                    <h2 className="font-display text-xl font-bold tracking-tight text-foreground">Watchlist</h2>
+                  </div>
+                  <span className="font-mono text-xs text-muted">{userData.watchlistPrivate && !isSelf ? 'Private' : `${activeWatchlist.length} anime`}</span>
+                </div>
+                {userData.watchlistPrivate && !isSelf ? (
+                  <div className="grid place-items-center rounded-3xl border border-dashed border-border px-6 py-14 text-center">
+                    <Lock className="size-9 text-muted/70" />
+                    <p className="mt-3 text-sm font-semibold">This watchlist is private</p>
+                    <p className="mt-1 max-w-xs text-xs text-muted">@{userData.username} chose to keep their list to themselves.</p>
+                  </div>
+                ) : (
+                  <>
+                    {userData.watchlistPrivate && isSelf && (
+                      <p className="flex items-center gap-1.5 text-xs text-muted"><Lock className="size-3.5" /> Private: only you can see this list.</p>
+                    )}
+                    <WatchlistPanel
+                      items={activeWatchlist}
+                      lists={isSelf && selfLists.length ? selfLists : userData.customLists || []}
+                      emptyTitle={`@${userData.username} hasn’t added any anime to their public watchlist yet.`}
+                    />
+                  </>
+                )}
+              </section>
+        </div>
       ) : (
         /* Not Found Fallback */
         <div className="rounded-3xl border border-border bg-card/60 p-8 text-center sm:p-12 shadow-xl">

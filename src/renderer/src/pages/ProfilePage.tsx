@@ -1,10 +1,15 @@
 import { useEffect, useState, useMemo } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import {
+  Bookmark,
   BookmarkCheck,
+  Check,
+  ChevronsUp,
   ChevronRight,
   Cloud,
   Laptop,
+  Lock,
+  LockOpen,
   Moon,
   ShieldCheck,
   SlidersHorizontal,
@@ -18,7 +23,9 @@ import { DesktopSettingsCard } from '../components/DesktopSettingsCard'
 import { ProfileEditor, ProfileHero, type SectionKey } from '../components/ProfileCustomizer'
 import { CustomSelect } from '../components/CustomSelect'
 import { DISCORD_URL, REPO_URL, TELEGRAM_URL } from '../lib/app'
-import { getPrefs, savePrefs, type Audio } from '../lib/library'
+import { getPrefs, savePrefs, setStatus, useCustomLists, useList, type Audio } from '../lib/library'
+import { WatchlistPanel } from '../components/WatchlistPanel'
+import { useWatchlistPrivacy } from '../lib/watchlistPrivacy'
 import { useProfile } from '../lib/profile'
 import { DIRECT } from '../lib/servers'
 import { toast } from '../lib/toast'
@@ -26,8 +33,17 @@ import { cn } from '../lib/utils'
 import { useTheme } from '../context/ThemeContext'
 import { useFlag } from '../hooks/useFlag'
 import { supabase } from '../lib/supabase'
+import {
+  getAscensionState,
+  ascensionCell,
+  claimQuestReward,
+} from '../lib/ascension/ascensionStore'
+import {
+  DAILY_QUEST_TEMPLATES,
+  WEEKLY_QUEST_TEMPLATES,
+} from '../lib/ascension/types'
 
-type TabKey = 'preferences' | 'account' | 'anilist' | 'legal' | 'desktop'
+type TabKey = 'preferences' | 'ascension' | 'watchlist' | 'account' | 'anilist' | 'legal' | 'desktop'
 
 const h2 = 'font-display text-xl font-bold'
 
@@ -106,6 +122,26 @@ export default function ProfilePage() {
   const requestedTab = (searchParams.get('tab') as TabKey | null) ?? (pathname === '/settings' ? 'desktop' : null)
   const [activeTab, setActiveTab] = useState<TabKey>(() => requestedTab ?? (isDesktop ? 'desktop' : 'preferences'))
 
+  const customLists = useCustomLists()
+  const privacy = useWatchlistPrivacy(user?.id)
+  const list = useList()
+
+  const [ascensionState, setAscensionState] = useState(getAscensionState())
+  const [claimLoading, setClaimLoading] = useState<string | null>(null)
+
+  useEffect(() => {
+    return ascensionCell.subscribe(() => {
+      setAscensionState(getAscensionState())
+    })
+  }, [])
+
+  const handleClaimQuest = async (questId: string) => {
+    setClaimLoading(questId)
+    const ok = await claimQuestReward(questId)
+    setClaimLoading(null)
+    if (ok) toast('Reward claimed! XP added.')
+  }
+
   useEffect(() => {
     if (requestedTab) {
       setActiveTab(requestedTab)
@@ -122,17 +158,17 @@ export default function ProfilePage() {
 
   useEffect(() => {
     // Intercept OAuth callback parameters in URL (PKCE code, implicit hash tokens, or errors)
-    const searchParams = new URLSearchParams(window.location.search)
-    const hashParams = new URLSearchParams(window.location.hash.startsWith('#') ? window.location.hash.slice(1) : '')
+    const sp = new URLSearchParams(window.location.search)
+    const hp = new URLSearchParams(window.location.hash.startsWith('#') ? window.location.hash.slice(1) : '')
 
-    const err = searchParams.get('error_description') || searchParams.get('error') || hashParams.get('error_description') || hashParams.get('error')
+    const err = sp.get('error_description') || sp.get('error') || hp.get('error_description') || hp.get('error')
     if (err) {
       toast(`Sign in notice: ${decodeURIComponent(err.replace(/\+/g, ' '))}`, 'error')
       window.history.replaceState({}, document.title, window.location.pathname)
       return
     }
 
-    const code = searchParams.get('code')
+    const code = sp.get('code')
     if (code) {
       void supabase.auth.exchangeCodeForSession(code).then(({ data, error }) => {
         if (!error && data.session) {
@@ -145,9 +181,9 @@ export default function ProfilePage() {
       return
     }
 
-    const accessToken = hashParams.get('access_token')
+    const accessToken = hp.get('access_token')
     if (accessToken) {
-      const refreshToken = hashParams.get('refresh_token') || ''
+      const refreshToken = hp.get('refresh_token') || ''
       void supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken }).then(({ data, error }) => {
         if (!error && data.session) {
           toast('Signed in successfully!')
@@ -191,6 +227,8 @@ export default function ProfilePage() {
       ? [{ id: 'desktop' as const, label: 'Desktop & Updates', icon: Laptop }]
       : []),
     { id: 'preferences' as const, label: 'Preferences', icon: SlidersHorizontal },
+    { id: 'ascension' as const, label: 'Ascension Quests', icon: ChevronsUp, badge: `Lv.${ascensionState.level}` },
+    { id: 'watchlist' as const, label: 'Watchlist', icon: Bookmark, badge: list.length > 0 ? `${list.length}` : null },
     { id: 'account' as const, label: 'Cloud & Sync', icon: Cloud, badge: user ? 'Connected' : null },
     { id: 'anilist' as const, label: 'AniList', icon: BookmarkCheck },
     { id: 'legal' as const, label: 'About & Legal', icon: ShieldCheck },
@@ -235,6 +273,194 @@ export default function ProfilePage() {
 
           {/* 3. Unified Content Sections */}
           {activeTab === 'desktop' && isDesktop && <DesktopSettingsCard />}
+
+          {/* Watchlist Section with Privacy Toggle */}
+          {activeTab === 'watchlist' && (
+            <section className="space-y-4" aria-label="Watchlist">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <Bookmark className="size-5 text-foreground" />
+                  <h2 className="font-display text-xl font-bold tracking-tight text-foreground">
+                    Watchlist
+                  </h2>
+                </div>
+                <span className="font-mono text-xs text-muted">
+                  {list.length} anime
+                </span>
+              </div>
+
+              {user && (
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={privacy.priv}
+                  disabled={privacy.busy}
+                  onClick={() => void privacy.set(!privacy.priv)}
+                  className="flex w-full items-center gap-3 rounded-2xl border border-border p-3 text-left transition hover:border-foreground/40 active:scale-[0.99] disabled:opacity-60"
+                >
+                  <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-foreground/10">
+                    {privacy.priv ? <Lock className="size-4" /> : <LockOpen className="size-4" />}
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm font-semibold">{privacy.priv ? 'Watchlist is private' : 'Watchlist is public'}</span>
+                    <span className="block text-xs text-muted">{privacy.priv ? 'Visitors see nothing, and the server never sends them your list.' : 'Anyone with your profile link can see it.'}</span>
+                  </span>
+                  <span className={'relative h-6 w-10 shrink-0 rounded-full transition ' + (privacy.priv ? 'bg-foreground' : 'bg-foreground/20')}>
+                    <span className={'absolute top-0.5 size-5 rounded-full bg-background transition-all ' + (privacy.priv ? 'left-[1.15rem]' : 'left-0.5')} />
+                  </span>
+                </button>
+              )}
+              <WatchlistPanel
+                items={list}
+                lists={customLists}
+                onStatus={setStatus}
+                emptyTitle="Your watchlist is empty"
+                emptyHint="Bookmark series while browsing to track your progress here."
+              />
+            </section>
+          )}
+
+          {/* Ascension Quests Section */}
+          {activeTab === 'ascension' && (
+            <section className="rounded-3xl border border-border/60 bg-card-2/40 p-5 sm:p-7 shadow-xl space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border/50 pb-4">
+                <div>
+                  <h2 className="font-display text-lg font-bold flex items-center gap-2 text-foreground">
+                    <ChevronsUp className="size-5 text-accent" />
+                    <span>Hunter Daily &amp; Weekly Quests</span>
+                  </h2>
+                  <p className="mt-1 text-xs text-muted">
+                    Earn XP by watching anime episodes, reading chapters, and checking in daily.
+                  </p>
+                </div>
+
+                <Link
+                  to="/ascension"
+                  className="inline-flex items-center gap-1.5 rounded-full border border-border bg-foreground/5 px-4 py-1.5 text-xs font-mono font-bold text-foreground transition hover:bg-foreground/10"
+                >
+                  <span>Full Ascension System ➔</span>
+                </Link>
+              </div>
+
+              {/* Daily Quests List */}
+              <div className="space-y-3">
+                <h3 className="text-xs font-mono font-bold uppercase tracking-wider text-muted">
+                  DAILY COMMISSIONS
+                </h3>
+                <div className="divide-y divide-border/50">
+                  {DAILY_QUEST_TEMPLATES.map((q) => {
+                    const uq = ascensionState.quests[q.id]
+                    const progressVal = uq ? uq.progress : 0
+                    const isCompleted = uq ? uq.completed : false
+                    const isClaimed = uq ? uq.claimed : false
+                    const percent = Math.min(100, Math.round((progressVal / q.target) * 100))
+
+                    return (
+                      <div key={q.id} className="py-3.5 first:pt-0 last:pb-0 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div className="flex items-start gap-3 flex-1 min-w-0">
+                          <span className="text-2xl shrink-0 mt-0.5">{q.icon}</span>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-bold text-foreground">{q.title}</span>
+                              <span className="rounded-full bg-foreground/10 px-2 py-0.5 text-[10px] font-bold text-foreground">
+                                +{q.xpReward} XP
+                              </span>
+                            </div>
+                            <p className="text-xs text-muted mt-0.5">{q.description}</p>
+                            <div className="mt-2 flex items-center gap-2.5 max-w-xs">
+                              <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-border/60">
+                                <div className="h-full rounded-full bg-foreground transition-all duration-300" style={{ width: `${percent}%` }} />
+                              </div>
+                              <span className="text-[11px] font-mono text-muted">{progressVal}/{q.target}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="shrink-0 self-end sm:self-center">
+                          {isClaimed ? (
+                            <span className="inline-flex items-center gap-1 text-xs font-mono font-bold text-emerald-500">
+                              <Check className="size-3.5 stroke-[3]" /> Claimed
+                            </span>
+                          ) : isCompleted ? (
+                            <button
+                              type="button"
+                              disabled={claimLoading === q.id}
+                              onClick={() => handleClaimQuest(q.id)}
+                              className="inline-flex h-8 items-center gap-1.5 rounded-full bg-foreground px-3.5 text-xs font-bold text-background shadow-md shadow-black/30 transition hover:brightness-110 active:scale-95 disabled:opacity-50"
+                            >
+                              <Check className="size-3.5 stroke-[3]" />
+                              <span>{claimLoading === q.id ? 'Claiming…' : `Claim +${q.xpReward} XP`}</span>
+                            </button>
+                          ) : (
+                            <span className="text-xs font-mono text-muted">In progress</span>
+                          )}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+
+              {/* Weekly Expeditions List */}
+              <div className="space-y-3 border-t border-border/50 pt-5">
+                <h3 className="text-xs font-mono font-bold uppercase tracking-wider text-muted">
+                  WEEKLY EXPEDITIONS
+                </h3>
+                <div className="divide-y divide-border/50">
+                  {WEEKLY_QUEST_TEMPLATES.map((q) => {
+                    const uq = ascensionState.quests[q.id]
+                    const progressVal = uq ? uq.progress : 0
+                    const isCompleted = uq ? uq.completed : false
+                    const isClaimed = uq ? uq.claimed : false
+                    const percent = Math.min(100, Math.round((progressVal / q.target) * 100))
+
+                    return (
+                      <div key={q.id} className="py-3.5 first:pt-0 last:pb-0 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div className="flex items-start gap-3 flex-1 min-w-0">
+                          <span className="text-2xl shrink-0 mt-0.5">{q.icon}</span>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-bold text-foreground">{q.title}</span>
+                              <span className="rounded-full bg-foreground/10 px-2 py-0.5 text-[10px] font-bold text-foreground">
+                                +{q.xpReward} XP
+                              </span>
+                            </div>
+                            <p className="text-xs text-muted mt-0.5">{q.description}</p>
+                            <div className="mt-2 flex items-center gap-2.5 max-w-xs">
+                              <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-border/60">
+                                <div className="h-full rounded-full bg-foreground transition-all duration-300" style={{ width: `${percent}%` }} />
+                              </div>
+                              <span className="text-[11px] font-mono text-muted">{progressVal}/{q.target}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="shrink-0 self-end sm:self-center">
+                          {isClaimed ? (
+                            <span className="inline-flex items-center gap-1 text-xs font-mono font-bold text-emerald-500">
+                              <Check className="size-3.5 stroke-[3]" /> Claimed
+                            </span>
+                          ) : isCompleted ? (
+                            <button
+                              type="button"
+                              disabled={claimLoading === q.id}
+                              onClick={() => handleClaimQuest(q.id)}
+                              className="inline-flex h-8 items-center gap-1.5 rounded-full bg-foreground px-3.5 text-xs font-bold text-background shadow-md shadow-black/30 transition hover:brightness-110 active:scale-95 disabled:opacity-50"
+                            >
+                              <Check className="size-3.5 stroke-[3]" />
+                              <span>{claimLoading === q.id ? 'Claiming…' : `Claim +${q.xpReward} XP`}</span>
+                            </button>
+                          ) : (
+                            <span className="text-xs font-mono text-muted">In progress</span>
+                          )}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            </section>
+          )}
 
           {activeTab === 'preferences' && (
             <section

@@ -12,7 +12,9 @@ import { toast } from '../lib/toast'
 import { searchAnime } from '../services/anilist'
 import type { AniMedia } from '../types/anime'
 import { cn, pickTitle } from '../lib/utils'
-import { createCommunityPost, deleteCommunityPost, getCommunityPosts, likeCommunityPost, updateCommunityPost, type CommunityPost } from '../lib/supabase'
+import { createCommunityPost, deleteCommunityPost, getCommunityPosts, likeCommunityPost, supabase, updateCommunityPost, type CommunityPost } from '../lib/supabase'
+import { TextEffectRenderer } from '../components/ascension/TextEffectRenderer'
+import { ascensionCell, getAscensionState } from '../lib/ascension/ascensionStore'
 
 /* ------------------------------------------------------------------ data */
 
@@ -126,6 +128,77 @@ function buildRows(messages: CommunityPost[]): Row[] {
     rows.push({ kind: 'msg', key: msg.id, msg, first: !joins(prev, msg), last: !joins(msg, next) })
   })
   return rows
+}
+
+/** Messages are stored as "Name (@handle)": the chat shows the name only; the handle is just for the profile link. */
+function splitAuthor(raw: string): { name: string; handle?: string } {
+  const m = raw.match(/^(.*?)\s*\(@([a-zA-Z0-9_-]+)\)\s*$/)
+  if (m) return { name: m[1].trim() || m[2], handle: m[2] }
+  if (raw.startsWith('@')) return { name: raw.slice(1), handle: raw.slice(1) }
+  return { name: raw }
+}
+
+type ChatProfile = { name: string; handle?: string; avatar: string | null; frame: string | null; effect: string; font: string; color: string | null; level: number }
+
+const PROFILE_COLS = 'id, username, display_name, avatar_url, frame, equipped_frame, name_color, equipped_text_effect, level'
+let fontColumn = true
+
+async function fetchChatProfiles(ids: string[]): Promise<Record<string, ChatProfile>> {
+  const out: Record<string, ChatProfile> = {}
+  for (let i = 0; i < ids.length; i += 50) {
+    const chunk = ids.slice(i, i + 50)
+    const q = (cols: string) => supabase.from('profiles').select(cols as any).in('id', chunk) as unknown as PromiseLike<{ data: any[] | null; error: unknown }>
+    let res = await q(fontColumn ? `${PROFILE_COLS}, equipped_font_style` : PROFILE_COLS)
+    if (res.error && fontColumn) {
+      fontColumn = false // that column isn't in this database: carry on without fonts
+      res = await q(PROFILE_COLS)
+    }
+    for (const r of res.data || []) {
+      out[r.id] = {
+        name: r.display_name || r.username || 'Otaku',
+        handle: r.username || undefined,
+        avatar: r.avatar_url || null,
+        frame: r.frame || r.equipped_frame || null,
+        effect: r.equipped_text_effect || 'none',
+        font: r.equipped_font_style || 'default',
+        color: r.name_color && r.name_color !== 'default' ? r.name_color : null,
+        level: Number(r.level) || 1,
+      }
+    }
+  }
+  return out
+}
+
+// ponytail: module-level cache survives page navigation (in-memory only); upgrade to sessionStorage/SWR if needed
+const CHAT_PROFILE_TTL = 5 * 60_000
+const chatProfileCache = new Map<string, { at: number; p: ChatProfile | null }>()
+
+/** Current name, picture and name style of everyone in the room; each profile is fetched once per TTL, new faces in one batch. */
+function useChatProfiles(messages: CommunityPost[]) {
+  const [, bump] = useState(0)
+  useEffect(() => {
+    const now = Date.now()
+    const ids = [...new Set(messages.map((m) => m.user_id).filter((x): x is string => !!x))].filter((id) => {
+      const c = chatProfileCache.get(id)
+      return !c || now - c.at > CHAT_PROFILE_TTL
+    })
+    if (!ids.length) return
+    ids.forEach((id) => chatProfileCache.set(id, { at: now, p: chatProfileCache.get(id)?.p ?? null })) // mark in-flight
+    void fetchChatProfiles(ids)
+      .then((got) => {
+        ids.forEach((id) => chatProfileCache.set(id, { at: Date.now(), p: got[id] ?? chatProfileCache.get(id)?.p ?? null }))
+        bump((n) => n + 1)
+      })
+      .catch(() => ids.forEach((id) => chatProfileCache.delete(id)))
+  }, [messages])
+  const map: Record<string, ChatProfile> = {}
+  chatProfileCache.forEach((c, id) => { if (c.p) map[id] = c.p })
+  return map
+}
+
+/** A member's name in their equipped effect, font and colour. */
+function FancyName({ name, effect, font, color, className }: { name: string; effect?: string | null; font?: string | null; color?: string | null; className?: string }) {
+  return <TextEffectRenderer text={name} effectId={effect || 'none'} fontId={font || 'default'} colorId={color || 'default'} fallbackClass="text-foreground" className={cn('max-w-full truncate align-bottom text-[0.8rem] font-bold leading-tight', className)} />
 }
 
 /* ------------------------------------------------------------ small bits */
@@ -303,7 +376,7 @@ function Pulse({ messages, channelLabel }: { messages: CommunityPost[]; channelL
           <figure className="rounded-2xl border border-amber-400/25 bg-amber-400/[0.07] p-3.5">
             <blockquote className="line-clamp-4 break-words text-sm leading-relaxed">{stats.loved.content.replace(/\|\|/g, '▒')}</blockquote>
             <figcaption className="mt-2 flex items-center justify-between text-xs text-muted">
-              <span className="truncate font-semibold text-foreground/80">@{stats.loved.username}</span>
+              <span className="truncate font-semibold text-foreground/80">{splitAuthor(stats.loved.username).name}</span>
               <span className="flex items-center gap-1 text-rose-400">
                 <Heart className="size-3 fill-current" />
                 {stats.loved.likes}
@@ -409,8 +482,14 @@ export default function CommunityPage() {
     (anilist?.user?.name ? anilist.user.name.toLowerCase().replace(/[^a-z0-9_-]/g, '') : null) ||
     (name ? name.toLowerCase().replace(/[^a-z0-9_-]/g, '') : null)
 
-  const myAvatar = profile?.avatar || user?.user_metadata?.avatar_url || user?.user_metadata?.picture || anilist?.user?.avatar || null
+  const myAvatar = profile?.avatar || anilist?.user?.avatar || null
   const myFrame = profile?.frame || null
+
+  const [asc, setAsc] = useState(getAscensionState())
+  useEffect(() => ascensionCell.subscribe(() => setAsc(getAscensionState())), [])
+  const myEffect = asc.equippedTextEffect
+  const myFont = asc.equippedFontStyle
+  const myColor = profile?.nameColor || asc.equippedNameColor
 
   const [channelId, setChannelId] = useState<ChannelId>('General')
   const [messages, setMessages] = useState<CommunityPost[]>([])
@@ -456,6 +535,7 @@ export default function CommunityPage() {
   latest.current = messages
 
   const channel = CHANNELS.find((c) => c.id === channelId) ?? CHANNELS[0]
+  const chatProfiles = useChatProfiles(messages)
 
 
   useEffect(() => {
@@ -566,7 +646,7 @@ export default function CommunityPage() {
       created_at: new Date().toISOString(),
       user_id: user?.id || null,
       username: displayAuthor,
-      avatar_url: myAvatar,
+      avatar_url: myAvatar && !myAvatar.startsWith('data:') ? myAvatar : null,
       frame: myFrame,
       title: content.slice(0, 60),
       content,
@@ -589,7 +669,7 @@ export default function CommunityPage() {
         title: optimistic.title,
         content,
         username: displayAuthor,
-        avatar_url: myAvatar,
+        avatar_url: myAvatar && !myAvatar.startsWith('data:') ? myAvatar : null,
         frame: myFrame,
         category: channelId,
         anime_title: optimistic.anime_title || undefined,
@@ -708,17 +788,22 @@ export default function CommunityPage() {
   }
 
   const rows = useMemo(() => buildRows(messages), [messages])
+  const activeVoices = useMemo(() => {
+    const dayAgo = Date.now() - 24 * 3600e3
+    const recent = messages.filter((m) => !isTemp(m.id) && new Date(m.created_at).getTime() > dayAgo)
+    return new Set(recent.map((m) => m.user_id || splitAuthor(m.username).name)).size || (user ? 1 : 0)
+  }, [messages, user])
   const ChannelIcon = channel.icon
 
   /* -------------------------------------------------------------- render */
 
   return (
     <MotionConfig reducedMotion="user">
-      <div className="relative min-h-dvh overflow-x-clip bg-background px-2 pb-24 pt-[4.75rem] text-foreground sm:px-4 md:pb-8" style={{ '--ch': channel.tint } as CSSProperties}>
+      <div className="fixed inset-x-0 bottom-0 top-14 z-30 overflow-hidden bg-background text-foreground md:top-[4.75rem]" style={{ '--ch': channel.tint } as CSSProperties}>
         {/* ambient glow follows the channel colour */}
         <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-[28rem] opacity-80 [background:radial-gradient(60%_80%_at_50%_0%,color-mix(in_srgb,var(--ch)_22%,transparent),transparent_70%)]" />
 
-        <div className="relative mx-auto grid h-[calc(100dvh-10.75rem)] min-h-[26rem] w-full max-w-7xl overflow-hidden rounded-[1.75rem] border border-border bg-card/90 shadow-2xl shadow-black/30 md:h-[calc(100dvh-6.75rem)] md:max-h-[860px] lg:grid-cols-[15.5rem_minmax(0,1fr)] xl:grid-cols-[15.5rem_minmax(0,1fr)_20rem]">
+        <div className="relative grid h-full w-full lg:grid-cols-[15.5rem_minmax(0,1fr)] xl:grid-cols-[15.5rem_minmax(0,1fr)_20rem]">
           <LayoutGroup>
             {/* ------------------------------------------------ left rail (lg+) */}
             <aside className="hidden min-h-0 flex-col border-r border-border bg-card-2/40 lg:flex">
@@ -757,8 +842,8 @@ export default function CommunityPage() {
                       <Avatar name={authorName} src={myAvatar} frame={myFrame} size={38} animateFrame />
                     </div>
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm font-bold">{authorName}</span>
-                      <span className="block truncate text-xs text-accent">@{authorHandle || 'member'}</span>
+                      <FancyName name={authorName} effect={myEffect} font={myFont} color={myColor} className="block text-sm" />
+                      <span className="block truncate text-xs text-muted">{asc.equippedTitle || 'Otaku'} · Lv {asc.level}</span>
                     </span>
                     <Pencil className="size-3.5 shrink-0 text-muted" />
                   </Link>
@@ -773,18 +858,21 @@ export default function CommunityPage() {
 
             {/* ------------------------------------------------------ chat */}
             <main className="relative flex min-h-0 min-w-0 flex-col">
-              <header className="border-b border-border">
-                <div className="flex items-center gap-3 px-3.5 py-3 sm:px-5">
-                  <span style={{ background: 'color-mix(in srgb, var(--ch) 20%, transparent)', color: 'var(--ch)' }} className="grid size-10 shrink-0 place-items-center rounded-2xl">
+              <header className="border-b border-border bg-background/60 backdrop-blur-xl">
+                <div className="flex items-center gap-3 px-3.5 py-2.5 sm:px-5">
+                  <span style={{ background: 'color-mix(in srgb, var(--ch) 20%, transparent)', color: 'var(--ch)' }} className="grid size-11 shrink-0 place-items-center rounded-full ring-2 ring-[color-mix(in_srgb,var(--ch)_35%,transparent)]">
                     <ChannelIcon className="size-5" />
                   </span>
                   <div className="min-w-0 flex-1">
-                    <h2 className="truncate font-display text-base font-bold leading-tight">#{channel.label}</h2>
-                    <p className="truncate text-xs text-muted">{channel.desc}</p>
+                    <h2 className="truncate font-display text-base font-bold leading-tight">Zenkai lounge <span className="font-semibold text-muted">· #{channel.label}</span></h2>
+                    <p className="truncate text-xs text-muted">
+                      <span className="mr-1.5 inline-block size-1.5 rounded-full bg-emerald-400 align-middle" />
+                      {activeVoices} {activeVoices === 1 ? 'member' : 'members'} chatting today · {channel.desc}
+                    </p>
                   </div>
                   <button type="button" onClick={openName} className="flex items-center gap-2 rounded-full border border-border bg-card-2/60 py-1 pl-1 pr-3 text-xs font-semibold transition hover:border-accent/50 active:scale-95 lg:hidden" aria-label="Change your name">
                     <Avatar name={name} src={myAvatar} size={26} />
-                    <span className="max-w-[6.5rem] truncate">@{name}</span>
+                    <span className="max-w-[6.5rem] truncate">{name}</span>
                   </button>
                   <button type="button" onClick={() => setPulseOpen(true)} aria-label="Open room pulse" className="grid size-10 shrink-0 place-items-center rounded-full border border-border bg-card-2/60 text-muted transition hover:border-accent/50 hover:text-foreground active:scale-90 xl:hidden">
                     <Users className="size-4" />
@@ -809,7 +897,7 @@ export default function CommunityPage() {
 
               {/* messages */}
               <div className="relative min-h-0 flex-1">
-                <div ref={scrollRef} onScroll={onScroll} className="absolute inset-0 overflow-y-auto overscroll-contain px-3 py-4 sm:px-5" style={{ overflowAnchor: 'auto' }}>
+                <div ref={scrollRef} onScroll={onScroll} className="absolute inset-0 overflow-y-auto overscroll-contain px-2.5 py-4 sm:px-5 [background-image:radial-gradient(color-mix(in_srgb,var(--ch)_14%,transparent)_1px,transparent_1.5px)] [background-size:22px_22px]" style={{ overflowAnchor: 'auto' }}>
                   {loading ? (
                     <div className="space-y-4" aria-label="Loading messages">
                       {[0, 1, 2, 3].map((i) => (
@@ -860,11 +948,17 @@ export default function CommunityPage() {
                         const showLike = msg.likes > 0 || isLiked
                         const matchHandle = msg.username.match(/@([a-zA-Z0-9_-]+)/)
                         const authorHandleFromMsg = matchHandle ? matchHandle[1] : (msg.username.startsWith('@') ? msg.username.slice(1) : undefined)
-                        const profileLink = isMe ? (authorHandle ? `/u/${authorHandle}` : '/profile') : (authorHandleFromMsg ? `/u/${authorHandleFromMsg}` : undefined)
+                        const prof = !isMe && msg.user_id ? chatProfiles[msg.user_id] : undefined
+                        const profileLink = isMe ? (authorHandle ? `/u/${authorHandle}` : '/profile') : (prof?.handle || authorHandleFromMsg ? `/u/${prof?.handle || authorHandleFromMsg}` : undefined)
 
-                        const msgAvatar = pending ? myAvatar : (msg.avatar_url || null)
-                        const msgFrame = pending ? myFrame : (msg.frame || null)
-                        const msgName = pending ? authorName : (msg.username || 'Otaku')
+                        const parsed = splitAuthor(msg.username || 'Otaku')
+                        const msgAvatar = isMe ? myAvatar : (prof?.avatar || msg.avatar_url || null)
+                        const msgFrame = isMe ? myFrame : (prof?.frame ?? msg.frame ?? null)
+                        const msgName = isMe ? authorName : (prof?.name || parsed.name)
+                        const nameEffect = isMe ? myEffect : prof?.effect
+                        const nameFont = isMe ? myFont : prof?.font
+                        const nameColor = isMe ? myColor : prof?.color
+                        const level = isMe ? asc.level : prof?.level
 
                         return (
                           <motion.div
@@ -887,16 +981,17 @@ export default function CommunityPage() {
                             </div>
                             <div className={cn('flex min-w-0 max-w-[85%] flex-col sm:max-w-[72%]', isMe ? 'items-end' : 'items-start')}>
                               {first && (
-                                <div className={cn('mb-1 flex items-center gap-1.5 px-1 text-xs text-muted', isMe && 'flex-row-reverse')}>
+                                <div className={cn('mb-1 flex max-w-full items-center gap-1.5 px-1 text-xs text-muted', isMe && 'flex-row-reverse')}>
                                   {profileLink ? (
-                                    <Link to={profileLink} className="font-semibold text-foreground/90 hover:text-accent hover:underline">
-                                      {isMe ? `${msgName} (You)` : msgName}
+                                    <Link to={profileLink} className="min-w-0 truncate hover:opacity-80">
+                                      <FancyName name={msgName} effect={nameEffect} font={nameFont} color={nameColor} />
                                     </Link>
                                   ) : (
-                                    <span className="font-semibold text-foreground/90">{isMe ? `${msgName} (You)` : msgName}</span>
+                                    <span className="min-w-0 truncate"><FancyName name={msgName} effect={nameEffect} font={nameFont} color={nameColor} /></span>
                                   )}
-                                  <span>{timeOf(msg.created_at)}</span>
-                                  {msg.edited && <span className="italic">edited</span>}
+                                  {level ? <span className="shrink-0 rounded-full bg-foreground/10 px-1.5 py-px text-[10px] font-bold tabular-nums text-foreground/70">Lv {level}</span> : null}
+                                  <span className="shrink-0">{timeOf(msg.created_at)}</span>
+                                  {msg.edited && <span className="shrink-0 italic">edited</span>}
                                 </div>
                               )}
 
@@ -988,7 +1083,7 @@ export default function CommunityPage() {
               </div>
 
               {/* composer */}
-              <div className="border-t border-border bg-card/60 px-2.5 pb-2.5 pt-2 sm:px-4 sm:pb-3.5">
+              <div className="border-t border-border bg-background/80 px-2.5 pt-2 backdrop-blur-xl sm:px-4" style={{ paddingBottom: 'max(0.625rem, env(safe-area-inset-bottom))' }}>
                 <AnimatePresence initial={false}>
                   {tagged && (
                     <motion.div key="tag" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
@@ -1004,7 +1099,7 @@ export default function CommunityPage() {
                   )}
                 </AnimatePresence>
 
-                <div className="mb-2 flex items-center gap-1.5">
+                <div className="no-scrollbar mb-2 flex items-center gap-1.5 overflow-x-auto">
                   <button type="button" onClick={() => { setTagQuery(''); setTagOpen(true) }} className={cn('flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition active:scale-95', tagged ? 'border-accent/50 bg-accent/10 text-accent' : 'border-border text-muted hover:text-foreground')}>
                     <Clapperboard className="size-3.5" />
                     <span>{tagged ? 'Change show' : 'Tag a show'}</span>
@@ -1017,7 +1112,7 @@ export default function CommunityPage() {
                     <Shuffle className="size-3.5" />
                     <span className="hidden min-[400px]:inline">Spin a topic</span>
                   </button>
-                  <div className="no-scrollbar ml-1 hidden min-w-0 flex-1 items-center gap-0.5 overflow-x-auto sm:flex">
+                  <div className="ml-1 flex shrink-0 items-center gap-0.5">
                     {EMOJIS.map((em) => (
                       <button key={em} type="button" onClick={() => { setText((t) => (t + em).slice(0, MAX_LEN)); inputRef.current?.focus() }} className="shrink-0 rounded-full px-1.5 py-0.5 text-base transition hover:scale-125 hover:bg-foreground/10 active:scale-90" aria-label={`Add ${em}`}>
                         {em}

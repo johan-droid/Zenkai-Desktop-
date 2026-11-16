@@ -22,6 +22,8 @@ import { MovieSearchModal } from './components/MovieSearchModal'
 import { SearchModal } from './components/SearchModal'
 import { ChangelogModal } from './components/ChangelogModal'
 import { ChooseUsernameModal } from './components/ChooseUsernameModal'
+import { SystemLevelUpModal } from './components/ascension/SystemLevelUpModal'
+import { evaluateDailyLoginStreak } from './lib/ascension/ascensionStore'
 import { useTrackHistory } from './lib/backToDetails'
 import { initAniListSync } from './lib/anilist'
 import { useApplyTvMode } from './lib/keys'
@@ -68,6 +70,7 @@ const DocsPage = lazy(() => import('./pages/DocsPage'))
 const CallPage = lazy(() => import('./pages/CallPage'))
 const ExtensionGuidePage = lazy(() => import('./pages/ExtensionGuidePage'))
 const SupportPage = lazy(() => import('./pages/SupportPage'))
+const AscensionPage = lazy(() => import('./pages/AscensionPage'))
 const VisionStudioPage = lazy(() => import('./pages/VisionStudioPage'))
 const DownloadsPage = lazy(() => import('./pages/DownloadsPage'))
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage'))
@@ -109,6 +112,7 @@ export default function App() {
   const isEmbed = pathname === '/embed' || pathname.startsWith('/embed/')
   const isApi = pathname === '/api' || pathname.startsWith('/api') || pathname === '/docs'
   const isMessages = pathname.startsWith('/messages')
+  const isCommunity = pathname.startsWith('/community') // full-screen chat: no footer, no bottom dock
   const inChat = /^\/messages\/[^/]+$/.test(pathname)
   const isCall = pathname === '/call'
   const isAuth = pathname.startsWith('/auth/') || pathname === '/login'
@@ -125,6 +129,9 @@ export default function App() {
   useApplyTvMode()
   useSpatialNav()
   useEffect(() => initAniListSync(), [])
+  useEffect(() => {
+    evaluateDailyLoginStreak()
+  }, [])
   const { user } = useAuth()
   useEffect(() => {
     if (user?.id) void checkDailySync(user.id)
@@ -173,7 +180,8 @@ export default function App() {
           showNav
             ? cn(
                 sidebarCollapsed ? 'md:pl-[68px]' : 'md:pl-56',
-                'pt-14 md:pt-0'
+                // pages that open with a full-bleed hero slide under the clear mobile header
+                pathname === '/home' || pathname === '/movies' ? 'pt-0' : 'pt-14 md:pt-0'
               )
             : 'pl-0 pt-0'
         )}
@@ -237,19 +245,24 @@ export default function App() {
               <Route path="/vision" element={<VisionStudioPage />} />
               <Route path="/downloads" element={<DownloadsPage />} />
               <Route path="/support" element={<SupportPage />} />
+              <Route path="/ascension" element={<AscensionPage />} />
+              <Route path="/ascend" element={<AscensionPage />} />
+              <Route path="/missions" element={<AscensionPage />} />
+              <Route path="/quests" element={<AscensionPage />} />
               <Route path="/busted" element={<BustedPage />} />
               <Route path="*" element={<NotFoundPage />} />
             </Routes>
           </Suspense>
         </ErrorBoundary>
 
-        {!bare && !isApi && !isMessages && <Footer />}
+        {!bare && !isApi && !isMessages && !isCommunity && <Footer />}
       </div>
 
-      {!bare && !isApi && !inChat && <MobileDock onOpenDrawer={() => setDrawerOpen(true)} />}
+      {!bare && !isApi && !inChat && !isCommunity && <MobileDock onOpenDrawer={() => setDrawerOpen(true)} />}
       {!bare && !isApi && section === 'movies' ? <MovieSearchModal /> : <SearchModal />}
       <Toaster />
       <UpdatePrompt />
+      <SystemLevelUpModal />
       <ShortcutsHelp />
       <ShieldGate />
       <ChangelogModal />

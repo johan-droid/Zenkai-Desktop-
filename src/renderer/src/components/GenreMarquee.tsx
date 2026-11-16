@@ -15,20 +15,29 @@ export function GenreMarquee() {
       key={g.name}
       type="button"
       onClick={() => openSearch({ genre: g.name })}
-      className="inline-flex items-center gap-2 whitespace-nowrap rounded-full border border-border bg-card/70 px-5 py-2.5 text-sm font-medium backdrop-blur transition hover:border-transparent hover:bg-foreground hover:text-background active:scale-95"
+      className="inline-flex items-center gap-2 whitespace-nowrap rounded-full border border-border/60 bg-card/60 px-5 py-2 text-sm font-medium backdrop-blur transition hover:border-accent/40 hover:bg-card-2 hover:text-foreground active:scale-95 shadow-2xs"
     >
       {g.name}
     </button>
   )
 
   return (
-    <section aria-label="Browse by genre" className="flex flex-col gap-3 overflow-hidden py-2">
-      <Marquee duration={45} className={MASK}>
-        {first.map(chip)}
-      </Marquee>
-      <Marquee reverse duration={52} className={MASK}>
-        {second.map(chip)}
-      </Marquee>
+    <section aria-label="Browse by genre" className="mx-auto w-full max-w-7xl flex flex-col gap-4 overflow-hidden py-2">
+      <div className="px-4 sm:px-6">
+        <p className="mb-1 eyebrow text-accent flex items-center gap-1.5">
+          <span className="inline-block size-1.5 rounded-full bg-accent" />
+          Categories
+        </p>
+        <h2 className="font-display text-2xl md:text-3xl font-bold tracking-tight">Browse by Genre</h2>
+      </div>
+      <div className="flex flex-col gap-3 overflow-hidden">
+        <Marquee duration={45} className={MASK}>
+          {first.map(chip)}
+        </Marquee>
+        <Marquee reverse duration={52} className={MASK}>
+          {second.map(chip)}
+        </Marquee>
+      </div>
     </section>
   )
 }

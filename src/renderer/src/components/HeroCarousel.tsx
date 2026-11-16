@@ -198,7 +198,7 @@ export function HeroCarousel({ items }: { items: AniMedia[] }) {
         className="pointer-events-none absolute inset-x-0 -bottom-1 h-44 sm:h-64 bg-gradient-to-t from-background via-background/95 via-background/60 to-transparent z-10"
       />
 
-      <div className="relative z-20 mx-auto flex h-full w-full max-w-7xl flex-col justify-end px-5 pb-6 sm:px-8 lg:pb-10">
+      <div className="relative z-20 mx-auto flex h-full w-full max-w-7xl flex-col justify-end px-5 pb-6 sm:px-8 lg:pb-14">
         <AnimatePresence mode="wait">
           <motion.div
             key={item.id}

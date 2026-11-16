@@ -40,35 +40,43 @@ export function AnimeRow({
 
   return (
     <section id={id} className="cv-auto mx-auto w-full max-w-7xl">
-      <div className="mb-5 flex items-end justify-between gap-4 px-4 sm:px-6">
+      <div className="mb-4 sm:mb-5 flex items-end justify-between gap-4 px-4 sm:px-6">
         <div>
-          {eyebrow && <p className="mb-1 eyebrow text-accent">{eyebrow}</p>}
-          <h2 className="font-display text-2xl font-bold tracking-tight">{title}</h2>
+          {eyebrow && (
+            <p className="mb-1 eyebrow text-accent flex items-center gap-1.5">
+              <span className="inline-block size-1.5 rounded-full bg-accent" />
+              {eyebrow}
+            </p>
+          )}
+          <h2 className="font-display text-2xl md:text-3xl font-bold tracking-tight">{title}</h2>
         </div>
         <div className="flex items-center gap-2">
-        {viewAll && (
-          <Link to={viewAll} className="rounded-full border border-border bg-card/60 px-4 py-2 text-sm font-medium transition hover:bg-foreground hover:text-background active:scale-95">
-            View all
-          </Link>
-        )}
-        <div className="hidden gap-2 md:flex">
-          <button
-            type="button"
-            aria-label={`Scroll ${title} left`}
-            onClick={() => scroll(-1)}
-            className="grid size-10 place-items-center rounded-full border border-border bg-card/60 transition hover:bg-foreground hover:text-background active:scale-90"
-          >
-            <ChevronLeft className="size-5" />
-          </button>
-          <button
-            type="button"
-            aria-label={`Scroll ${title} right`}
-            onClick={() => scroll(1)}
-            className="grid size-10 place-items-center rounded-full border border-border bg-card/60 transition hover:bg-foreground hover:text-background active:scale-90"
-          >
-            <ChevronRight className="size-5" />
-          </button>
-        </div>
+          {viewAll && (
+            <Link
+              to={viewAll}
+              className="rounded-full border border-border/70 bg-card/50 px-3.5 py-1.5 text-xs font-semibold text-foreground/80 transition hover:border-accent/50 hover:bg-card-2 hover:text-accent active:scale-95 shadow-2xs"
+            >
+              View all
+            </Link>
+          )}
+          <div className="hidden gap-1.5 md:flex">
+            <button
+              type="button"
+              aria-label={`Scroll ${title} left`}
+              onClick={() => scroll(-1)}
+              className="grid size-9 place-items-center rounded-full border border-border/60 bg-card/60 backdrop-blur-sm text-muted hover:text-foreground hover:border-accent/40 hover:bg-card-2 transition active:scale-90 shadow-2xs"
+            >
+              <ChevronLeft className="size-4.5" />
+            </button>
+            <button
+              type="button"
+              aria-label={`Scroll ${title} right`}
+              onClick={() => scroll(1)}
+              className="grid size-9 place-items-center rounded-full border border-border/60 bg-card/60 backdrop-blur-sm text-muted hover:text-foreground hover:border-accent/40 hover:bg-card-2 transition active:scale-90 shadow-2xs"
+            >
+              <ChevronRight className="size-4.5" />
+            </button>
+          </div>
         </div>
       </div>
 

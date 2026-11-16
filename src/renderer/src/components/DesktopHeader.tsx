@@ -18,14 +18,11 @@ import {
   Sparkles,
   CalendarDays,
   User,
-  Wifi,
-  WifiOff,
   type LucideIcon,
 } from 'lucide-react'
 import { useDesktopNavigation } from '../hooks/useDesktopNavigation'
 import { useSearch } from '../context/SearchContext'
 import { ThemeToggle } from './ThemeToggle'
-import { sectionOf } from '../lib/sections'
 import { cn } from '../lib/utils'
 
 interface BreadcrumbItem {
@@ -160,13 +157,6 @@ function getBreadcrumbs(pathname: string): BreadcrumbItem[] {
   return [{ label: 'Zenkai' }]
 }
 
-const CATEGORIES = [
-  { label: 'Anime', to: '/home', id: 'anime' },
-  { label: 'Movies & TV', to: '/movies', id: 'movies' },
-  { label: 'Manga', to: '/manga', id: 'manga' },
-  { label: 'Novels', to: '/novel', id: 'novel' },
-]
-
 export const DesktopHeader = memo(function DesktopHeader() {
   const { pathname } = useLocation()
   const { canGoBack, canGoForward, goBack, goForward, reload } = useDesktopNavigation()
@@ -178,7 +168,6 @@ export const DesktopHeader = memo(function DesktopHeader() {
   const [reloading, setReloading] = useState(false)
 
   const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/i.test(navigator.userAgent)
-  const section = sectionOf(pathname)
   const breadcrumbs = useMemo(() => getBreadcrumbs(pathname), [pathname])
 
   // Track online/offline status
@@ -231,16 +220,16 @@ export const DesktopHeader = memo(function DesktopHeader() {
     }
   }
 
-  const iconBtn = 'grid place-items-center size-8 rounded-lg text-muted hover:text-foreground hover:bg-foreground/[0.08] transition active:scale-95 disabled:opacity-30 disabled:pointer-events-none'
+  const iconBtn = 'grid place-items-center size-8 rounded-lg text-muted hover:text-foreground hover:bg-foreground/[0.06] transition-all active:scale-95 disabled:opacity-25 disabled:pointer-events-none'
 
   return (
     <header
-      className="sticky top-0 z-40 hidden md:flex h-14 w-full items-center justify-between border-b border-border/40 bg-background/80 px-4 backdrop-blur-xl select-none"
+      className="sticky top-0 z-40 hidden md:flex h-14 w-full items-center justify-between border-b border-border/40 bg-background/85 px-4 backdrop-blur-2xl select-none transition-colors duration-200 before:absolute before:inset-x-0 before:bottom-0 before:h-px before:bg-gradient-to-r before:from-transparent before:via-accent/25 before:to-transparent"
       style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
     >
       {/* 1. Left: Navigation History Controls & Breadcrumbs */}
       <div className="flex items-center gap-3 shrink-0" style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
-        <div className="flex items-center gap-0.5">
+        <div className="flex items-center gap-0.5 rounded-xl bg-foreground/[0.03] border border-border/40 p-0.5 shadow-xs">
           <button
             type="button"
             onClick={goBack}
@@ -248,7 +237,7 @@ export const DesktopHeader = memo(function DesktopHeader() {
             title="Go Back (Alt + ← / Mouse 4)"
             className={iconBtn}
           >
-            <ChevronLeft className="size-4.5" />
+            <ChevronLeft className="size-4" />
           </button>
           <button
             type="button"
@@ -257,7 +246,7 @@ export const DesktopHeader = memo(function DesktopHeader() {
             title="Go Forward (Alt + → / Mouse 5)"
             className={iconBtn}
           >
-            <ChevronRight className="size-4.5" />
+            <ChevronRight className="size-4" />
           </button>
           <button
             type="button"
@@ -276,11 +265,11 @@ export const DesktopHeader = memo(function DesktopHeader() {
             const Icon = crumb.icon
             return (
               <div key={crumb.label + idx} className="flex items-center gap-1.5">
-                {idx > 0 && <span className="opacity-40 select-none">/</span>}
+                {idx > 0 && <ChevronRight className="size-3 text-muted/30 shrink-0" />}
                 {crumb.to && !isLast ? (
                   <Link
                     to={crumb.to}
-                    className="inline-flex items-center gap-1.5 transition hover:text-foreground hover:underline"
+                    className="inline-flex items-center gap-1.5 transition-colors hover:text-foreground"
                   >
                     {Icon && <Icon className="size-3.5 shrink-0 text-accent" />}
                     <span className="truncate max-w-[140px]">{crumb.label}</span>
@@ -297,45 +286,25 @@ export const DesktopHeader = memo(function DesktopHeader() {
         </nav>
       </div>
 
-      {/* 2. Center: Quick Category Pills & Omni-Search Bar */}
-      <div className="flex items-center gap-3 max-w-xl flex-1 justify-center px-4" style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
-        {/* Category Pills */}
-        <div className="hidden lg:flex items-center rounded-xl bg-foreground/[0.04] p-0.5 border border-border/40">
-          {CATEGORIES.map((cat) => {
-            const active = section === cat.id
-            return (
-              <Link
-                key={cat.id}
-                to={cat.to}
-                className={cn(
-                  'rounded-lg px-2.5 py-1 text-xs font-semibold transition-all',
-                  active
-                    ? 'bg-foreground/[0.12] text-foreground shadow-sm'
-                    : 'text-muted hover:text-foreground hover:bg-foreground/[0.06]'
-                )}
-              >
-                {cat.label}
-              </Link>
-            )
-          })}
-        </div>
-
-        {/* Omni Search Button */}
+      {/* 2. Center: Sleek Spotlight Omni-Search Bar */}
+      <div className="flex items-center justify-center flex-1 max-w-lg px-4" style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
         <button
           type="button"
           onClick={() => openSearch()}
-          className="group flex h-9 w-full max-w-[340px] items-center gap-2.5 rounded-xl border border-border/60 bg-card/60 px-3 text-xs text-muted shadow-sm transition hover:border-accent/40 hover:bg-card hover:text-foreground active:scale-[0.99]"
+          className="group relative flex h-9 w-full items-center gap-2.5 rounded-full border border-border/50 bg-foreground/[0.03] px-3.5 text-xs text-muted shadow-2xs transition-all hover:border-accent/40 hover:bg-foreground/[0.06] hover:text-foreground hover:shadow-xs active:scale-[0.99]"
         >
-          <Search className="size-3.5 text-muted transition group-hover:text-accent" />
-          <span className="truncate text-left font-normal flex-1">Search anime, movies, manga...</span>
-          <kbd className="inline-flex items-center gap-0.5 rounded-md border border-border/60 bg-foreground/[0.05] px-1.5 py-0.5 font-mono text-[10px] font-semibold text-muted">
+          <Search className="size-3.5 text-muted/70 transition-colors group-hover:text-accent" />
+          <span className="truncate text-left font-normal flex-1 text-muted/80 group-hover:text-foreground">
+            Search anime, movies, manga...
+          </span>
+          <kbd className="inline-flex items-center gap-0.5 rounded-md border border-border/50 bg-background/60 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-muted shadow-2xs">
             {isMac ? '⌘K' : 'Ctrl K'}
           </kbd>
         </button>
       </div>
 
-      {/* 3. Right: Quick Actions (Downloads, Fullscreen, Settings, Appearance) */}
-      <div className="flex items-center gap-1.5 shrink-0" style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
+      {/* 3. Right: Quick Actions (Downloads, WatchParty, Fullscreen, Appearance, Settings, Online) */}
+      <div className="flex items-center gap-1 shrink-0" style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
         {/* Offline Downloads Quick Access */}
         <Link
           to="/downloads"
@@ -344,7 +313,7 @@ export const DesktopHeader = memo(function DesktopHeader() {
         >
           <Download className="size-4" />
           {activeDownloads > 0 && (
-            <span className="absolute -top-0.5 -right-0.5 flex size-4 items-center justify-center rounded-full bg-accent text-[9px] font-bold text-black shadow animate-pulse">
+            <span className="absolute -top-0.5 -right-0.5 flex size-4 items-center justify-center rounded-full bg-accent text-[9px] font-bold text-accent-fg shadow-sm animate-pulse">
               {activeDownloads}
             </span>
           )}
@@ -369,10 +338,10 @@ export const DesktopHeader = memo(function DesktopHeader() {
           {isFullscreen ? <Minimize2 className="size-4" /> : <Maximize2 className="size-4" />}
         </button>
 
+        <div className="h-4 w-px bg-border/40 mx-1" />
+
         {/* Theme Appearance Switcher */}
-        <div className="pl-1">
-          <ThemeToggle />
-        </div>
+        <ThemeToggle />
 
         {/* Settings Navigation */}
         <Link
@@ -386,11 +355,11 @@ export const DesktopHeader = memo(function DesktopHeader() {
         {/* Network Connectivity Indicator */}
         <div
           title={isOnline ? 'Online (Connected)' : 'Offline (No Internet)'}
-          className="ml-1 flex items-center justify-center"
+          className="ml-1.5 flex items-center justify-center px-1"
         >
           {isOnline ? (
             <span className="relative flex size-2">
-              <span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+              <span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-400 opacity-60" />
               <span className="relative inline-flex size-2 rounded-full bg-emerald-500" />
             </span>
           ) : (

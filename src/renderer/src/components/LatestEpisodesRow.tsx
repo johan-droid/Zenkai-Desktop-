@@ -183,27 +183,30 @@ export function LatestEpisodesRow({ items, loading }: LatestEpisodesRowProps) {
 
   return (
     <section className="cv-auto mx-auto w-full max-w-7xl">
-      <div className="mb-4 flex items-end justify-between gap-4 px-4 sm:px-6">
+      <div className="mb-4 sm:mb-5 flex items-end justify-between gap-4 px-4 sm:px-6">
         <div>
-          <h2 className="font-display text-2xl font-bold tracking-tight text-foreground">Latest Episodes</h2>
-          <p className="mt-0.5 text-xs text-muted font-medium">Recently released episodes</p>
+          <p className="mb-1 eyebrow text-accent flex items-center gap-1.5">
+            <span className="inline-block size-1.5 rounded-full bg-accent" />
+            Fresh Releases
+          </p>
+          <h2 className="font-display text-2xl md:text-3xl font-bold tracking-tight text-foreground">Latest Episodes</h2>
         </div>
-        <div className="hidden gap-2 md:flex">
+        <div className="hidden gap-1.5 md:flex">
           <button
             type="button"
             aria-label="Scroll left"
             onClick={() => scroll(-1)}
-            className="grid size-9 place-items-center rounded-full border border-border bg-card/60 text-muted hover:text-foreground hover:bg-card-2 transition active:scale-90 shadow-sm"
+            className="grid size-9 place-items-center rounded-full border border-border/60 bg-card/60 backdrop-blur-sm text-muted hover:text-foreground hover:border-accent/40 hover:bg-card-2 transition active:scale-90 shadow-2xs"
           >
-            <ChevronLeft className="size-4" />
+            <ChevronLeft className="size-4.5" />
           </button>
           <button
             type="button"
             aria-label="Scroll right"
             onClick={() => scroll(1)}
-            className="grid size-9 place-items-center rounded-full border border-border bg-card/60 text-muted hover:text-foreground hover:bg-card-2 transition active:scale-90 shadow-sm"
+            className="grid size-9 place-items-center rounded-full border border-border/60 bg-card/60 backdrop-blur-sm text-muted hover:text-foreground hover:border-accent/40 hover:bg-card-2 transition active:scale-90 shadow-2xs"
           >
-            <ChevronRight className="size-4" />
+            <ChevronRight className="size-4.5" />
           </button>
         </div>
       </div>

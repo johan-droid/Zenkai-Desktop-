@@ -8,6 +8,7 @@ import { finished } from "node:stream/promises";
 import { showNotification } from "./notify";
 import { isPlaybackActive } from "./playback";
 import { readSettings } from "./settings";
+import { log } from "./logger";
 
 const CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000; // 6 hours
 
@@ -228,12 +229,14 @@ export function setupAutoUpdater(): void {
   }
 
   autoUpdater.on("checking-for-update", () => {
+    log.updater.info("Checking for updates via autoUpdater...");
     console.log("[updater] checking for updates...");
     currentDiagnostics.lastCheckTime = new Date().toISOString();
     broadcastToWindows("updater:status", { status: "checking" });
   });
 
   autoUpdater.on("update-available", (info) => {
+    log.updater.info(`Update available: v${info.version}`);
     console.log(`[updater] update available: ${info.version}`);
     currentDiagnostics.updateAvailable = true;
     currentDiagnostics.availableVersion = info.version;
@@ -270,6 +273,7 @@ export function setupAutoUpdater(): void {
   });
 
   autoUpdater.on("update-not-available", () => {
+    log.updater.success("Application is up to date");
     console.log("[updater] app is up to date");
     currentDiagnostics.updateAvailable = false;
     currentDiagnostics.availableVersion = undefined;
@@ -278,6 +282,7 @@ export function setupAutoUpdater(): void {
   });
 
   autoUpdater.on("download-progress", (progressObj) => {
+    log.updater.debug(`Download progress: ${Math.round(progressObj.percent)}%`);
     currentDiagnostics.downloadState = "downloading";
     broadcastToWindows("updater:status", {
       status: "downloading",
@@ -286,6 +291,7 @@ export function setupAutoUpdater(): void {
   });
 
   autoUpdater.on("update-downloaded", (info) => {
+    log.updater.success(`Update v${info.version} downloaded and verified`);
     console.log(`[updater] update downloaded: ${info.version}`);
     currentDiagnostics.downloadState = "downloaded";
     currentDiagnostics.downloadedVersion = info.version;

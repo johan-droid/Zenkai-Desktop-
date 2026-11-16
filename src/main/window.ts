@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { WEB_URL } from "../shared/config";
 import { getSettings, updateSettings } from "./settings";
 import { getActiveRendererPath, setupCanaryHealthCheck } from "./renderer-updater";
+import { log } from "./logger";
 
 export function getAppIconPath(): string | undefined {
   const iconName = process.platform === "win32" ? "icon.ico" : "icon.png";
@@ -89,9 +90,52 @@ export function createMainWindow(): BrowserWindow {
     }
   });
 
-  win.once("ready-to-show", () => win.show());
+  win.once("ready-to-show", () => {
+    log.window.info("Main window ready to show — making visible");
+    win.show();
+  });
 
   const target = getAppEntryTarget();
+  log.window.info(`Loading UI entry target: [${target.type}] ${target.path}`);
+
+  win.webContents.on("did-finish-load", () => {
+    log.window.success(`UI loaded successfully: ${win.webContents.getURL()}`);
+  });
+
+  win.webContents.on("did-fail-load", (_e, code, desc, url) => {
+    log.window.error(`UI load failure: ${url} (${desc}, code ${code})`);
+  });
+
+  win.webContents.on("render-process-gone", (_e, details) => {
+    log.window.error(
+      `Renderer process terminated unexpectedly: reason=${details.reason}, exitCode=${details.exitCode}`,
+    );
+  });
+
+  // Forward renderer console logs to terminal
+  win.webContents.on(
+    "console-message",
+    (_event, level, message, line, sourceId) => {
+      if (
+        message.includes("Download the React DevTools") ||
+        message.includes("React Router Future Flag")
+      ) {
+        return;
+      }
+      const shortSrc = sourceId ? sourceId.split("/").pop()?.split("?")[0] : "";
+      const loc = shortSrc ? ` (${shortSrc}:${line})` : "";
+      if (level === 3) {
+        log.ui.error(`${message}${loc}`);
+      } else if (level === 2) {
+        log.ui.warn(`${message}${loc}`);
+      } else if (level === 1) {
+        log.ui.info(`${message}${loc}`);
+      } else {
+        log.ui.debug(`${message}${loc}`);
+      }
+    },
+  );
+
   if (target.type === "file") {
     setupCanaryHealthCheck(win, target.path);
     void win.loadFile(target.path);

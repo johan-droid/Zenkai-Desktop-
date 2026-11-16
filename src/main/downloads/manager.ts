@@ -11,6 +11,7 @@ import { getSettings } from "../settings";
 import { downloadHlsStream } from "./hls-download";
 import { sanitizeFilename } from "./sanitize";
 import { downloadSubtitles } from "./subtitles";
+import { log } from "../logger";
 
 export interface DownloadEntry {
   id: string;
@@ -168,6 +169,7 @@ async function run(e: DownloadEntry): Promise<void> {
   controllers.set(e.id, controller);
   persist();
   updateTaskbarProgress();
+  log.download.info(`Starting download worker for "${e.name}" (${e.id})`);
   try {
     // Disk space guard (B3)
     const dir = downloadDir();
@@ -201,6 +203,7 @@ async function run(e: DownloadEntry): Promise<void> {
 
     if (items.has(e.id)) {
       e.status = "done";
+      log.download.success(`Download completed: "${e.name}" (${e.path})`);
       try {
         showNotification({
           id: e.id,
@@ -218,6 +221,7 @@ async function run(e: DownloadEntry): Promise<void> {
     if (!items.has(e.id)) return; // removed mid-flight
     e.status = "error";
     e.error = err instanceof Error ? err.message : String(err);
+    log.download.error(`Download failed ["${e.name}"]:`, e.error);
     console.error(
       `[downloads] ${e.id} failed:`,
       err instanceof Error ? err.message : err,

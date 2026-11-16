@@ -1,4 +1,5 @@
 import { API_BASE, API_FALLBACK_BASE, BARRIER_TOKEN } from "../../shared/config";
+import { log } from "../logger";
 
 export class ApiError extends Error {
   constructor(
@@ -106,6 +107,7 @@ async function executeWithRetry<T>(
           );
         }
 
+        const start = Date.now();
         const res = await fetch(url, {
           ...init,
           headers,
@@ -114,12 +116,16 @@ async function executeWithRetry<T>(
         clearTimeout(timer);
 
         if (res.ok) {
+          log.api.debug(`GET ${url} -> ${res.status} OK (${Date.now() - start}ms)`);
           return (await res.json()) as T;
         }
 
         // Retry on 5xx
         if (res.status >= 500) {
           const errText = await res.text().catch(() => "");
+          log.api.warn(
+            `GET ${url} -> ${res.status} server error (attempt ${i + 1}/${attempts})`,
+          );
           lastError = new ApiError(
             `Server error (${res.status}): ${errText.slice(0, 100)}`,
             res.status,
@@ -136,6 +142,9 @@ async function executeWithRetry<T>(
         const errJson = (await res.json().catch(() => null)) as {
           error?: string;
         } | null;
+        log.api.error(
+          `GET ${url} -> ${res.status} error: ${errJson?.error ?? "Client error"}`,
+        );
         throw new ApiError(
           errJson?.error ?? `Request failed with status ${res.status}`,
           res.status,
@@ -143,6 +152,10 @@ async function executeWithRetry<T>(
         );
       } catch (err: unknown) {
         lastError = err instanceof Error ? err : new Error(String(err));
+        log.api.warn(
+          `GET ${url} exception (attempt ${i + 1}/${attempts}):`,
+          lastError.message,
+        );
         if (i < attempts - 1) {
           await new Promise((r) => setTimeout(r, 500 * Math.pow(2, i)));
           continue;

@@ -4,6 +4,7 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { ALLOWED_ORIGINS } from "../shared/config";
 import { getActiveRendererPath } from "./renderer-updater";
+import { log } from "./logger";
 
 // §6.4: only these three permissions may be granted (T3 step 3).
 const ALLOWED_PERMISSIONS = new Set(["notifications", "fullscreen", "media"]);
@@ -118,9 +119,33 @@ export function registerSecurity(): void {
       requestHeaders["X-Zenkai-Barrier"] = "zenkai-barrier-apk-2026-v1";
       requestHeaders["User-Agent"] =
         "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36";
+      log.security.debug(`Injected barrier & origin headers -> ${details.url}`);
       callback({ requestHeaders });
     },
   );
+
+  // Detailed network response tracking in terminal
+  session.defaultSession.webRequest.onCompleted((details) => {
+    if (
+      details.url.startsWith("data:") ||
+      details.url.startsWith("blob:") ||
+      (details.url.startsWith("file:") && !details.url.endsWith(".html"))
+    ) {
+      return;
+    }
+    const method = details.method || "GET";
+    const status = details.statusCode;
+    if (status >= 400) {
+      log.net.warn(`${method} ${details.url} -> ${status} ${details.statusLine}`);
+    } else {
+      log.net.debug(`${method} ${details.url} -> ${status}`);
+    }
+  });
+
+  session.defaultSession.webRequest.onErrorOccurred((details) => {
+    if (details.url.startsWith("data:") || details.url.startsWith("blob:")) return;
+    log.net.error(`${details.method} ${details.url} -> ERROR: ${details.error}`);
+  });
 
   // CSP header on app-origin document responses (§6.3) and frame header normalization for embeds.
   session.defaultSession.webRequest.onHeadersReceived((details, callback) => {

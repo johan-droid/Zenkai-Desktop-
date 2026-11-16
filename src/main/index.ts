@@ -1,4 +1,5 @@
 import { app, BrowserWindow, globalShortcut } from "electron";
+import { log } from "./logger";
 import "./ipc";
 import { buildMenu } from "./menu";
 import { registerPlayback } from "./playback";
@@ -8,6 +9,16 @@ import { registerSecurity } from "./security";
 import { createTray } from "./tray";
 import { setupAutoUpdater } from "./updater";
 import { createMainWindow } from "./window";
+
+log.main.info("========================================================");
+log.main.info(`Starting Zenkai Desktop v${app.getVersion() || "0.0.1"}`);
+log.main.info(
+  `OS: ${process.platform} (${process.arch}) | Electron: ${process.versions.electron} | Chromium: ${process.versions.chrome} | Node: ${process.versions.node}`,
+);
+log.main.info(
+  `Environment: ${app.isPackaged ? "Production (Packaged)" : "Development (Source)"}`,
+);
+log.main.info("========================================================");
 
 // T11: must run before app ready (single-instance lock + protocol registration).
 registerProtocol();
@@ -20,6 +31,7 @@ function setupWindow(): BrowserWindow {
 }
 
 app.whenReady().then(() => {
+  log.main.info("Electron app ready event fired — initializing services");
   registerSecurity();
   setupWindow();
   buildMenu();
@@ -28,31 +40,39 @@ app.whenReady().then(() => {
 
   // first instance launched directly with a zenkai:// link
   const initial = findDeepLink(process.argv);
-  if (initial) handleDeepLink(initial);
+  if (initial) {
+    log.main.info("Launched with deep link argument:", initial);
+    handleDeepLink(initial);
+  }
 
   // B8: Global quick-summon hotkey
   try {
     globalShortcut.register("CommandOrControl+Shift+Z", () => {
       const win = BrowserWindow.getAllWindows().find((w) => !w.isDestroyed());
       if (win) {
+        log.main.debug("Global quick-summon shortcut triggered (Ctrl+Shift+Z)");
         if (win.isMinimized()) win.restore();
         win.show();
         win.focus();
       }
     });
+    log.main.debug("Registered global shortcut: CommandOrControl+Shift+Z");
   } catch (err) {
-    console.warn("[hotkey] failed to register global quick-summon shortcut:", err);
+    log.main.warn("Failed to register global quick-summon shortcut:", err);
   }
 
   app.on("activate", () => {
+    log.main.debug("App activated (macOS/dock)");
     if (BrowserWindow.getAllWindows().length === 0) setupWindow();
   });
 });
 
 app.on("will-quit", () => {
+  log.main.info("Application will quit — unregistering shortcuts");
   globalShortcut.unregisterAll();
 });
 
 app.on("window-all-closed", () => {
+  log.main.info("All windows closed");
   if (process.platform !== "darwin") app.quit();
 });

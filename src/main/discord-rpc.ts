@@ -1,4 +1,5 @@
 import { Client, type SetActivity } from "@xhayper/discord-rpc";
+import { log } from "./logger";
 
 // T9 — Discord Rich Presence. Contract: rpc:set {title, details?, startedAt?}
 // / rpc:clear. B3: app ID from ZENKAI_DISCORD_APP_ID; missing → disabled, log once.
@@ -75,6 +76,7 @@ export function setRpcActivity(p: {
   startedAt?: number;
 }): void {
   if (disabled()) return;
+  log.discord.info(`Activity: "${p.title}" ${p.details ? `— ${p.details}` : ""}`);
   pending = {
     state: p.title,
     ...(p.details ? { details: p.details } : {}),
@@ -86,6 +88,7 @@ export function setRpcActivity(p: {
 
 export function clearRpcActivity(): void {
   if (disabled()) return;
+  log.discord.debug("Activity cleared");
   pending = null;
   ensureClient();
   void applyPending();

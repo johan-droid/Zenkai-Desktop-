@@ -35,7 +35,13 @@ test("home hero pager stays visible and shelves start below the hero", async () 
     await win.waitForTimeout(1200);
     for (const name of ["Continue", "Got it", "Maybe later"]) {
       const button = win.getByRole("button", { name, exact: true }).first();
-      if (await button.isVisible().catch(() => false)) await button.click();
+      if (await button.isVisible().catch(() => false)) await button.click().catch(() => {});
+    }
+    // Release notes can finish loading after the initial page render.
+    await win.locator('[role="dialog"]').waitFor({ state: "visible", timeout: 5000 }).catch(() => {});
+    for (const name of ["Continue", "Got it", "Maybe later", "Close"]) {
+      const button = win.getByRole("button", { name, exact: true }).first();
+      if (await button.isVisible().catch(() => false)) await button.click().catch(() => {});
     }
     await win.waitForTimeout(400);
     await win.evaluate(() => window.scrollTo(0, 0));

@@ -2,6 +2,7 @@ import { Img } from './Img'
 import { Link } from 'react-router-dom'
 import { Play, X } from 'lucide-react'
 import { removeHistory, useHistory, type HistoryItem } from '../lib/library'
+import { DIRECT } from '../lib/servers'
 import { cn } from '../lib/utils'
 
 const left = (h: HistoryItem) => {
@@ -13,7 +14,8 @@ const left = (h: HistoryItem) => {
 function Card({ h }: { h: HistoryItem }) {
   const pct = h.dur > 0 ? Math.min(100, Math.round((h.pos / h.dur) * 100)) : 0
   const isDone = h.dur > 0 && h.pos >= h.dur * 0.9
-  const href = `/watch/${h.id}?ep=${h.ep}&server=${h.server}&audio=${h.audio}`
+  const validServer = DIRECT.some((d) => d.id === h.server) ? h.server : 'megaplay'
+  const href = `/watch/${h.id}?ep=${h.ep}&server=${validServer}&audio=${h.audio}`
   return (
     <div className="group/card relative w-[148px] shrink-0 snap-start sm:w-[178px] lg:w-[196px]">
       <button

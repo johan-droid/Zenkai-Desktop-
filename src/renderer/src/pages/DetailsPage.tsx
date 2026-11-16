@@ -16,6 +16,7 @@ import { useFiller } from '../hooks/useFiller'
 import { episodeCounts } from '../lib/episodes'
 import { lastEpisode } from '../lib/progress'
 import { getHistory } from '../lib/library'
+import { DIRECT } from '../lib/servers'
 import { ListButton } from '../components/ListButton'
 import { useSearch } from '../context/SearchContext'
 import { mediaToCard, recommendationToCard, relationToCard } from '../lib/mappers'
@@ -233,7 +234,8 @@ export default function DetailsPage() {
   const resume = lastEpisode(a.id)
   const watchable = a.status !== 'NOT_YET_RELEASED' && counts.available > 0
   const last = getHistory(a.id)
-  const watchHref = `/watch/${a.id}?ep=${Math.min(resume || 1, counts.available || 1)}${last ? `&server=${last.server}&audio=${last.audio}` : ''}`
+  const lastServer = last && DIRECT.some((d) => d.id === last.server) ? last.server : 'megaplay'
+  const watchHref = `/watch/${a.id}?ep=${Math.min(resume || 1, counts.available || 1)}${last ? `&server=${lastServer}&audio=${last.audio}` : ''}`
   const heroImg = tmdbImg(tmdb?.backdrop, 'w1280') ?? a.bannerImage ?? a.coverImage.extraLarge ?? ''
   const statsView = stats.data ?? anilistStats(a)
 

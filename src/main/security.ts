@@ -13,7 +13,7 @@ const CSP =
   "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; " +
   "img-src 'self' data: https:; media-src 'self' blob: https:; " +
   "connect-src 'self' https:; font-src 'self' data:; " +
-  "frame-src 'none'; object-src 'none'; base-uri 'none';";
+  "frame-src 'self' blob: https:; object-src 'none'; base-uri 'none';";
 
 function isAllowedOrigin(url: string): boolean {
   try {
@@ -122,24 +122,49 @@ export function registerSecurity(): void {
     },
   );
 
-  // CSP header on app-origin document responses (§6.3).
-  session.defaultSession.webRequest.onHeadersReceived(
-    { urls: ALLOWED_ORIGINS.map((o) => `${o}/*`) },
-    (details, callback) => {
-      if (
-        details.resourceType !== "mainFrame" &&
-        details.resourceType !== "subFrame"
-      ) {
-        callback({});
-        return;
-      }
-      const headers = { ...details.responseHeaders };
+  // CSP header on app-origin document responses (§6.3) and frame header normalization for embeds.
+  session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+    const headers = { ...details.responseHeaders };
+    let changed = false;
+
+    const isAppOrigin =
+      details.url.startsWith("file:") ||
+      (ALLOWED_ORIGINS as readonly string[]).some((o) =>
+        details.url.startsWith(o),
+      );
+
+    if (
+      isAppOrigin &&
+      (details.resourceType === "mainFrame" ||
+        details.resourceType === "subFrame")
+    ) {
       for (const key of Object.keys(headers)) {
         if (key.toLowerCase() === "content-security-policy")
           delete headers[key];
       }
       headers["Content-Security-Policy"] = [CSP];
-      callback({ responseHeaders: headers });
-    },
-  );
+      changed = true;
+    }
+
+    // Allow iframes (trailers, embed players) to render without being blocked by X-Frame-Options or frame-ancestors
+    if (details.resourceType === "subFrame") {
+      for (const key of Object.keys(headers)) {
+        const lk = key.toLowerCase();
+        if (lk === "x-frame-options") {
+          delete headers[key];
+          changed = true;
+        } else if (lk === "content-security-policy") {
+          const modified = headers[key].map((v) =>
+            v.replace(/frame-ancestors[^;]+;?/gi, ""),
+          );
+          if (JSON.stringify(modified) !== JSON.stringify(headers[key])) {
+            headers[key] = modified;
+            changed = true;
+          }
+        }
+      }
+    }
+
+    callback(changed ? { responseHeaders: headers } : {});
+  });
 }

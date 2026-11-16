@@ -3231,7 +3231,9 @@ const slider = (label: string, key: 'opacity' | 'lh' | 'width' | 'blur' | 'scale
             <p className="text-sm font-medium">This stream could not be loaded directly on this network.</p>
             <div className="zp-two" style={{ pointerEvents: 'auto', gap: '8px', flexWrap: 'wrap', justifyContent: 'center' }}>
               {(() => {
-                const best = servers?.find((s) => s.id === 'vidzee' || s.id === 'videasy' || s.id === 'vidup');
+                const best =
+                  servers?.find((s) => s.id !== serverId) ??
+                  servers?.find((s) => s.id === 'vidstream' || s.id === 'megaplay' || s.id === 'flixcloud');
                 if (best && onServer) {
                   return (
                     <button

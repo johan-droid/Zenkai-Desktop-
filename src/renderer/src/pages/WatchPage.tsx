@@ -244,7 +244,12 @@ export default function WatchPage() {
     [id, ep, title, sessionVerified]
   )
   const serverAudio = serverAudioQuery.data
-  const defaultServer = id >= 900000 ? 'acdn' : (saved.server ?? 'megaplay')
+  const defaultServer =
+    id >= 900000
+      ? 'acdn'
+      : saved.server && DIRECT.some((d) => d.id === saved.server)
+        ? saved.server
+        : 'megaplay'
   const wanted = serverById(sp.get('server') ?? defaultServer)
   const server = wanted.id === 'acdn' && acdn === false ? serverById('megaplay') : wanted
   const directList = DIRECT.filter((s) => s.id !== 'acdn' || acdn === true)
@@ -1016,12 +1021,12 @@ export default function WatchPage() {
               </Problem>
             ) : (
               <Frame>
-                <iframe key={salt.data} src={salt.data} title={title} allow="autoplay; fullscreen; picture-in-picture; encrypted-media" allowFullScreen className="absolute inset-0 size-full border-0" />
+                <iframe key={salt.data} src={salt.data} title={title} allow="autoplay; fullscreen; picture-in-picture; encrypted-media" allowFullScreen className="absolute inset-0 size-full border-0 bg-black" />
               </Frame>
             )
           ) : embedSrc ? (
             <Frame>
-              <iframe key={embedSrc} src={embedSrc} title={title} allow="autoplay; fullscreen; picture-in-picture; encrypted-media" allowFullScreen className="absolute inset-0 size-full border-0" />
+              <iframe key={embedSrc} src={embedSrc} title={title} allow="autoplay; fullscreen; picture-in-picture; encrypted-media" allowFullScreen className="absolute inset-0 size-full border-0 bg-black" />
             </Frame>
           ) : bundle === null ? (
             <Loading quiet={serverBusy} logo={logo} />

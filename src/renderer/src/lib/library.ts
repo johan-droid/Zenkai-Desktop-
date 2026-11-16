@@ -151,11 +151,26 @@ const items = () => isArr(list.get(), emptyList)
 export const meta = (c: Meta): Meta => ({ id: c.id, title: c.title, image: c.image, color: c.color ?? null, score: c.score, format: c.format ?? null, episodes: c.episodes ?? null, year: c.year ?? null })
 
 /* ---------- prefs ---------- */
-export const getPrefs = (): Prefs => prefs.get()
+const DIRECT_SERVER_IDS = new Set(['megaplay', 'vidstream', 'flixcloud', 'acdn'])
+
+export const getPrefs = (): Prefs => {
+  const p = prefs.get()
+  if (p.server && !DIRECT_SERVER_IDS.has(p.server)) {
+    return { ...p, server: 'megaplay' }
+  }
+  return p
+}
+
 export function savePrefs(p: Prefs) {
   const cur = prefs.get()
-  if (p.server === cur.server && p.audio === cur.audio) return
-  prefs.set({ ...cur, ...p })
+  const sanitizedServer =
+    p.server && DIRECT_SERVER_IDS.has(p.server)
+      ? p.server
+      : DIRECT_SERVER_IDS.has(cur.server ?? '')
+        ? cur.server
+        : 'megaplay'
+  if (sanitizedServer === cur.server && p.audio === cur.audio) return
+  prefs.set({ ...cur, ...p, ...(p.server ? { server: sanitizedServer } : {}) })
 }
 
 /* ---------- history ---------- */

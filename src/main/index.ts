@@ -9,6 +9,8 @@ import { registerSecurity } from "./security";
 import { createTray } from "./tray";
 import { setupAutoUpdater } from "./updater";
 import { createMainWindow } from "./window";
+import { configureGpuSwitches } from "./gpu";
+import { getSettings } from "./settings";
 
 log.main.info("========================================================");
 log.main.info(`Starting Zenkai Desktop v${app.getVersion() || "0.0.1"}`);
@@ -20,13 +22,9 @@ log.main.info(
 );
 log.main.info("========================================================");
 
-// Hardware acceleration and WebGPU enablement (optimized for both Linux Wayland/X11 and Windows)
-app.commandLine.appendSwitch('enable-unsafe-webgpu');
-app.commandLine.appendSwitch('enable-webgpu-developer-features');
-app.commandLine.appendSwitch('enable-features', 'WebGPU,VaapiVideoDecoder,VaapiVideoEncoder');
-app.commandLine.appendSwitch('ignore-gpu-blocklist');
-app.commandLine.appendSwitch('enable-gpu-rasterization');
-app.commandLine.appendSwitch('enable-zero-copy');
+// Hardware acceleration and WebGPU enablement driven by platform and user settings
+const initialSettings = getSettings();
+configureGpuSwitches(initialSettings);
 
 // T11: must run before app ready (single-instance lock + protocol registration).
 registerProtocol();

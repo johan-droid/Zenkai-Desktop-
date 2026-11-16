@@ -24,7 +24,7 @@ describe("settings store (T5)", () => {
     expect(s.pauseOnClose).toBe(true);
     expect(s.rpcEnabled).toBe(true);
     expect(s.theme).toBe("system");
-    expect(s.hwDecode).toBe(process.platform !== "linux");
+    expect(s.hwDecode).toBe(true);
     expect(s.downloadDir).toBe(defaultDownloadDir());
     expect(s.windowState).toBeUndefined();
   });

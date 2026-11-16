@@ -1,6 +1,7 @@
 node_modules/
 out/
 release/
+release-test/
 test-results/
 playwright-report/
 .agents/

@@ -108,19 +108,47 @@ export async function startVisionLive(
     throw new Error('No compatible GPU adapter found for WebGPU live processing');
   }
 
+  // Reject CPU software fallback adapters (e.g. SwiftShader emulation)
+  if ((adapter as any).isFallbackAdapter) {
+    throw new Error('WebGPU physical hardware acceleration unavailable (fallback adapter rejected)');
+  }
+
   let adapterName = 'GPU Adapter';
   let isIGPU = false;
   try {
     const info = (adapter as any).info || (await (adapter as any).requestAdapterInfo?.()) || {};
     const desc = (info.description || info.device || '').toLowerCase();
     const vendor = (info.vendor || '').toLowerCase();
-    const arch = (info.architecture || '').toLowerCase();
-    if (info.description || info.device) {
-      adapterName = info.description || info.device;
-    } else if (info.vendor) {
-      adapterName = `${info.vendor.toUpperCase()}${arch ? ` (${arch})` : ''} GPU`;
+    let arch = (info.architecture || '').toLowerCase();
+    const deviceId = (info.device || '').toLowerCase();
+
+    // Correct Dawn static PCI ID table misclassification (0x164c Lucienne / Renoir GFX9 mapped to rdna-2)
+    const isAmdRenoirLucienne =
+      vendor.includes('amd') &&
+      (deviceId.includes('164c') ||
+        desc.includes('renoir') ||
+        desc.includes('lucienne') ||
+        (arch.includes('rdna') && (desc.includes('graphics') || desc.includes('radv'))));
+
+    if (isAmdRenoirLucienne) {
+      arch = 'Vega / Renoir (GFX9)';
     }
+
+    if (info.description) {
+      adapterName = isAmdRenoirLucienne && !info.description.includes('Vega')
+        ? `${info.description} (Vega / Renoir)`
+        : info.description;
+    } else if (info.device && !info.device.startsWith('0x')) {
+      adapterName = info.device;
+    } else if (info.vendor) {
+      const vendorUpper = info.vendor.toUpperCase();
+      adapterName = isAmdRenoirLucienne
+        ? `${vendorUpper} Radeon Graphics (Vega / Renoir)`
+        : `${vendorUpper}${arch ? ` (${arch})` : ''} GPU`;
+    }
+
     isIGPU =
+      isAmdRenoirLucienne ||
       desc.includes('intel') ||
       desc.includes('uhd') ||
       desc.includes('iris') ||
@@ -131,7 +159,10 @@ export async function startVisionLive(
       desc.includes('radeon graphics') ||
       desc.includes('integrated') ||
       vendor.includes('intel') ||
-      (vendor.includes('amd') && (desc.includes('graphics') || !desc.includes('radeon rx') || (typeof navigator !== 'undefined' && ((navigator as any).deviceMemory || 8) <= 8)));
+      (vendor.includes('amd') &&
+        (desc.includes('graphics') ||
+          !desc.includes('radeon rx') ||
+          (typeof navigator !== 'undefined' && ((navigator as any).deviceMemory || 8) <= 8)));
   } catch {}
 
   const device = await adapter.requestDevice();

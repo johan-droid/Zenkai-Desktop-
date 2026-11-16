@@ -287,4 +287,96 @@ describe('Zenkai Vision Live Engine (Gate 3 Bypass & Watchdog)', () => {
 
     handle.stop();
   });
+
+  it('rejects fallback adapter (CPU emulation) and throws descriptive error', async () => {
+    const mockVideo = {
+      videoWidth: 1280,
+      videoHeight: 720,
+      readyState: 4,
+    } as unknown as HTMLVideoElement;
+    const mockCanvas = createMockCanvas();
+
+    Object.defineProperty(global, 'navigator', {
+      value: {
+        ...originalNavigator,
+        gpu: {
+          requestAdapter: vi.fn().mockResolvedValue({
+            isFallbackAdapter: true,
+          }),
+        },
+      },
+      configurable: true,
+      writable: true,
+    });
+
+    await expect(startVisionLive(mockVideo, mockCanvas)).rejects.toThrow(
+      'fallback adapter rejected',
+    );
+  });
+
+  it('sanitizes AMD Lucienne/Renoir architecture from rdna-2 to Vega/Renoir in adapter info', async () => {
+    const mockDevice = {
+      lost: new Promise(() => {}),
+      destroy: vi.fn(),
+      createTexture: vi.fn(() => ({ createView: vi.fn(() => ({})) })),
+      createShaderModule: vi.fn(() => ({})),
+      createRenderPipeline: vi.fn(() => ({ getBindGroupLayout: vi.fn(() => ({})) })),
+      createSampler: vi.fn(() => ({})),
+      createBindGroup: vi.fn(() => ({})),
+      createCommandEncoder: vi.fn(() => ({
+        beginRenderPass: vi.fn(() => ({
+          setPipeline: vi.fn(),
+          setBindGroup: vi.fn(),
+          draw: vi.fn(),
+          end: vi.fn(),
+        })),
+        finish: vi.fn(),
+      })),
+      importExternalTexture: vi.fn(() => ({})),
+      queue: { submit: vi.fn(), onSubmittedWorkDone: vi.fn().mockResolvedValue(undefined) },
+    };
+
+    const mockAdapter = {
+      isFallbackAdapter: false,
+      requestDevice: vi.fn().mockResolvedValue(mockDevice),
+      info: {
+        vendor: 'amd',
+        architecture: 'rdna-2',
+        device: '0x164c',
+        description: 'AMD Radeon Graphics (RADV RENOIR)',
+      },
+    };
+
+    Object.defineProperty(global, 'navigator', {
+      value: {
+        ...originalNavigator,
+        gpu: {
+          requestAdapter: vi.fn().mockResolvedValue(mockAdapter),
+          getPreferredCanvasFormat: vi.fn(() => 'rgba8unorm'),
+        },
+      },
+      configurable: true,
+      writable: true,
+    });
+
+    const mockVideo = {
+      videoWidth: 1280,
+      videoHeight: 720,
+      readyState: 4,
+      requestVideoFrameCallback: vi.fn(),
+      cancelVideoFrameCallback: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    } as unknown as HTMLVideoElement;
+
+    const mockCanvas = createMockCanvas();
+    (mockCanvas.getContext as any) = vi.fn().mockReturnValue({
+      configure: vi.fn(),
+      getCurrentTexture: vi.fn(() => ({ createView: vi.fn() })),
+    });
+
+    const handle = await startVisionLive(mockVideo, mockCanvas, { mode: 'fast' });
+    expect(handle).toBeDefined();
+    handle.stop();
+  });
 });

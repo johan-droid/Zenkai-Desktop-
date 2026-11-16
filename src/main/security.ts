@@ -117,9 +117,12 @@ export function registerSecurity(): void {
     },
     (details, callback) => {
       const requestHeaders = { ...details.requestHeaders };
-      requestHeaders["Origin"] = "https://zenkaii.pages.dev";
-      requestHeaders["Referer"] = "https://zenkaii.pages.dev/";
-      requestHeaders["X-Zenkai-Barrier"] = "zenkai-barrier-apk-2026-v1";
+      const isZenkai = details.url.includes("pages.dev");
+      if (isZenkai) {
+        requestHeaders["Origin"] = "https://zenkaii.pages.dev";
+        requestHeaders["Referer"] = "https://zenkaii.pages.dev/";
+        requestHeaders["X-Zenkai-Barrier"] = "zenkai-barrier-apk-2026-v1";
+      }
       requestHeaders["User-Agent"] =
         "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36";
       log.security.debug(`Injected barrier & origin headers -> ${details.url}`);
@@ -192,6 +195,24 @@ export function registerSecurity(): void {
           }
         }
       }
+    }
+
+    // Normalize CORS for renderer API / XHR / fetch requests so Chromium never blocks internal app data fetches
+    const isFetch = details.resourceType === "xhr" || (details.resourceType as string) === "fetch";
+    if (isFetch) {
+      const initiator = (details as { initiator?: string }).initiator;
+      const allowedOrigin = initiator || (!app.isPackaged ? "http://localhost:5173" : "*");
+      for (const key of Object.keys(headers)) {
+        if (key.toLowerCase().startsWith("access-control-allow-")) {
+          delete headers[key];
+        }
+      }
+      headers["Access-Control-Allow-Origin"] = [allowedOrigin];
+      headers["Access-Control-Allow-Credentials"] = ["true"];
+      headers["Access-Control-Allow-Methods"] = ["GET, POST, PUT, DELETE, OPTIONS, HEAD, PATCH"];
+      headers["Access-Control-Allow-Headers"] = ["*"];
+      headers["Access-Control-Expose-Headers"] = ["*"];
+      changed = true;
     }
 
     callback(changed ? { responseHeaders: headers } : {});

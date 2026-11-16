@@ -237,6 +237,9 @@ export async function startVisionLive(
   let consecutiveSlowFrames = 0;
   let currentSplit = options.splitPercent ?? 100;
 
+  console.info(`[VISION] Initializing WebGPU neural pipeline: preset=${mode}, input=${inW}x${inH}, target=${outW}x${outH} (${k.toFixed(2)}x)`);
+  console.info(`[VISION] Active GPU Adapter: ${adapterName} (${isIGPU ? 'iGPU / Integrated' : 'dGPU / Dedicated'})`);
+
   // Frame timing & rolling FPS calculations
   let frameCount = 0;
   let lastMetricTime = performance.now();
@@ -399,6 +402,7 @@ export async function startVisionLive(
   return {
     stop: () => {
       alive = false;
+      console.info('[VISION] WebGPU live enhancement stopped');
       video.removeEventListener('seeked', onVideoAction);
       video.removeEventListener('play', onVideoAction);
       video.removeEventListener('playing', onVideoAction);

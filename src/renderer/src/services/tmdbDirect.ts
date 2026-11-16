@@ -1,11 +1,11 @@
-import type { Mapping, Tmdb, TmdbBundle } from './api'
+import { apiUrl, type Mapping, type Tmdb, type TmdbBundle } from './api'
 
 /**
  * Anime TMDB info straight from the browser, the same way Movies already works (no Worker request).
  * Same steps and same result shape as tmdbFor() in server/handler.js; api.ts tries this first and
  * falls back to the /api/tmdb server route when anything here fails.
  */
-const TMDB = 'https://aniversee.vercel.app/api/tmdb'
+const TMDB = apiUrl('/api/tmdb')
 const ANIBRIDGE = 'https://anibridge.eliasbenb.dev/api/mappings?source.descriptor=anilist:'
 const ARM = 'https://arm.haglund.dev/api/v2/ids?source=anilist&id='
 

@@ -112,13 +112,13 @@ export function createMainWindow(): BrowserWindow {
     );
   });
 
-  // Forward renderer console logs to terminal (using single Event param signature to avoid deprecation warning)
-  win.webContents.on("console-message", (event: any, ...args: any[]) => {
+  // Forward renderer console logs to terminal using single event parameter signature
+  win.webContents.on("console-message", (event: any) => {
     const isEventObj = event && typeof event === "object" && typeof event.message === "string";
-    const level: number = isEventObj ? (event.level ?? 0) : ((args[0] as number) ?? 0);
-    const message: string = isEventObj ? (event.message ?? "") : ((args[1] as string) ?? "");
-    const line: number = isEventObj ? (event.line ?? 0) : ((args[2] as number) ?? 0);
-    const sourceId: string = isEventObj ? (event.sourceId ?? "") : ((args[3] as string) ?? "");
+    const level: number = isEventObj ? (event.level ?? 0) : 0;
+    const message: string = isEventObj ? (event.message ?? "") : "";
+    const line: number = isEventObj ? (event.lineNumber ?? event.line ?? 0) : 0;
+    const sourceId: string = isEventObj ? (event.sourceId ?? "") : "";
 
     if (
       message.includes("Download the React DevTools") ||

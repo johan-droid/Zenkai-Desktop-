@@ -1945,6 +1945,7 @@ const slider = (label: string, key: 'opacity' | 'lh' | 'width' | 'blur' | 'scale
     let dead = false
     let handle: VisionLiveHandle | undefined
     setUpErr(null)
+    console.info(`[PLAYER] Activating Vision AI: mode=${upMode}, split=${upSplit ? `${upSplitPct}%` : 'off'}`)
     startUpscale(v, c, {
       mode: upMode,
       splitPercent: upSplit ? 100 - upSplitPct : 100,
@@ -1954,12 +1955,14 @@ const slider = (label: string, key: 'opacity' | 'lh' | 'width' | 'blur' | 'scale
       onDegrade: (preset) => {
         if (!dead) {
           setUpMode(preset)
+          console.warn(`[VISION] Watchdog degraded preset to ${preset}`)
           toast(`Vision Watchdog: auto-switched to ${preset} to maintain 60 FPS`, 'info')
         }
       },
       onBypass: (reason) => {
         if (!dead) {
           setUpErr(reason)
+          console.warn(`[VISION] Watchdog bypassed: ${reason}`)
           toast(`Vision note: ${reason}`, 'info')
         }
       },
@@ -1970,11 +1973,14 @@ const slider = (label: string, key: 'opacity' | 'lh' | 'width' | 'blur' | 'scale
         } else {
           handle = h
           liveHandleRef.current = h
+          console.info('[PLAYER] Vision AI live enhancement pipeline ready')
         }
       })
       .catch((e: unknown) => {
         if (!dead) {
-          setUpErr(e instanceof Error ? e.message : 'Zenkai Vision initialization failed')
+          const msg = e instanceof Error ? e.message : 'Zenkai Vision initialization failed'
+          console.error(`[PLAYER] Vision AI error: ${msg}`)
+          setUpErr(msg)
         }
       })
     return () => {

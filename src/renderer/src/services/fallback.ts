@@ -1,10 +1,11 @@
+import { apiUrl } from './api'
 import type { AniMediaDetails } from '../types/anime'
 
 /**
- * AniList is down -> rebuild a details page from TMDB (through the aniverse proxy).
+ * AniList is down -> rebuild a details page from TMDB.
  * AniBridge (ARM as backup) maps AniList <-> MAL <-> TMDB ids, so /anime/:id and /mal/:id both work.
  */
-const TMDB = 'https://aniversee.vercel.app/api/tmdb'
+const TMDB = apiUrl('/api/tmdb')
 const ANIBRIDGE = 'https://anibridge.eliasbenb.dev/api/mappings?source.descriptor='
 const ARM = 'https://arm.haglund.dev/api/v2/ids?source='
 

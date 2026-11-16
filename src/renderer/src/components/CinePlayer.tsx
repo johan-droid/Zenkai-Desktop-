@@ -3,8 +3,8 @@ import { createPortal } from 'react-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 import Hls from 'hls.js'
 import {
-  Airplay, AudioLines, Cast, Check, CheckCircle2, ChevronDown, Download, FastForward, Flag, Languages, List, Loader2, Maximize, MessageSquare, Minimize, Music, Pause, PictureInPicture2, Play, RotateCcw, RotateCw,
-  Search, Server, Settings, SkipBack, SkipForward, Sliders, Sparkles, TriangleAlert, Upload, Users, Volume1, Volume2, VolumeX, X,
+  Activity, Airplay, AudioLines, Cast, Check, CheckCircle2, ChevronDown, Download, Eye, FastForward, Flag, FlipHorizontal, Languages, Layers, List, Loader2, Maximize, MessageSquare, Minimize, Music, Palette, Pause, PictureInPicture2, Play, RotateCcw, RotateCw,
+  Search, Server, Settings, SkipBack, SkipForward, Sliders, SlidersHorizontal, Sparkles, Sun, TriangleAlert, Upload, Users, Volume1, Volume2, VolumeX, X, Zap,
 } from 'lucide-react'
 import { apiUrl, fetchStream, type EpInfo, type EpKind } from '../services/api'
 import { KIND } from './EpisodeList'
@@ -201,13 +201,13 @@ const loadVideoFilters = (): VideoFilters => {
   }
 }
 
-const ANIME4K_MODES: Array<{ id: Anime4KMode; label: string; desc: string }> = [
-  { id: 'fast', label: 'Fast CNN', desc: 'Ultra-efficient neural net (Recommended for iGPU / Laptops · 60+ FPS)' },
-  { id: 'modeA', label: 'Mode A', desc: 'Balanced restoration & 2× upscale (Best for Dedicated GPUs)' },
-  { id: 'modeB', label: 'Mode B', desc: 'Soft restoration (Reduces compression ringing & artifacts)' },
-  { id: 'modeC', label: 'Mode C', desc: 'Sharp outlines & high detail for crisp modern animation' },
-  { id: 'modeAA', label: 'Mode AA', desc: 'Double-pass ultra restoration for high-end dedicated GPUs' },
-  { id: 'denoise', label: 'Denoise', desc: 'Artifact removal & debanding + 2× CNN upscale' },
+const ANIME4K_MODES: Array<{ id: Anime4KMode; label: string; badge?: string; desc: string; icon: string }> = [
+  { id: 'fast', label: 'Fast CNN', badge: '60+ FPS', desc: 'Ultra-efficient neural net. Best for iGPU & laptops.', icon: '⚡' },
+  { id: 'modeA', label: 'Mode A', badge: 'Balanced', desc: 'Sharp lines and balanced 2× texture reconstruction.', icon: '✨' },
+  { id: 'modeAA', label: 'Mode AA', badge: 'Studio', desc: 'Double-pass high precision restoration for dedicated GPUs.', icon: '💎' },
+  { id: 'modeC', label: 'Mode C', badge: 'Sharp Lines', desc: 'Punchy cell shading and clean edges for modern anime.', icon: '🎨' },
+  { id: 'denoise', label: 'Denoise', badge: 'Deband', desc: 'Removes compression artifacts and noise before upscaling.', icon: '🌊' },
+  { id: 'modeB', label: 'Mode B', badge: 'Soft Film', desc: 'Smooth cinematic finish with gentle line smoothing.', icon: '🎬' },
 ]
 const EP_PAGE = 25
 const fmtAir = (d: string | null) => (d ? new Date(d + 'T00:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : null)
@@ -219,6 +219,110 @@ const fmt = (s: number) => {
   const m = ((s % 3600) / 60) | 0
   const x = s % 60 | 0
   return `${h ? h + ':' + String(m).padStart(2, '0') : m}:${String(x).padStart(2, '0')}`
+}
+
+function TactileSwitch({ checked, onChange, disabled, label }: { checked: boolean; onChange: () => void; disabled?: boolean; label: string }) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      disabled={disabled}
+      onClick={(e) => {
+        e.stopPropagation()
+        onChange()
+      }}
+      aria-label={label}
+      className={cx(
+        'relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none disabled:opacity-40 disabled:cursor-not-allowed',
+        checked ? 'bg-emerald-500 shadow-md shadow-emerald-500/25' : 'bg-zinc-700/80 hover:bg-zinc-600'
+      )}
+    >
+      <span
+        className={cx(
+          'pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out',
+          checked ? 'translate-x-5' : 'translate-x-0'
+        )}
+      />
+    </button>
+  )
+}
+
+function TactileSlider({
+  label,
+  value,
+  min,
+  max,
+  step,
+  unit = '%',
+  onChange,
+  onReset,
+  defaultValue = 100,
+}: {
+  label: string
+  value: number
+  min: number
+  max: number
+  step: number
+  unit?: string
+  onChange: (v: number) => void
+  onReset?: () => void
+  defaultValue?: number
+}) {
+  const pct = Math.max(0, Math.min(100, ((value - min) / (max - min)) * 100))
+  return (
+    <div className="space-y-1.5 p-3 rounded-xl bg-white/[0.03] border border-white/5">
+      <div className="flex items-center justify-between text-xs">
+        <span className="font-semibold text-zinc-300">{label}</span>
+        <div className="flex items-center gap-1.5">
+          <span className="font-mono text-[11px] font-bold text-white bg-zinc-800/90 px-2 py-0.5 rounded border border-white/10">
+            {value}{unit}
+          </span>
+          {onReset && value !== defaultValue && (
+            <button
+              type="button"
+              onClick={onReset}
+              className="text-[10px] text-zinc-400 hover:text-white px-1.5 py-0.5 rounded hover:bg-white/10 transition-colors cursor-pointer"
+              title="Reset to default"
+            >
+              Reset
+            </button>
+          )}
+        </div>
+      </div>
+      <div className="flex items-center gap-2.5">
+        <button
+          type="button"
+          onClick={() => onChange(Math.max(min, value - step))}
+          className="size-7 rounded-lg bg-zinc-800/80 hover:bg-zinc-700 active:scale-95 text-zinc-300 font-bold text-sm flex items-center justify-center border border-white/10 transition-all cursor-pointer"
+          aria-label={`Decrease ${label}`}
+        >
+          -
+        </button>
+        <div className="relative flex-1 flex items-center">
+          <input
+            type="range"
+            className="zp-rg"
+            min={min}
+            max={max}
+            step={step}
+            value={value}
+            style={{ '--p': `${pct}%` } as CSSProperties}
+            onChange={(e) => onChange(+e.target.value)}
+            aria-label={label}
+          />
+        </div>
+        <button
+          type="button"
+          onClick={() => onChange(Math.min(max, value + step))}
+          className="size-7 rounded-lg bg-zinc-800/80 hover:bg-zinc-700 active:scale-95 text-zinc-300 font-bold text-sm flex items-center justify-center border border-white/10 transition-all cursor-pointer"
+          aria-label={`Increase ${label}`}
+        >
+          +
+        </button>
+      </div>
+    </div>
+  )
 }
 
 type Seg = { start: number; end: number } | null | undefined
@@ -1087,6 +1191,9 @@ export default function CinePlayer({
 
   const videoFilterStyle = useMemo(() => {
     const list: string[] = []
+    if (up && (!gpuSupported || isEmbed || upErr || !liveHandleRef.current)) {
+      list.push('contrast(1.08) saturate(1.04)')
+    }
     if (vfx.preset === 'vibrant') {
       list.push('saturate(1.28) contrast(1.06) brightness(1.02)')
     } else if (vfx.preset === 'cinema') {
@@ -1100,7 +1207,7 @@ export default function CinePlayer({
     if (vfx.contrast !== 100) list.push(`contrast(${vfx.contrast}%)`)
     if (vfx.saturation !== 100) list.push(`saturate(${vfx.saturation}%)`)
     return list.length ? list.join(' ') : undefined
-  }, [vfx])
+  }, [vfx, up, isEmbed, upErr])
   const [pf, setPfRaw] = useState<Pf>(loadPf)
   const pfRef = useRef(pf)
   pfRef.current = pf
@@ -1780,8 +1887,16 @@ const slider = (label: string, key: 'opacity' | 'lh' | 'width' | 'blur' | 'scale
     if (!v) return
     const on = () => setVkey((k) => k + 1)
     v.addEventListener('resize', on)
-    return () => v.removeEventListener('resize', on)
-  }, [])
+    v.addEventListener('loadedmetadata', on)
+    v.addEventListener('canplay', on)
+    v.addEventListener('playing', on)
+    return () => {
+      v.removeEventListener('resize', on)
+      v.removeEventListener('loadedmetadata', on)
+      v.removeEventListener('canplay', on)
+      v.removeEventListener('playing', on)
+    }
+  }, [streamUrl])
   useEffect(() => {
     const v = vid.current
     const c = cv.current
@@ -1809,8 +1924,7 @@ const slider = (label: string, key: 'opacity' | 'lh' | 'width' | 'blur' | 'scale
       onBypass: (reason) => {
         if (!dead) {
           setUpErr(reason)
-          setUp(false)
-          toast(`Vision AI bypassed: ${reason}`, 'info')
+          toast(`Vision note: ${reason}`, 'info')
         }
       },
     })
@@ -1823,9 +1937,9 @@ const slider = (label: string, key: 'opacity' | 'lh' | 'width' | 'blur' | 'scale
         }
       })
       .catch((e: unknown) => {
-        if (dead) return
-        setUpErr(e instanceof Error ? e.message : 'Zenkai Vision initialization failed')
-        setUp(false)
+        if (!dead) {
+          setUpErr(e instanceof Error ? e.message : 'Zenkai Vision initialization failed')
+        }
       })
     return () => {
       dead = true
@@ -2311,6 +2425,7 @@ const slider = (label: string, key: 'opacity' | 'lh' | 'width' | 'blur' | 'scale
       <video
         id="zenkaiVideo"
         ref={vid}
+        crossOrigin="anonymous"
         className="zp-v"
         style={{ ...aspectStyle(ar), filter: videoFilterStyle, transform: pf.flip || pf.zoom !== 100 ? `scale(${pf.zoom / 100}) scaleX(${pf.flip ? -1 : 1})` : undefined }}
         playsInline
@@ -3471,209 +3586,441 @@ const slider = (label: string, key: 'opacity' | 'lh' | 'width' | 'blur' | 'scale
         <Sheet title="Settings" onClose={() => setSheet(null)} target={target} dialog>
           <div className="zp-prev">
             <div className="zp-tabs" role="tablist">
-              {([['vision', 'Vision AI'], ['video', 'Video'], ['picture', 'Picture'], ['play', 'Playback'], ...(canCast && castAvail ? [['cast', 'Cast']] : [])] as unknown as ReadonlyArray<readonly ['vision' | 'video' | 'picture' | 'play' | 'cast', string]>).map(([k, l]) => (
-                <button key={k} role="tab" aria-selected={setTab === k} className={cx('zp-tab', setTab === k && 'on')} onClick={() => setSetTab(k)}>
-                  {l}
+              {([
+                ['vision', 'Vision AI', '✨'],
+                ['picture', 'Picture', '🎨'],
+                ['video', 'Video', '📺'],
+                ['play', 'Playback', '⚙️'],
+                ...(canCast && castAvail ? [['cast', 'Cast', '📡']] : []),
+              ] as const).map(([k, l, ic]) => (
+                <button
+                  key={k}
+                  role="tab"
+                  aria-selected={setTab === k}
+                  className={cx(
+                    'zp-tab group flex items-center gap-2 px-3 py-2.5 text-xs font-semibold transition-all rounded-lg',
+                    setTab === k
+                      ? 'bg-white/10 text-white font-bold border-l-2 border-red-500 shadow-sm'
+                      : 'text-zinc-400 hover:text-white hover:bg-white/5'
+                  )}
+                  onClick={() => setSetTab(k as any)}
+                >
+                  <span className="text-sm">{ic}</span>
+                  <span>{l}</span>
                 </button>
               ))}
             </div>
           </div>
 
           {setTab === 'vision' && (
-            <div className="zp-tc">
-              <div className="flex items-center justify-between pb-1">
-                <div>
-                  <p className="text-sm font-bold text-white flex items-center gap-1.5">
-                    <Sparkles className="size-4 text-emerald-400" />
-                    Zenkai Vision Live AI
-                  </p>
-                  <p className="text-[11px] text-zinc-400">
-                    GPU-accelerated super-resolution via WebGPU neural shaders
-                  </p>
-                  {gpuSupported && (
-                    <div className="flex items-center gap-2 mt-1">
-                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-medium text-emerald-300 border border-emerald-500/25">
-                        <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                        Hardware Accelerated (iGPU & dGPU Ready)
-                      </span>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <button
-                className="zp-row"
-                disabled={!gpuSupported || isEmbed}
+            <div className="zp-tc space-y-4">
+              {/* Hero Card */}
+              <div
                 onClick={() => {
+                  if (!gpuSupported || isEmbed) return
                   setUpErr(null)
                   setUp(!up)
                 }}
+                className={cx(
+                  'group relative flex items-center justify-between p-4 rounded-2xl border transition-all cursor-pointer',
+                  up
+                    ? 'bg-gradient-to-r from-emerald-950/40 via-zinc-900/80 to-zinc-900/60 border-emerald-500/40 shadow-xl shadow-emerald-950/20 ring-1 ring-emerald-500/30'
+                    : 'bg-zinc-900/70 border-white/10 hover:border-white/20'
+                )}
               >
-                <span>Live AI Enhancement</span>
-                <i className={cx('zp-tg', up && 'on')} />
-              </button>
+                <div className="flex items-center gap-3.5">
+                  <div
+                    className={cx(
+                      'size-11 rounded-xl flex items-center justify-center border transition-all flex-shrink-0',
+                      up
+                        ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40 shadow-inner'
+                        : 'bg-white/5 text-zinc-400 border-white/10'
+                    )}
+                  >
+                    <Sparkles className="size-5.5 animate-pulse" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h4 className="text-sm font-bold text-white tracking-wide">Live AI Super-Resolution</h4>
+                      {gpuSupported && (
+                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/20">
+                          WebGPU Ready
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-[11px] text-zinc-400 mt-0.5">
+                      Real-time neural upscaling running 100% locally on your GPU
+                    </p>
+                    <div className="flex items-center gap-2 mt-2">
+                      {up ? (
+                        <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20">
+                          <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                          {upMetrics ? `Enhancing: ${upMetrics.inputWidth}x${upMetrics.inputHeight} → ${upMetrics.outputWidth}x${upMetrics.outputHeight} (${upMetrics.currentFps} FPS)` : 'Active (Ready for playback)'}
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-zinc-400 bg-white/5 px-2 py-0.5 rounded-md border border-white/5">
+                          <span className="size-1.5 rounded-full bg-zinc-500" />
+                          Disabled (Tap switch to activate)
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                <TactileSwitch
+                  checked={up}
+                  onChange={() => {
+                    if (!gpuSupported || isEmbed) return
+                    setUpErr(null)
+                    setUp(!up)
+                  }}
+                  disabled={!gpuSupported || isEmbed}
+                  label="Live AI Enhancement"
+                />
+              </div>
 
               {up && (
                 <>
-                  <p className="zp-sec">Neural Shader Preset</p>
-                  <div className="zp-pg">
-                    {ANIME4K_MODES.map((m) => (
-                      <button
-                        key={m.id}
-                        className={cx('zp-pi', upMode === m.id && 'on')}
-                        onClick={() => setUpMode(m.id)}
-                      >
-                        {m.label}
-                      </button>
-                    ))}
+                  {/* Preset Selector */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between text-xs font-semibold text-zinc-300">
+                      <span>Neural Shader Model</span>
+                      <span className="text-[11px] text-zinc-400">Select model profile</span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      {ANIME4K_MODES.map((m) => {
+                        const isSel = upMode === m.id
+                        return (
+                          <button
+                            key={m.id}
+                            type="button"
+                            onClick={() => setUpMode(m.id)}
+                            className={cx(
+                              'flex flex-col items-start gap-1 p-3 rounded-xl border text-left transition-all active:scale-[0.98] cursor-pointer',
+                              isSel
+                                ? 'bg-emerald-500/15 border-emerald-500/50 shadow-md shadow-emerald-500/10 ring-1 ring-emerald-500/40 text-white'
+                                : 'bg-white/[0.03] border-white/10 hover:bg-white/[0.07] hover:border-white/20 text-zinc-300'
+                            )}
+                          >
+                            <div className="flex items-center justify-between w-full">
+                              <span className="text-xs font-bold flex items-center gap-1.5">
+                                <span className="text-sm">{m.icon}</span>
+                                <span className={isSel ? 'text-emerald-300' : 'text-white'}>{m.label}</span>
+                              </span>
+                              {m.badge && (
+                                <span className={cx('text-[9px] px-1.5 py-0.5 rounded font-bold uppercase', isSel ? 'bg-emerald-400/25 text-emerald-200' : 'bg-white/10 text-zinc-400')}>
+                                  {m.badge}
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-[11px] text-zinc-400 leading-snug line-clamp-2">
+                              {m.desc}
+                            </p>
+                          </button>
+                        )
+                      })}
+                    </div>
                   </div>
-                  <p className="zp-note" style={{ marginTop: '4px' }}>
-                    {ANIME4K_MODES.find((m) => m.id === upMode)?.desc}
-                  </p>
 
-                  <p className="zp-sec">Upscale Intensity ({upInt}%)</p>
-                  <input
-                    type="range"
-                    className="zp-rg"
-                    min={0}
-                    max={100}
-                    step={5}
-                    value={upInt}
-                    style={{ '--p': `${upInt}%` } as CSSProperties}
-                    onChange={(e) => setUpInt(+e.target.value)}
-                    aria-label="Upscaler intensity"
-                  />
+                  {/* Intensity Stepper */}
+                  <div className="p-3.5 rounded-xl bg-white/[0.03] border border-white/5 space-y-2">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="font-semibold text-zinc-200">Upscale Intensity</span>
+                      <span className="font-mono text-xs font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">{upInt}%</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      {[
+                        { v: 50, l: '50% Subtle' },
+                        { v: 75, l: '75% Balanced' },
+                        { v: 100, l: '100% Maximum' },
+                      ].map((chip) => (
+                        <button
+                          key={chip.v}
+                          type="button"
+                          onClick={() => setUpInt(chip.v)}
+                          className={cx(
+                            'flex-1 py-1.5 rounded-lg text-xs font-semibold transition-all border text-center active:scale-95 cursor-pointer',
+                            upInt === chip.v
+                              ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40 shadow-sm'
+                              : 'bg-white/[0.04] text-zinc-400 border-white/5 hover:bg-white/[0.08] hover:text-white'
+                          )}
+                        >
+                          {chip.l}
+                        </button>
+                      ))}
+                    </div>
+                    <input
+                      type="range"
+                      className="zp-rg"
+                      min={0}
+                      max={100}
+                      step={5}
+                      value={upInt}
+                      style={{ '--p': `${upInt}%` } as CSSProperties}
+                      onChange={(e) => setUpInt(+e.target.value)}
+                      aria-label="Upscaler intensity"
+                    />
+                  </div>
 
-                  <button className="zp-row" onClick={() => setUpSplit(!upSplit)}>
-                    <span>Split Comparison Mode (50/50)</span>
-                    <i className={cx('zp-tg', upSplit && 'on')} />
-                  </button>
-                  {upSplit && (
-                    <>
-                      <p className="zp-sec">Split Position ({upSplitPct}%)</p>
-                      <input
-                        type="range"
-                        className="zp-rg"
-                        min={10}
-                        max={90}
-                        step={5}
-                        value={upSplitPct}
-                        style={{ '--p': `${upSplitPct}%` } as CSSProperties}
-                        onChange={(e) => {
-                          const val = +e.target.value
-                          setUpSplitPct(val)
-                          liveHandleRef.current?.setSplitPercent(val)
-                        }}
-                        aria-label="Split position"
+                  {/* Split Screen Comparison */}
+                  <div className="p-3.5 rounded-xl bg-white/[0.03] border border-white/5 space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <span className="text-xs font-semibold text-zinc-200">Split Comparison Mode</span>
+                        <p className="text-[11px] text-zinc-400">Compare original vs AI-enhanced video side by side</p>
+                      </div>
+                      <TactileSwitch
+                        checked={upSplit}
+                        onChange={() => setUpSplit(!upSplit)}
+                        label="Split comparison"
                       />
-                    </>
-                  )}
+                    </div>
+                    {upSplit && (
+                      <div className="pt-2 border-t border-white/10 space-y-2">
+                        <div className="flex items-center justify-between text-[11px]">
+                          <span className="text-zinc-400">Original ({100 - upSplitPct}%)</span>
+                          <span className="text-emerald-400 font-bold">AI Enhanced ({upSplitPct}%)</span>
+                        </div>
+                        <input
+                          type="range"
+                          className="zp-rg"
+                          min={10}
+                          max={90}
+                          step={5}
+                          value={upSplitPct}
+                          style={{ '--p': `${upSplitPct}%` } as CSSProperties}
+                          onChange={(e) => {
+                            const val = +e.target.value
+                            setUpSplitPct(val)
+                            liveHandleRef.current?.setSplitPercent(val)
+                          }}
+                          aria-label="Split position"
+                        />
+                      </div>
+                    )}
+                  </div>
 
-                  <button className="zp-row" onClick={() => setShowMetrics(!showMetrics)}>
-                    <span>Performance HUD Overlay</span>
-                    <i className={cx('zp-tg', showMetrics && 'on')} />
-                  </button>
+                  {/* Performance HUD */}
+                  <div className="p-3.5 rounded-xl bg-white/[0.03] border border-white/5 flex items-center justify-between">
+                    <div>
+                      <span className="text-xs font-semibold text-zinc-200">Performance HUD Overlay</span>
+                      <p className="text-[11px] text-zinc-400">Show on-screen FPS, frame time latency &amp; GPU model</p>
+                    </div>
+                    <TactileSwitch
+                      checked={showMetrics}
+                      onChange={() => setShowMetrics(!showMetrics)}
+                      label="Performance HUD"
+                    />
+                  </div>
                 </>
               )}
 
-              <p className="zp-note">
-                {!gpuSupported
-                  ? 'This environment does not support WebGPU. Live enhancement is unavailable.'
-                  : isEmbed
-                    ? 'Live AI enhancement is unsupported for third-party embed servers due to cross-origin boundaries. Please select a direct stream (Sub/Dub).'
-                    : upErr
-                      ? `Vision note: ${upErr}. Try selecting another preset or re-toggling.`
-                      : 'Runs 100% locally on your GPU (integrated or dedicated). Optimized for high-efficiency real-time neural upscaling.'}
-              </p>
-            </div>
-          )}
-
-          {setTab === 'video' && (
-            <div className="zp-tc">
-          <p className="zp-sec">Aspect ratio</p>
-          <div className="zp-pg">
-            {ASPECTS.map((a) => (
-              <button key={a} className={cx('zp-pi', ar === a && 'on')} onClick={() => setAr(a)}>
-                {a}
-              </button>
-            ))}
-          </div>
-
-              <p className="zp-sec">Zoom ({pf.zoom}%)</p>
-              <input
-                type="range" className="zp-rg" min={100} max={150} step={5} value={pf.zoom}
-                style={{ '--p': `${(pf.zoom - 100) * 2}%` } as CSSProperties}
-                onChange={(e) => setPf({ zoom: +e.target.value })}
-                aria-label="Video zoom"
-              />
-              <button className="zp-row" onClick={() => setPf({ flip: !pf.flip })}>
-                <span>Mirror video</span>
-                <i className={cx('zp-tg', pf.flip && 'on')} />
-              </button>
+              {/* Status note */}
+              <div className="p-3 rounded-xl bg-white/[0.02] border border-white/5 text-[11px] text-zinc-400 flex items-start gap-2">
+                <Sparkles className="size-4 text-emerald-400 flex-shrink-0 mt-0.5" />
+                <div>
+                  {!gpuSupported
+                    ? 'This device does not support WebGPU. Standard hardware video decoding is used.'
+                    : isEmbed
+                      ? 'Live AI enhancement is unavailable on external embed players due to cross-origin boundaries. Please select a direct stream (Sub or Dub).'
+                      : upErr
+                        ? `Note: ${upErr}. Try selecting another preset or re-toggling.`
+                        : 'Runs 100% locally on your GPU (integrated or dedicated). Optimized for smooth 60+ FPS playback with zero dropped frames.'}
+                </div>
+              </div>
             </div>
           )}
 
           {setTab === 'picture' && (
-            <div className="zp-tc">
-          <p className="zp-sec">Visual Enhancements &amp; Shaders</p>
-          <div className="zp-pg">
-            {[
-              { id: 'off', label: 'Default' },
-              { id: 'vibrant', label: 'Vibrance' },
-              { id: 'cinema', label: 'Cinema HDR' },
-              { id: 'sharp', label: 'Crisp Lines' },
-              { id: 'warm', label: 'Warm (Eye Care)' },
-            ].map(({ id, label }) => (
-              <button
-                key={id}
-                className={cx('zp-pi', vfx.preset === id && 'on')}
-                onClick={() => setVfx({ preset: id as VideoFilterPreset })}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
+            <div className="zp-tc space-y-4">
+              {/* Presets */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-xs font-semibold text-zinc-300">
+                  <span>Visual Style Presets</span>
+                  {vfx.preset !== 'off' && (
+                    <button
+                      type="button"
+                      onClick={() => setVfx({ preset: 'off' })}
+                      className="text-[10px] text-zinc-400 hover:text-white px-1.5 py-0.5 rounded hover:bg-white/10 cursor-pointer"
+                    >
+                      Reset Preset
+                    </button>
+                  )}
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {[
+                    { id: 'off', label: 'Default', desc: 'Natural director palette', icon: '🎬', dot: 'bg-zinc-400' },
+                    { id: 'vibrant', label: 'Vibrant', desc: 'Punchy saturation & contrast', icon: '🌈', dot: 'bg-emerald-400' },
+                    { id: 'cinema', label: 'Cinema HDR', desc: 'Deep blacks & dynamic range', icon: '🍿', dot: 'bg-amber-400' },
+                    { id: 'sharp', label: 'Crisp Lines', desc: 'High outline sharpness', icon: '🔪', dot: 'bg-sky-400' },
+                    { id: 'warm', label: 'Eye Care', desc: 'Warm blue-light filter', icon: '🌙', dot: 'bg-orange-400' },
+                  ].map((p) => {
+                    const isSel = vfx.preset === p.id
+                    return (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => setVfx({ preset: p.id as VideoFilterPreset })}
+                        className={cx(
+                          'flex flex-col items-start gap-1 p-2.5 rounded-xl border text-left transition-all active:scale-[0.98] cursor-pointer',
+                          isSel
+                            ? 'bg-red-500/15 border-red-500/50 shadow-md shadow-red-500/10 ring-1 ring-red-500/40 text-white'
+                            : 'bg-white/[0.03] border-white/10 hover:bg-white/[0.07] hover:border-white/20 text-zinc-300'
+                        )}
+                      >
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-sm">{p.icon}</span>
+                          <span className={cx('text-xs font-bold', isSel ? 'text-red-300' : 'text-white')}>{p.label}</span>
+                        </div>
+                        <p className="text-[11px] text-zinc-400 leading-tight">
+                          {p.desc}
+                        </p>
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
 
-          <p className="zp-sec">Brightness ({vfx.brightness}%)</p>
-          <input
-            type="range" className="zp-rg" min={70} max={130} step={2} value={vfx.brightness}
-            style={{ '--p': `${((vfx.brightness - 70) / (130 - 70)) * 100}%` } as CSSProperties}
-            onChange={(e) => setVfx({ brightness: +e.target.value })}
-            aria-label="Video brightness"
-          />
+              {/* Tactile Sliders */}
+              <div className="space-y-2">
+                <div className="text-xs font-semibold text-zinc-300">Fine Adjustments</div>
+                <TactileSlider
+                  label="Brightness"
+                  value={vfx.brightness}
+                  min={70}
+                  max={130}
+                  step={2}
+                  onChange={(v) => setVfx({ brightness: v })}
+                  onReset={() => setVfx({ brightness: 100 })}
+                  defaultValue={100}
+                />
+                <TactileSlider
+                  label="Contrast"
+                  value={vfx.contrast}
+                  min={70}
+                  max={140}
+                  step={2}
+                  onChange={(v) => setVfx({ contrast: v })}
+                  onReset={() => setVfx({ contrast: 100 })}
+                  defaultValue={100}
+                />
+                <TactileSlider
+                  label="Color Saturation"
+                  value={vfx.saturation}
+                  min={70}
+                  max={160}
+                  step={5}
+                  onChange={(v) => setVfx({ saturation: v })}
+                  onReset={() => setVfx({ saturation: 100 })}
+                  defaultValue={100}
+                />
+              </div>
 
-          <p className="zp-sec">Contrast ({vfx.contrast}%)</p>
-          <input
-            type="range" className="zp-rg" min={70} max={140} step={2} value={vfx.contrast}
-            style={{ '--p': `${((vfx.contrast - 70) / (140 - 70)) * 100}%` } as CSSProperties}
-            onChange={(e) => setVfx({ contrast: +e.target.value })}
-            aria-label="Video contrast"
-          />
-
-          <p className="zp-sec">Color Saturation ({vfx.saturation}%)</p>
-          <input
-            type="range" className="zp-rg" min={70} max={160} step={5} value={vfx.saturation}
-            style={{ '--p': `${((vfx.saturation - 70) / (160 - 70)) * 100}%` } as CSSProperties}
-            onChange={(e) => setVfx({ saturation: +e.target.value })}
-            aria-label="Video saturation"
-          />
-
-          {(vfx.preset !== 'off' || vfx.brightness !== 100 || vfx.contrast !== 100 || vfx.saturation !== 100) && (
-            <button
-              className="zp-pi"
-              style={{ marginTop: '8px' }}
-              onClick={() => setVfx(VIDEO_FILTER_DEFAULTS)}
-            >
-              Reset visual shaders
-            </button>
+              {(vfx.preset !== 'off' || vfx.brightness !== 100 || vfx.contrast !== 100 || vfx.saturation !== 100) && (
+                <button
+                  type="button"
+                  className="w-full py-2.5 rounded-xl bg-white/[0.06] hover:bg-white/[0.1] active:scale-[0.99] border border-white/10 text-xs font-bold text-zinc-200 transition-all flex items-center justify-center gap-2 cursor-pointer"
+                  onClick={() => setVfx(VIDEO_FILTER_DEFAULTS)}
+                >
+                  <RotateCcw className="size-3.5" />
+                  <span>Reset All Visual Shaders</span>
+                </button>
+              )}
+            </div>
           )}
 
+          {setTab === 'video' && (
+            <div className="zp-tc space-y-4">
+              {/* Aspect Ratio */}
+              <div className="space-y-2">
+                <div className="text-xs font-semibold text-zinc-300">Aspect Ratio</div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {[
+                    { id: 'Fit', label: 'Fit (Original)', desc: 'Preserves native aspect with bars' },
+                    { id: '16:9', label: '16:9 Cinema', desc: 'Standard widescreen display' },
+                    { id: 'Fill', label: 'Fill / Crop', desc: 'Fills window without borders' },
+                    { id: 'Stretch', label: 'Stretch', desc: 'Stretches to fill boundaries' },
+                    { id: '4:3', label: '4:3 Retro', desc: 'Classic vintage anime ratio' },
+                  ].map((a) => {
+                    const isSel = ar === a.id
+                    return (
+                      <button
+                        key={a.id}
+                        type="button"
+                        onClick={() => setAr(a.id as Aspect)}
+                        className={cx(
+                          'flex flex-col items-start gap-1 p-2.5 rounded-xl border text-left transition-all active:scale-[0.98] cursor-pointer',
+                          isSel
+                            ? 'bg-red-500/15 border-red-500/50 shadow-md shadow-red-500/10 ring-1 ring-red-500/40 text-white'
+                            : 'bg-white/[0.03] border-white/10 hover:bg-white/[0.07] hover:border-white/20 text-zinc-300'
+                        )}
+                      >
+                        <span className={cx('text-xs font-bold', isSel ? 'text-red-300' : 'text-white')}>{a.label}</span>
+                        <p className="text-[11px] text-zinc-400 leading-tight">{a.desc}</p>
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
 
+              {/* Zoom Stepper */}
+              <div className="space-y-2">
+                <div className="text-xs font-semibold text-zinc-300">Display Zoom</div>
+                <div className="flex items-center gap-1.5 mb-2">
+                  {[
+                    { v: 100, l: '100% Fit' },
+                    { v: 110, l: '110%' },
+                    { v: 125, l: '125%' },
+                    { v: 150, l: '150% Max' },
+                  ].map((chip) => (
+                    <button
+                      key={chip.v}
+                      type="button"
+                      onClick={() => setPf({ zoom: chip.v })}
+                      className={cx(
+                        'flex-1 py-1.5 rounded-lg text-xs font-semibold transition-all border text-center active:scale-95 cursor-pointer',
+                        pf.zoom === chip.v
+                          ? 'bg-red-500/20 text-white border-red-500/40 shadow-sm'
+                          : 'bg-white/[0.04] text-zinc-400 border-white/5 hover:bg-white/[0.08] hover:text-white'
+                      )}
+                    >
+                      {chip.l}
+                    </button>
+                  ))}
+                </div>
+                <TactileSlider
+                  label="Zoom Level"
+                  value={pf.zoom}
+                  min={100}
+                  max={150}
+                  step={5}
+                  onChange={(v) => setPf({ zoom: v })}
+                  onReset={() => setPf({ zoom: 100 })}
+                  defaultValue={100}
+                />
+              </div>
+
+              {/* Mirror Video */}
+              <div className="p-3.5 rounded-xl bg-white/[0.03] border border-white/5 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="size-9 rounded-lg bg-zinc-800 flex items-center justify-center text-zinc-300">
+                    <FlipHorizontal className="size-4.5" />
+                  </div>
+                  <div>
+                    <span className="text-xs font-semibold text-zinc-200">Mirror Video (Flip Horizontal)</span>
+                    <p className="text-[11px] text-zinc-400">Flips playback orientation horizontally</p>
+                  </div>
+                </div>
+                <TactileSwitch
+                  checked={pf.flip}
+                  onChange={() => setPf({ flip: !pf.flip })}
+                  label="Mirror video"
+                />
+              </div>
             </div>
           )}
 
           {setTab === 'cast' && (
-            <div className="zp-tc">
+            <div className="zp-tc space-y-4">
               <div className={cx('zp-castcard', casting && 'on')}>
                 <span className="zp-castic">
                   <Cast />
@@ -3746,56 +4093,147 @@ const slider = (label: string, key: 'opacity' | 'lh' | 'width' | 'blur' | 'scale
           )}
 
           {setTab === 'play' && (
-            <div className="zp-tc">
-          <p className="zp-sec">Automation</p>
-          {onAutoNext && (
-            <button className="zp-row" onClick={() => onAutoNext(!autoNext)}>
-              <span>Autoplay next episode</span>
-              <i className={cx('zp-tg', autoNext && 'on')} />
-            </button>
-          )}
-          {onAutoSkip && (
-            <button className="zp-row" onClick={() => onAutoSkip(!autoSkip)}>
-              <span>Auto-skip intro &amp; outro</span>
-              <i className={cx('zp-tg', autoSkip && 'on')} />
-            </button>
-          )}
-          {onSkipFiller && (
-            <button className="zp-row" onClick={() => onSkipFiller(!skipFiller)}>
-              <span>Skip filler episodes</span>
-              <i className={cx('zp-tg', skipFiller && 'on')} />
-            </button>
-          )}
+            <div className="zp-tc space-y-4">
+              {/* Automation */}
+              <div className="space-y-2">
+                <div className="text-xs font-semibold text-zinc-300">Smart Automations</div>
+                {onAutoNext && (
+                  <div className="p-3.5 rounded-xl bg-white/[0.03] border border-white/5 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <span className="size-8 rounded-lg bg-zinc-800/80 flex items-center justify-center text-sm">⏭</span>
+                      <div>
+                        <span className="text-xs font-semibold text-zinc-200">Autoplay Next Episode</span>
+                        <p className="text-[11px] text-zinc-400">Automatically transitions to the next episode when current ends</p>
+                      </div>
+                    </div>
+                    <TactileSwitch
+                      checked={autoNext}
+                      onChange={() => onAutoNext(!autoNext)}
+                      label="Autoplay next episode"
+                    />
+                  </div>
+                )}
+                {onAutoSkip && (
+                  <div className="p-3.5 rounded-xl bg-white/[0.03] border border-white/5 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <span className="size-8 rounded-lg bg-zinc-800/80 flex items-center justify-center text-sm">⚡</span>
+                      <div>
+                        <span className="text-xs font-semibold text-zinc-200">Auto-Skip Intro &amp; Outro</span>
+                        <p className="text-[11px] text-zinc-400">Skips anime opening and ending sequences automatically</p>
+                      </div>
+                    </div>
+                    <TactileSwitch
+                      checked={autoSkip}
+                      onChange={() => onAutoSkip(!autoSkip)}
+                      label="Auto-skip intro & outro"
+                    />
+                  </div>
+                )}
+                {onSkipFiller && (
+                  <div className="p-3.5 rounded-xl bg-white/[0.03] border border-white/5 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <span className="size-8 rounded-lg bg-zinc-800/80 flex items-center justify-center text-sm">🚫</span>
+                      <div>
+                        <span className="text-xs font-semibold text-zinc-200">Skip Filler Episodes</span>
+                        <p className="text-[11px] text-zinc-400">Automatically bypasses non-canon and recap episodes in queue</p>
+                      </div>
+                    </div>
+                    <TactileSwitch
+                      checked={skipFiller}
+                      onChange={() => onSkipFiller(!skipFiller)}
+                      label="Skip filler episodes"
+                    />
+                  </div>
+                )}
+              </div>
 
-          <p className="zp-sec">Skip step (buttons, double-tap, J / L)</p>
-          <div className="zp-pg seg">
-            {[[5, "5s"], [10, "10s"], [15, "15s"], [30, "30s"]].map(([v, l]) => (
-              <button key={String(v)} className={cx('zp-pi', pf.seek === v && 'on')} onClick={() => setPf({ seek: v as any })}>
-                {l}
-              </button>
-            ))}
-          </div>
+              {/* Step Settings */}
+              <div className="space-y-3">
+                {/* Skip Step */}
+                <div className="p-3.5 rounded-xl bg-white/[0.03] border border-white/5 space-y-2">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-semibold text-zinc-200">Seek Step (Buttons, Double-Tap, J/L)</span>
+                    <span className="font-mono text-xs font-bold text-white bg-zinc-800 px-2 py-0.5 rounded">{pf.seek}s</span>
+                  </div>
+                  <div className="grid grid-cols-4 gap-1.5">
+                    {[[5, '5s'], [10, '10s'], [15, '15s'], [30, '30s']].map(([v, l]) => (
+                      <button
+                        key={String(v)}
+                        type="button"
+                        onClick={() => setPf({ seek: v as any })}
+                        className={cx(
+                          'py-2 rounded-lg text-xs font-bold transition-all border text-center active:scale-95 cursor-pointer',
+                          pf.seek === v
+                            ? 'bg-red-500/20 text-white border-red-500/50 shadow-sm'
+                            : 'bg-white/[0.04] text-zinc-400 border-white/5 hover:bg-white/[0.08] hover:text-white'
+                        )}
+                      >
+                        {l}
+                      </button>
+                    ))}
+                  </div>
+                </div>
 
-          <p className="zp-sec">Hold-to-speed rate</p>
-          <div className="zp-pg seg">
-            {[[1.5, "1.5×"], [2, "2×"], [3, "3×"], [4, "4×"]].map(([v, l]) => (
-              <button key={String(v)} className={cx('zp-pi', pf.hold === v && 'on')} onClick={() => setPf({ hold: v as any })}>
-                {l}
-              </button>
-            ))}
-          </div>
+                {/* Hold Speed */}
+                <div className="p-3.5 rounded-xl bg-white/[0.03] border border-white/5 space-y-2">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-semibold text-zinc-200">Hold-to-Speed Rate</span>
+                    <span className="font-mono text-xs font-bold text-white bg-zinc-800 px-2 py-0.5 rounded">{pf.hold}×</span>
+                  </div>
+                  <div className="grid grid-cols-4 gap-1.5">
+                    {[[1.5, '1.5×'], [2, '2×'], [3, '3×'], [4, '4×']].map(([v, l]) => (
+                      <button
+                        key={String(v)}
+                        type="button"
+                        onClick={() => setPf({ hold: v as any })}
+                        className={cx(
+                          'py-2 rounded-lg text-xs font-bold transition-all border text-center active:scale-95 cursor-pointer',
+                          pf.hold === v
+                            ? 'bg-red-500/20 text-white border-red-500/50 shadow-sm'
+                            : 'bg-white/[0.04] text-zinc-400 border-white/5 hover:bg-white/[0.08] hover:text-white'
+                        )}
+                      >
+                        {l}
+                      </button>
+                    ))}
+                  </div>
+                </div>
 
-          <p className="zp-sec">Auto-hide controls</p>
-          <div className="zp-pg seg">
-            {[[2000, "2s"], [3200, "3s"], [5000, "5s"], [0, "Never"]].map(([v, l]) => (
-              <button key={String(v)} className={cx('zp-pi', pf.hide === v && 'on')} onClick={() => setPf({ hide: v as any })}>
-                {l}
-              </button>
-            ))}
-          </div>
+                {/* Auto-Hide Controls */}
+                <div className="p-3.5 rounded-xl bg-white/[0.03] border border-white/5 space-y-2">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-semibold text-zinc-200">Auto-Hide Controls</span>
+                    <span className="font-mono text-xs font-bold text-white bg-zinc-800 px-2 py-0.5 rounded">
+                      {pf.hide === 0 ? 'Never' : `${pf.hide / 1000}s`}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-4 gap-1.5">
+                    {[[2000, '2s'], [3200, '3s'], [5000, '5s'], [0, 'Never']].map(([v, l]) => (
+                      <button
+                        key={String(v)}
+                        type="button"
+                        onClick={() => setPf({ hide: v as any })}
+                        className={cx(
+                          'py-2 rounded-lg text-xs font-bold transition-all border text-center active:scale-95 cursor-pointer',
+                          pf.hide === v
+                            ? 'bg-red-500/20 text-white border-red-500/50 shadow-sm'
+                            : 'bg-white/[0.04] text-zinc-400 border-white/5 hover:bg-white/[0.08] hover:text-white'
+                        )}
+                      >
+                        {l}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
 
-              <button className="zp-pi" style={{ marginTop: '8px' }} onClick={() => setPf(PF_DEFAULT)}>
-                Reset playback options
+              <button
+                type="button"
+                className="w-full py-2.5 rounded-xl bg-white/[0.06] hover:bg-white/[0.1] active:scale-[0.99] border border-white/10 text-xs font-bold text-zinc-200 transition-all flex items-center justify-center gap-2 cursor-pointer"
+                onClick={() => setPf(PF_DEFAULT)}
+              >
+                <RotateCcw className="size-3.5" />
+                <span>Reset Playback Options</span>
               </button>
             </div>
           )}

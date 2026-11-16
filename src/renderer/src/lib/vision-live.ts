@@ -73,23 +73,28 @@ export async function startVisionLive(
   }
 
   // Await metadata to obtain native dimensions
-  if (!video.videoWidth) {
+  if (!video.videoWidth || video.readyState < 2) {
     await new Promise<void>((resolve) => {
+      let resolved = false;
       const onDone = () => {
+        if (resolved) return;
+        resolved = true;
         video.removeEventListener('loadedmetadata', onDone);
         video.removeEventListener('loadeddata', onDone);
         video.removeEventListener('canplay', onDone);
+        video.removeEventListener('playing', onDone);
         resolve();
       };
       video.addEventListener('loadedmetadata', onDone);
       video.addEventListener('loadeddata', onDone);
       video.addEventListener('canplay', onDone);
-      setTimeout(onDone, 1200);
+      video.addEventListener('playing', onDone);
+      setTimeout(onDone, 800);
     });
   }
 
-  const inW = video.videoWidth || 1920;
-  const inH = video.videoHeight || 1080;
+  const inW = video.videoWidth || video.clientWidth || 1280;
+  const inH = video.videoHeight || video.clientHeight || 720;
 
   if (inH >= 2160 && inW >= 3840) {
     throw new Error('Video source is already 4K native resolution; live enhancement bypassed.');
@@ -262,7 +267,7 @@ export async function startVisionLive(
   applyClip(currentSplit);
 
   const drawFrame = () => {
-    if (!alive || video.readyState < 2) return;
+    if (!alive || video.readyState < 2 || !video.videoWidth || !video.videoHeight) return;
 
     // Pipeline backpressure guard: maximum 2 command buffers in-flight
     if (inFlight >= 2) {
@@ -381,11 +386,23 @@ export async function startVisionLive(
     }
   };
 
+  const onVideoAction = () => {
+    if (alive) drawFrame();
+  };
+  video.addEventListener('seeked', onVideoAction);
+  video.addEventListener('play', onVideoAction);
+  video.addEventListener('playing', onVideoAction);
+  video.addEventListener('timeupdate', onVideoAction);
+
   renderLoop();
 
   return {
     stop: () => {
       alive = false;
+      video.removeEventListener('seeked', onVideoAction);
+      video.removeEventListener('play', onVideoAction);
+      video.removeEventListener('playing', onVideoAction);
+      video.removeEventListener('timeupdate', onVideoAction);
       if (video.cancelVideoFrameCallback) {
         video.cancelVideoFrameCallback(animCallbackId);
       } else {

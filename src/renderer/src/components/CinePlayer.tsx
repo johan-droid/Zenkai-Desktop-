@@ -1945,6 +1945,7 @@ const slider = (label: string, key: 'opacity' | 'lh' | 'width' | 'blur' | 'scale
     let dead = false
     let handle: VisionLiveHandle | undefined
     setUpErr(null)
+    setUpMetrics(null)
     console.info(`[PLAYER] Activating Vision AI: mode=${upMode}, split=${upSplit ? `${upSplitPct}%` : 'off'}`)
     startUpscale(v, c, {
       mode: upMode,
@@ -1962,6 +1963,7 @@ const slider = (label: string, key: 'opacity' | 'lh' | 'width' | 'blur' | 'scale
       onBypass: (reason) => {
         if (!dead) {
           setUpErr(reason)
+          setUpMetrics(null)
           console.warn(`[VISION] Watchdog bypassed: ${reason}`)
           toast(`Vision note: ${reason}`, 'info')
         }
@@ -1981,6 +1983,7 @@ const slider = (label: string, key: 'opacity' | 'lh' | 'width' | 'blur' | 'scale
           const msg = e instanceof Error ? e.message : 'Zenkai Vision initialization failed'
           console.error(`[PLAYER] Vision AI error: ${msg}`)
           setUpErr(msg)
+          setUpMetrics(null)
         }
       })
     return () => {

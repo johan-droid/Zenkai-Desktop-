@@ -1,0 +1,93 @@
+name: QA — Main Branch Integration
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: qa-main-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  main-gate-linux:
+    name: Full Release Gate (Linux)
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 12
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y rpm libnotify-bin libnotify-dev xvfb libva-dev
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build Application
+        run: pnpm build
+
+      - name: Execute Full QA Release Gate (qa:all)
+        run: pnpm qa:all
+
+      - name: Upload QA Artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qa-main-report-${{ github.sha }}
+          path: |
+            qa/RELEASE_READINESS.md
+            qa/artifacts/
+            playwright-report/
+          retention-days: 30
+
+  main-build-cross-platform:
+    name: Build Verification (${{ matrix.os }})
+    needs: main-gate-linux
+    strategy:
+      matrix:
+        os: [windows-latest, macos-latest]
+      fail-fast: false
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 12
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck & Unit Tests
+        run: |
+          pnpm typecheck
+          pnpm test
+
+      - name: Production Build
+        run: pnpm build
+

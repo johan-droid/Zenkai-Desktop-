@@ -1,0 +1,67 @@
+name: QA — Nightly Deep Regression
+
+on:
+  schedule:
+    - cron: '0 2 * * *' # Every night at 02:00 UTC
+  workflow_dispatch:
+
+concurrency:
+  group: qa-nightly
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  nightly-regression:
+    name: Nightly Deep Regression & Performance
+    runs-on: ubuntu-22.04
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 12
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y rpm libnotify-bin libnotify-dev xvfb libva-dev
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Full Application Build
+        run: pnpm build
+
+      - name: Execute Complete QA Suite
+        run: pnpm qa:all
+
+      - name: Extended Performance & Health Probes
+        run: pnpm qa:performance
+
+      - name: Security & Vulnerability Audit
+        run: |
+          pnpm qa:security
+          pnpm audit --audit-level=high || true
+
+      - name: Upload Nightly Telemetry & Artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qa-nightly-report-${{ github.sha }}
+          path: |
+            qa/RELEASE_READINESS.md
+            qa/artifacts/
+            playwright-report/
+          retention-days: 60
+

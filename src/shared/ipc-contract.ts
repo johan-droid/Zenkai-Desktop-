@@ -114,6 +114,7 @@ export type IpcContract = {
   "vision:cancelJob": (jobId: string) => Promise<boolean>;
   "vision:deleteJob": (jobId: string) => Promise<boolean>;
   "vision:clearCompletedJobs": () => Promise<void>;
+  "gpu:getDiagnostics": () => Promise<import("./gpu-types").UnifiedGpuDiagnostics>;
 };
 
 export type IpcEvents = {

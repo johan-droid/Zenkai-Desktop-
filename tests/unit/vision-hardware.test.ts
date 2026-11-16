@@ -27,8 +27,12 @@ describe('Vision Hardware Discovery & Vendor Normalization', () => {
   it('classifies GPU types (dedicated vs integrated vs virtual)', () => {
     expect(classifyGpuType('nvidia', 'GeForce RTX 4090')).toBe('dedicated');
     expect(classifyGpuType('amd', 'Radeon RX 7900 XTX')).toBe('dedicated');
+    expect(classifyGpuType('amd', 'AMD Radeon Pro 5500M')).toBe('dedicated');
+    expect(classifyGpuType('intel', 'Intel Arc A770')).toBe('dedicated');
+    expect(classifyGpuType('intel', 'Intel Arc Pro A60M')).toBe('dedicated');
     expect(classifyGpuType('amd', 'Lucienne (Radeon Vega Mobile)')).toBe('integrated');
     expect(classifyGpuType('intel', 'Iris Xe Graphics')).toBe('integrated');
+    expect(classifyGpuType('intel', 'Intel UHD Graphics 630')).toBe('integrated');
     expect(classifyGpuType('apple', 'Apple M2 Pro')).toBe('integrated');
     expect(classifyGpuType('unknown', 'llvmpipe (LLVM 15.0.7, 256 bits)')).toBe('virtual');
   });
@@ -86,6 +90,43 @@ describe('Vision Hardware Discovery & Vendor Normalization', () => {
     expect(devices[0].vendor).toBe('apple');
     expect(devices[0].vramMb).toBe(32768);
     expect(devices[0].type).toBe('integrated');
+  });
+
+  it('discovers Intel Mac discrete AMD GPUs correctly', () => {
+    const mockMacGpu = JSON.stringify({
+      SPDisplaysDataType: [
+        {
+          _name: 'AMD Radeon Pro 5500M',
+          sppci_model: 'AMD Radeon Pro 5500M',
+          spdisplays_vram: '8 GB',
+        },
+      ],
+    });
+
+    const runner = (cmd: string) => (cmd.includes('system_profiler') ? mockMacGpu : '');
+    const devices = discoverMacGpus(runner);
+
+    expect(devices.length).toBe(1);
+    expect(devices[0].vendor).toBe('amd');
+    expect(devices[0].vramMb).toBe(8192);
+    expect(devices[0].type).toBe('dedicated');
+  });
+
+  it('routes primary GPU based on power/performance preference in multi-GPU systems', () => {
+    const mockDualGpuLspci = `
+0000:00:02.0 VGA compatible controller [0300]: Intel Corporation UHD Graphics 630 [8086:3e92] (rev 02)
+0000:01:00.0 VGA compatible controller [0300]: NVIDIA Corporation AD106 [GeForce RTX 4060 Ti] [10de:2805] (rev a1)
+    `.trim();
+
+    const runner = (cmd: string) => (cmd.includes('lspci') ? mockDualGpuLspci : '');
+
+    const highPerf = discoverGpus('linux', runner, '/nonexistent_drm_dir', 'high-performance');
+    expect(highPerf.length).toBe(2);
+    expect(highPerf.find((d) => d.isPrimary)?.vendor).toBe('nvidia');
+
+    const powerSaving = discoverGpus('linux', runner, '/nonexistent_drm_dir', 'power-saving');
+    expect(powerSaving.length).toBe(2);
+    expect(powerSaving.find((d) => d.isPrimary)?.vendor).toBe('intel');
   });
 
   it('falls back to CPU virtual device when no GPU is detected', () => {

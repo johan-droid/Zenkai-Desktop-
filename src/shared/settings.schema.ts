@@ -21,7 +21,8 @@ export function defaultDownloadDir(): string {
 
 export const SettingsSchema = z.object({
   pauseOnClose: z.boolean().default(true),
-  hwDecode: z.boolean().default(() => process.platform !== "linux"),
+  hwDecode: z.boolean().default(true),
+  gpuPreference: z.enum(["auto", "high-performance", "power-saving"]).default("auto"),
   aiUpscale: z.boolean().default(false),
   subtitleDelay: z.number().default(0),
   downloadDir: z.string().min(1).default(() => defaultDownloadDir()),

@@ -91,8 +91,15 @@ export function classifyGpuType(vendor: GpuVendor, model: string): GpuType {
     vendor === 'nvidia' ||
     m.includes('rtx') ||
     m.includes('gtx') ||
+    m.includes('geforce') ||
+    m.includes('quadro') ||
     m.includes('radeon rx') ||
-    m.includes('arc a')
+    m.includes('radeon pro') ||
+    m.includes('arc a') ||
+    m.includes('arc pro') ||
+    m.includes('alchemist') ||
+    m.includes('battlemage') ||
+    (vendor === 'intel' && (m.includes('arc') || m.includes('dg1') || m.includes('dg2')))
   ) {
     return 'dedicated';
   }
@@ -222,11 +229,13 @@ export function discoverMacGpus(runner: CommandRunner = defaultRunner): VisionHa
         vramMb = numMatch[2].toUpperCase() === 'GB' ? val * 1024 : val;
       }
 
+      const type = classifyGpuType(vendor, model);
+
       devices.push({
         id: `mac-${devices.length}`,
         vendor,
         model,
-        type: 'integrated',
+        type,
         vramMb,
         isPrimary: devices.length === 0,
       });
@@ -243,6 +252,7 @@ export function discoverGpus(
   platform: NodeJS.Platform = process.platform,
   runner: CommandRunner = defaultRunner,
   drmDir = '/sys/class/drm',
+  preference: 'auto' | 'high-performance' | 'power-saving' = 'auto',
 ): VisionHardwareDevice[] {
   let list: VisionHardwareDevice[] = [];
   if (platform === 'linux') {
@@ -261,6 +271,18 @@ export function discoverGpus(
       model: `${os.cpus()[0]?.model || 'Standard CPU'} (Software Render)`,
       type: 'virtual',
       isPrimary: true,
+    });
+  } else if (list.length > 1) {
+    let primaryIndex = 0;
+    if (preference === 'high-performance') {
+      const idx = list.findIndex((d) => d.type === 'dedicated');
+      if (idx !== -1) primaryIndex = idx;
+    } else if (preference === 'power-saving') {
+      const idx = list.findIndex((d) => d.type === 'integrated');
+      if (idx !== -1) primaryIndex = idx;
+    }
+    list.forEach((dev, idx) => {
+      dev.isPrimary = idx === primaryIndex;
     });
   }
 

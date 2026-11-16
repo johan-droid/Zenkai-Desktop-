@@ -26,7 +26,22 @@
     "dist:mac": "pnpm build && electron-builder --mac -p never",
     "release:check": "node scripts/verify-zero-mock.mjs",
     "release:verify": "node scripts/verify-artifacts.mjs",
-    "release:version": "node scripts/release-version.mjs"
+    "release:version": "node scripts/release-version.mjs",
+    "qa:doctor": "node scripts/qa-doctor.mjs",
+    "qa:registry": "node scripts/validate-qa-registry.mjs",
+    "qa:unit": "vitest run tests/unit",
+    "qa:integration": "vitest run tests/unit/stream-proxy.test.ts tests/unit/updater.test.ts tests/unit/hls.test.ts",
+    "qa:browser": "env -u ELECTRON_RUN_AS_NODE xvfb-run -a playwright test tests/e2e/home-layout.spec.ts tests/e2e/shell.spec.ts",
+    "qa:electron": "env -u ELECTRON_RUN_AS_NODE xvfb-run -a playwright test tests/e2e/app.spec.ts tests/e2e/qa-workflows.spec.ts",
+    "qa:desktop": "vitest run tests/unit/desktop-navigation.test.ts tests/unit/notify.test.ts",
+    "qa:gpu": "vitest run tests/unit/gpu.test.ts tests/unit/vision-hardware.test.ts tests/unit/vision-live.test.ts",
+    "qa:accessibility": "node scripts/validate-qa-registry.mjs",
+    "qa:visual": "ls -l qa/screenshots/*.png",
+    "qa:security": "vitest run tests/unit/shield.test.ts tests/unit/ssrf-maturity.test.ts tests/unit/ipc-validation.test.ts",
+    "qa:performance": "vitest run tests/unit/canary-health.test.ts",
+    "qa:regression": "pnpm typecheck && pnpm lint && pnpm qa:unit && pnpm qa:electron",
+    "qa:report": "node scripts/generate-qa-report.mjs",
+    "qa:all": "node scripts/qa-runner.mjs"
   },
   "devDependencies": {
     "@playwright/test": "^1.65.1",

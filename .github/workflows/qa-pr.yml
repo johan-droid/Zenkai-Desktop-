@@ -1,0 +1,101 @@
+name: QA — Pull Request Gate
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'tests/**'
+      - 'qa/**'
+      - 'scripts/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'tsconfig.json'
+      - 'electron-builder.yml'
+
+concurrency:
+  group: qa-pr-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  pr-gate-linux:
+    name: Mandatory QA Gate (Linux)
+    runs-on: ubuntu-22.04
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 12
+          run_install: false
+
+      - name: Get pnpm store directory
+        shell: bash
+        run: echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+
+      - name: Setup pnpm cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y rpm libnotify-bin libnotify-dev xvfb libva-dev libdrm-dev
+
+      - name: Install dependencies from frozen lockfile
+        run: pnpm install --frozen-lockfile
+
+      - name: Gate 1 — QA Diagnostic Doctor
+        run: pnpm qa:doctor
+
+      - name: Gate 2 — Traceability & Registry Validation
+        run: pnpm qa:registry
+
+      - name: Gate 3 — Static TypeScript Check
+        run: pnpm typecheck
+
+      - name: Gate 4 — ESLint Analysis
+        run: pnpm lint
+
+      - name: Gate 5 — Security & SSRF Shield Verification
+        run: pnpm qa:security
+
+      - name: Gate 6 — Unit & Integration Test Suites
+        run: pnpm qa:unit
+
+      - name: Gate 7 — Production Bundle Build
+        run: pnpm build
+
+      - name: Gate 8 — Playwright Electron E2E Workflows
+        run: env -u ELECTRON_RUN_AS_NODE xvfb-run -a pnpm qa:electron
+
+      - name: Gate 9 — Generate QA Release Readiness Report
+        run: pnpm qa:report
+
+      - name: Upload QA Artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qa-pr-report-${{ github.sha }}
+          path: |
+            qa/RELEASE_READINESS.md
+            qa/artifacts/
+            playwright-report/
+          retention-days: 14
+

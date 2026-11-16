@@ -1,5 +1,9 @@
 import { describe, it, expect, vi } from "vitest";
-import { configureGpuSwitches, type CommandLineInterface } from "../../src/main/gpu";
+import {
+  configureGpuSwitches,
+  getGpuDiagnostics,
+  type CommandLineInterface,
+} from "../../src/main/gpu";
 
 describe("GPU configuration switches (configureGpuSwitches)", () => {
   it("configures Linux with hardware decode enabled (default)", () => {
@@ -15,6 +19,7 @@ describe("GPU configuration switches (configureGpuSwitches)", () => {
     expect(res.platform).toBe("linux");
     expect(res.webGpuEnabled).toBe(true);
     expect(res.hwDecodeEnabled).toBe(true);
+    expect(res.gpuPreference).toBe("auto");
     expect(switches["enable-unsafe-webgpu"]).toBeUndefined();
     expect(switches["enable-webgpu-developer-features"]).toBeUndefined();
     expect(switches["ignore-gpu-blocklist"]).toBeUndefined();
@@ -39,6 +44,28 @@ describe("GPU configuration switches (configureGpuSwitches)", () => {
     expect(res.hwDecodeEnabled).toBe(false);
     expect(switches["enable-features"]).toBe("WebGPU");
     expect("disable-accelerated-video-decode" in switches).toBe(true);
+  });
+
+  it("applies power/performance GPU switches", () => {
+    const switchesHigh: Record<string, string | undefined> = {};
+    const clHigh: CommandLineInterface = {
+      appendSwitch: vi.fn((sw: string, val?: string) => {
+        switchesHigh[sw] = val;
+      }),
+    };
+    const resHigh = configureGpuSwitches({ gpuPreference: "high-performance" }, clHigh, "win32");
+    expect(resHigh.gpuPreference).toBe("high-performance");
+    expect("force_high_performance_gpu" in switchesHigh).toBe(true);
+
+    const switchesLow: Record<string, string | undefined> = {};
+    const clLow: CommandLineInterface = {
+      appendSwitch: vi.fn((sw: string, val?: string) => {
+        switchesLow[sw] = val;
+      }),
+    };
+    const resLow = configureGpuSwitches({ gpuPreference: "power-saving" }, clLow, "linux");
+    expect(resLow.gpuPreference).toBe("power-saving");
+    expect("force_low_power_gpu" in switchesLow).toBe(true);
   });
 
   it("configures Windows correctly", () => {
@@ -73,3 +100,23 @@ describe("GPU configuration switches (configureGpuSwitches)", () => {
   });
 });
 
+describe("Unified GPU Diagnostics (getGpuDiagnostics)", () => {
+  it("returns structured diagnostics across platforms", () => {
+    const linuxDiag = getGpuDiagnostics({ hwDecode: true, gpuPreference: "auto" }, "linux");
+    expect(linuxDiag.platform).toBe("linux");
+    expect(linuxDiag.backend).toBe("vulkan");
+    expect(linuxDiag.webGpuStatus).toBe("AVAILABLE");
+    expect(["VaapiVideoDecoder", "FFmpegVideoDecoder"]).toContain(linuxDiag.activeDecoder);
+
+    const winDiag = getGpuDiagnostics({ hwDecode: true, gpuPreference: "high-performance" }, "win32");
+    expect(winDiag.platform).toBe("win32");
+    expect(winDiag.backend).toBe("d3d12");
+    expect(winDiag.gpuPreference).toBe("high-performance");
+
+    const macDiag = getGpuDiagnostics({ hwDecode: false, gpuPreference: "power-saving" }, "darwin");
+    expect(macDiag.platform).toBe("darwin");
+    expect(macDiag.backend).toBe("metal");
+    expect(macDiag.videoDecodeStatus).toBe("FALLBACK");
+    expect(macDiag.activeDecoder).toBe("FFmpegVideoDecoder");
+  });
+});

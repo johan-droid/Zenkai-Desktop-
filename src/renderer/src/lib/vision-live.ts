@@ -27,6 +27,8 @@ export type VisionLivePreset =
   | 'denoise'
   | 'fast';
 
+export type GpuTier = 'dedicated_high' | 'balanced_igpu' | 'entry_igpu';
+
 export interface VisionLiveMetrics {
   inputWidth: number;
   inputHeight: number;
@@ -39,10 +41,12 @@ export interface VisionLiveMetrics {
   preset: VisionLivePreset;
   active: boolean;
   watchdogStatus: 'optimal' | 'warning' | 'bypassed';
+  gpuTier?: GpuTier;
 }
 
 export interface VisionLiveOptions {
   mode?: VisionLivePreset;
+  powerPreference?: 'high-performance' | 'low-power' | 'auto';
   splitPercent?: number; // 0 to 100 (100 = full screen enhanced, 50 = split half-and-half)
   onMetrics?: (metrics: VisionLiveMetrics) => void;
   onBypass?: (reason: string) => void;
@@ -63,7 +67,6 @@ export async function startVisionLive(
   canvas: HTMLCanvasElement,
   options: VisionLiveOptions = {},
 ): Promise<VisionLiveHandle> {
-  const mode = options.mode || 'modeA';
   const onBypass = options.onBypass;
   const onDegrade = options.onDegrade;
   const onMetrics = options.onMetrics;
@@ -100,7 +103,13 @@ export async function startVisionLive(
     throw new Error('Video source is already 4K native resolution; live enhancement bypassed.');
   }
 
-  let adapter = await navigator.gpu.requestAdapter({ powerPreference: 'high-performance' }).catch(() => null);
+  const powerPreference = options.powerPreference ?? 'high-performance';
+  let adapter: GPUAdapter | null = null;
+  if (powerPreference === 'low-power') {
+    adapter = await navigator.gpu.requestAdapter({ powerPreference: 'low-power' }).catch(() => null);
+  } else {
+    adapter = await navigator.gpu.requestAdapter({ powerPreference: 'high-performance' }).catch(() => null);
+  }
   if (!adapter) {
     adapter = await navigator.gpu.requestAdapter().catch(() => null);
   }
@@ -114,6 +123,7 @@ export async function startVisionLive(
   }
 
   let adapterName = 'GPU Adapter';
+  let tier: GpuTier = 'balanced_igpu';
   let isIGPU = false;
   try {
     const info = (adapter as any).info || (await (adapter as any).requestAdapterInfo?.()) || {};
@@ -147,23 +157,43 @@ export async function startVisionLive(
         : `${vendorUpper}${arch ? ` (${arch})` : ''} GPU`;
     }
 
-    isIGPU =
-      isAmdRenoirLucienne ||
-      desc.includes('intel') ||
-      desc.includes('uhd') ||
-      desc.includes('iris') ||
-      desc.includes('vega') ||
-      desc.includes('lucienne') ||
-      desc.includes('renoir') ||
-      desc.includes('cezanne') ||
-      desc.includes('radeon graphics') ||
-      desc.includes('integrated') ||
-      vendor.includes('intel') ||
-      (vendor.includes('amd') &&
-        (desc.includes('graphics') ||
-          !desc.includes('radeon rx') ||
-          (typeof navigator !== 'undefined' && ((navigator as any).deviceMemory || 8) <= 8)));
+    // Classify GPU tiers: dedicated_high, balanced_igpu, entry_igpu
+    if (vendor.includes('apple') || desc.includes('apple') || desc.includes('m1') || desc.includes('m2') || desc.includes('m3') || desc.includes('m4')) {
+      if (desc.includes('max') || desc.includes('ultra') || arch.includes('max') || arch.includes('ultra')) {
+        tier = 'dedicated_high';
+      } else {
+        tier = 'balanced_igpu';
+      }
+    } else if (vendor.includes('nvidia') || desc.includes('nvidia') || desc.includes('geforce') || desc.includes('rtx') || desc.includes('gtx')) {
+      if (desc.includes('virtual') || desc.includes('llvmpipe')) {
+        tier = 'entry_igpu';
+      } else {
+        tier = 'dedicated_high';
+      }
+    } else if (vendor.includes('intel') || desc.includes('intel')) {
+      if (desc.includes('arc a7') || desc.includes('arc a5') || desc.includes('battlemage') || desc.includes('arc pro') || desc.includes('alchemist')) {
+        tier = 'dedicated_high';
+      } else if (desc.includes('arc') || desc.includes('iris')) {
+        tier = 'balanced_igpu';
+      } else {
+        tier = 'entry_igpu';
+      }
+    } else if (vendor.includes('amd') || desc.includes('amd') || desc.includes('radeon')) {
+      if (isAmdRenoirLucienne || desc.includes('graphics') || desc.includes('vega') || desc.includes('integrated') || desc.includes('cezanne') || desc.includes('lucienne')) {
+        tier = 'balanced_igpu';
+      } else if (desc.includes('rx') || desc.includes('radeon pro') || !desc.includes('graphics')) {
+        tier = 'dedicated_high';
+      } else {
+        tier = 'balanced_igpu';
+      }
+    } else {
+      tier = 'balanced_igpu';
+    }
+
+    isIGPU = tier !== 'dedicated_high';
   } catch {}
+
+  const mode = options.mode || (tier === 'entry_igpu' ? 'fast' : 'modeA');
 
   const device = await adapter.requestDevice();
 
@@ -171,17 +201,22 @@ export async function startVisionLive(
     'anime4k-webgpu'
   );
 
-  // Screen-conscious scaling: on iGPU cap to native display (1.5x / 1440p) to preserve memory bandwidth; on dGPU allow 2x / 4K
-  const dpr = Math.min((typeof window !== 'undefined' ? window.devicePixelRatio : 1) || 1, isIGPU ? 1.25 : 2);
+  // Screen-conscious scaling:
+  // - dedicated_high: up to 2.0x (4K: 3840x2160), max DPR 2.0
+  // - balanced_igpu: up to 1.5x (1440p: 2560x1440), max DPR 1.25 to preserve memory bandwidth
+  // - entry_igpu: up to 1.25x (1080p: 1920x1080), max DPR 1.0, defaulting to fast CNNx2M
+  const maxFactor = tier === 'dedicated_high' ? 2.0 : tier === 'balanced_igpu' ? 1.5 : 1.25;
+  const maxDpr = tier === 'dedicated_high' ? 2.0 : tier === 'balanced_igpu' ? 1.25 : 1.0;
+  const maxW = tier === 'dedicated_high' ? 3840 : tier === 'balanced_igpu' ? 2560 : 1920;
+  const maxH = tier === 'dedicated_high' ? 2160 : tier === 'balanced_igpu' ? 1440 : 1080;
+
+  const dpr = Math.min((typeof window !== 'undefined' ? window.devicePixelRatio : 1) || 1, maxDpr);
   const sw = typeof screen !== 'undefined' ? screen.width : 1920;
   const sh = typeof screen !== 'undefined' ? screen.height : 1080;
   const scaleX = (sw * dpr) / inW;
   const scaleY = (sh * dpr) / inH;
-  const maxFactor = isIGPU ? 1.5 : 2;
   const k = Math.max(1, Math.min(maxFactor, scaleX, scaleY));
 
-  const maxW = isIGPU ? 2560 : 3840;
-  const maxH = isIGPU ? 1440 : 2160;
   const outW = Math.min(maxW, Math.round(inW * k));
   const outH = Math.min(maxH, Math.round(inH * k));
 
@@ -268,8 +303,8 @@ export async function startVisionLive(
   let consecutiveSlowFrames = 0;
   let currentSplit = options.splitPercent ?? 100;
 
-  console.info(`[VISION] Initializing WebGPU neural pipeline: preset=${mode}, input=${inW}x${inH}, target=${outW}x${outH} (${k.toFixed(2)}x)`);
-  console.info(`[VISION] Active GPU Adapter: ${adapterName} (${isIGPU ? 'iGPU / Integrated' : 'dGPU / Dedicated'})`);
+  console.info(`[VISION] Initializing WebGPU neural pipeline: preset=${mode}, tier=${tier}, input=${inW}x${inH}, target=${outW}x${outH} (${k.toFixed(2)}x)`);
+  console.info(`[VISION] Active GPU Adapter: ${adapterName} (${tier})`);
 
   // Frame timing & rolling FPS calculations
   let frameCount = 0;
@@ -406,6 +441,7 @@ export async function startVisionLive(
         preset: mode,
         active: alive,
         watchdogStatus: consecutiveSlowFrames > 5 ? 'warning' : 'optimal',
+        gpuTier: tier,
       });
     }
     lastFrameTime = now;

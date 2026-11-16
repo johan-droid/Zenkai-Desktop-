@@ -1,0 +1,71 @@
+name: QA — Release Gate Verification
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_version:
+        description: 'Semantic Version to Verify (e.g. 0.0.2)'
+        required: true
+        default: '0.0.1'
+
+concurrency:
+  group: qa-release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  verify-release-candidate:
+    name: Release Gate Enforcement (Linux)
+    runs-on: ubuntu-22.04
+    timeout-minutes: 40
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 12
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y rpm libnotify-bin libnotify-dev xvfb libva-dev
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Step 1 — Zero-Mock Production Data Integrity
+        run: pnpm release:check
+
+      - name: Step 2 — Mandatory QA Release Gate (qa:all)
+        run: pnpm qa:all
+
+      - name: Step 3 — Build Production Bundles
+        run: pnpm build
+
+      - name: Step 4 — Package Linux AppImage
+        run: pnpm dist:linux
+
+      - name: Step 5 — Verify Packaged Artifacts & Hashes
+        run: pnpm release:verify
+
+      - name: Upload Release Audit Report (NO AUTO-PUBLISH)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-audit-report-${{ github.sha }}
+          path: |
+            qa/RELEASE_READINESS.md
+            qa/FINAL_AUDIT_REPORT.md
+            dist/
+          retention-days: 90
+

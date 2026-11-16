@@ -379,4 +379,68 @@ describe('Zenkai Vision Live Engine (Gate 3 Bypass & Watchdog)', () => {
     expect(handle).toBeDefined();
     handle.stop();
   });
+
+  it('respects powerPreference option when requesting WebGPU adapter', async () => {
+    const requestAdapterSpy = vi.fn().mockResolvedValue({
+      isFallbackAdapter: false,
+      requestDevice: vi.fn().mockResolvedValue({
+        lost: new Promise(() => {}),
+        destroy: vi.fn(),
+        createTexture: vi.fn(() => ({ createView: vi.fn(() => ({})) })),
+        createShaderModule: vi.fn(() => ({})),
+        createRenderPipeline: vi.fn(() => ({ getBindGroupLayout: vi.fn(() => ({})) })),
+        createSampler: vi.fn(() => ({})),
+        createBindGroup: vi.fn(() => ({})),
+        createCommandEncoder: vi.fn(() => ({
+          beginRenderPass: vi.fn(() => ({
+            setPipeline: vi.fn(),
+            setBindGroup: vi.fn(),
+            draw: vi.fn(),
+            end: vi.fn(),
+          })),
+          finish: vi.fn(),
+        })),
+        importExternalTexture: vi.fn(() => ({})),
+        queue: { submit: vi.fn(), onSubmittedWorkDone: vi.fn().mockResolvedValue(undefined) },
+      }),
+      info: { vendor: 'intel', description: 'Intel UHD Graphics 630' },
+    });
+
+    Object.defineProperty(global, 'navigator', {
+      value: {
+        ...originalNavigator,
+        gpu: {
+          requestAdapter: requestAdapterSpy,
+          getPreferredCanvasFormat: vi.fn(() => 'rgba8unorm'),
+        },
+      },
+      configurable: true,
+      writable: true,
+    });
+
+    const mockVideo = {
+      videoWidth: 1280,
+      videoHeight: 720,
+      readyState: 4,
+      requestVideoFrameCallback: vi.fn(),
+      cancelVideoFrameCallback: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    } as unknown as HTMLVideoElement;
+
+    const mockCanvas = createMockCanvas();
+    (mockCanvas.getContext as any) = vi.fn().mockReturnValue({
+      configure: vi.fn(),
+      getCurrentTexture: vi.fn(() => ({ createView: vi.fn() })),
+    });
+
+    const handle = await startVisionLive(mockVideo, mockCanvas, {
+      powerPreference: 'low-power',
+    });
+    expect(requestAdapterSpy).toHaveBeenCalledWith({ powerPreference: 'low-power' });
+    // On entry_igpu (Intel UHD) with no mode passed, canvas dimensions should be capped at 1080p
+    expect(mockCanvas.width).toBeLessThanOrEqual(1920);
+    expect(mockCanvas.height).toBeLessThanOrEqual(1080);
+    handle.stop();
+  });
 });

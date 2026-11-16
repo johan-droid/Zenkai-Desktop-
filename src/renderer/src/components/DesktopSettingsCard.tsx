@@ -15,6 +15,7 @@ import {
 import type { Settings } from '../../../shared/settings.schema'
 import type { IpcEvents } from '../../../shared/ipc-contract'
 import type { VisionDiagnosticsReport, VisionHardwareProfile, VisionWorkerStatus } from '../../../shared/vision-types'
+import type { UnifiedGpuDiagnostics } from '../../../shared/gpu-types'
 import { toast } from '../lib/toast'
 import { cn } from '../lib/utils'
 
@@ -80,6 +81,8 @@ export function DesktopSettingsCard() {
   const [visionWorkerStatus, setVisionWorkerStatus] = useState<VisionWorkerStatus | null>(null)
   const [visionReport, setVisionReport] = useState<VisionDiagnosticsReport | null>(null)
   const [probingVision, setProbingVision] = useState(false)
+  const [gpuDiag, setGpuDiag] = useState<UnifiedGpuDiagnostics | null>(null)
+  const [refreshingGpu, setRefreshingGpu] = useState(false)
 
   // 1. Initial Load of settings & version
   useEffect(() => {
@@ -89,6 +92,7 @@ export function DesktopSettingsCard() {
     void window.zenkai.app.version().then((v) => setAppVersion(v))
     void window.zenkai.vision?.getHardwareProfile().then((p: VisionHardwareProfile) => setVisionProfile(p))
     void window.zenkai.vision?.getWorkerStatus().then((s: VisionWorkerStatus) => setVisionWorkerStatus(s))
+    void window.zenkai.gpu?.getDiagnostics().then((d: UnifiedGpuDiagnostics) => setGpuDiag(d)).catch(() => {})
 
     const unsubscribe = window.zenkai.app.onStatus((status) => {
       setUpdaterStatus(status)
@@ -120,6 +124,20 @@ export function DesktopSettingsCard() {
     }
   }, [])
 
+  const refreshGpuDiagnostics = useCallback(async () => {
+    if (!window.zenkai?.gpu?.getDiagnostics) return
+    setRefreshingGpu(true)
+    try {
+      const d = await window.zenkai.gpu.getDiagnostics()
+      setGpuDiag(d)
+      toast('GPU diagnostics updated')
+    } catch {
+      toast('Failed to query GPU diagnostics', 'error')
+    } finally {
+      setRefreshingGpu(false)
+    }
+  }, [])
+
   // 2. Settings update helper
   const updateSetting = useCallback(async <K extends keyof Settings>(key: K, value: Settings[K]) => {
     if (!window.zenkai) return
@@ -127,6 +145,9 @@ export function DesktopSettingsCard() {
       const updated = await window.zenkai.settings.set({ [key]: value })
       setSettings(updated)
       toast(`Settings updated`)
+      if (key === 'gpuPreference' || key === 'hwDecode') {
+        void window.zenkai.gpu?.getDiagnostics().then((d: UnifiedGpuDiagnostics) => setGpuDiag(d)).catch(() => {})
+      }
     } catch (err) {
       toast(`Failed to update setting: ${String(err)}`, 'error')
     }
@@ -336,6 +357,39 @@ export function DesktopSettingsCard() {
           />
         </Row>
 
+        <Row
+          title="GPU Power &amp; Performance Preference"
+          hint="Directs WebGPU neural upscaling and Chromium to prefer high-performance discrete GPUs or power-saving integrated GPUs"
+        >
+          <div className="inline-flex gap-1 rounded-full border border-border bg-card/60 p-1">
+            {(
+              [
+                { id: 'auto', label: 'Auto' },
+                { id: 'high-performance', label: 'High Perf' },
+                { id: 'power-saving', label: 'Power Save' },
+              ] as const
+            ).map((opt) => {
+              const active = (settings?.gpuPreference ?? 'auto') === opt.id
+              return (
+                <button
+                  key={opt.id}
+                  type="button"
+                  onClick={() => updateSetting('gpuPreference', opt.id)}
+                  aria-pressed={active}
+                  className={cn(
+                    'h-8 rounded-full px-3 text-xs font-bold transition',
+                    active
+                      ? 'bg-foreground text-background shadow'
+                      : 'text-muted hover:text-foreground'
+                  )}
+                >
+                  {opt.label}
+                </button>
+              )
+            })}
+          </div>
+        </Row>
+
         <Row title="Auto-Pause on Minimize / Close" hint="Automatically pauses video playback when the window is hidden">
           <Switch
             on={settings?.pauseOnClose ?? true}
@@ -465,6 +519,86 @@ export function DesktopSettingsCard() {
             <span>{probingVision ? 'Qualifying...' : 'Run Diagnostics'}</span>
           </button>
         </div>
+
+        {/* Unified Cross-Platform GPU & Decoder Diagnostics */}
+        {gpuDiag && (
+          <div className="rounded-2xl border border-border/70 bg-card/40 p-4 space-y-3 text-xs">
+            <div className="flex items-center justify-between">
+              <span className="text-muted font-medium flex items-center gap-1.5">
+                <Cpu className="size-4 text-accent" /> Universal GPU Architecture &amp; Decoders
+              </span>
+              <button
+                type="button"
+                onClick={refreshGpuDiagnostics}
+                disabled={refreshingGpu}
+                className="inline-flex h-7 items-center gap-1.5 rounded-full border border-border bg-card px-2.5 text-[11px] font-semibold text-foreground transition hover:border-foreground/40 active:scale-95 disabled:opacity-50"
+              >
+                <RefreshCw className={cn('size-3', refreshingGpu && 'animate-spin')} />
+                <span>{refreshingGpu ? 'Refreshing...' : 'Refresh'}</span>
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 border-t border-border/40">
+              <div>
+                <span className="text-muted block">Backend</span>
+                <span className="font-mono font-bold text-accent uppercase">
+                  {gpuDiag.backend}
+                </span>
+              </div>
+              <div>
+                <span className="text-muted block">WebGPU Status</span>
+                <span
+                  className={cn(
+                    'font-mono font-bold',
+                    gpuDiag.webGpuStatus === 'AVAILABLE' || gpuDiag.webGpuStatus === 'ACTIVE'
+                      ? 'text-emerald-400'
+                      : 'text-amber-400'
+                  )}
+                >
+                  {gpuDiag.webGpuStatus}
+                </span>
+              </div>
+              <div>
+                <span className="text-muted block">Active Decoder Target</span>
+                <span
+                  className={cn(
+                    'font-mono font-bold',
+                    gpuDiag.videoDecodeStatus === 'AVAILABLE' || gpuDiag.videoDecodeStatus === 'ACTIVE'
+                      ? 'text-emerald-400'
+                      : 'text-amber-400'
+                  )}
+                >
+                  {gpuDiag.activeDecoder || 'FFmpeg (Software)'}
+                </span>
+              </div>
+              <div>
+                <span className="text-muted block">Routing Preference</span>
+                <span className="font-mono font-medium text-foreground uppercase">
+                  {gpuDiag.gpuPreference}
+                </span>
+              </div>
+            </div>
+
+            {gpuDiag.devices.length > 0 && (
+              <div className="space-y-1.5 pt-2 border-t border-border/40">
+                <span className="text-muted block font-medium">Discovered Accelerators:</span>
+                {gpuDiag.devices.map((d) => (
+                  <div
+                    key={d.id}
+                    className="flex items-center justify-between rounded-xl bg-card/60 px-3 py-2 text-[11px]"
+                  >
+                    <span className="font-medium text-foreground">
+                      {d.model} {d.isPrimary && <span className="text-accent ml-1 font-bold">(Primary)</span>}
+                    </span>
+                    <span className="font-mono text-muted uppercase">
+                      {d.type} {d.vramMb ? `· ${d.vramMb}MB` : ''}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Hardware & Profile Breakdown */}
         {visionProfile ? (

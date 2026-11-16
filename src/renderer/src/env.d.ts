@@ -50,6 +50,9 @@ declare global {
         onJobProgress: (cb: (p: IpcEvents["vision:jobProgress"]) => void) => () => void;
         onJobListChanged: (cb: (p: IpcEvents["vision:jobListChanged"]) => void) => () => void;
       };
+      gpu: {
+        getDiagnostics: IpcContract["gpu:getDiagnostics"];
+      };
       onPlaybackPause: (cb: () => void) => () => void;
       onNotifyClick: (cb: (p: IpcEvents["notify:click"]) => void) => () => void;
       onAuthCallback: (cb: (p: IpcEvents["auth:callback"]) => void) => () => void;

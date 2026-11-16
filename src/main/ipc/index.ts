@@ -35,6 +35,7 @@ import "./updater.ipc";
 import "./playback.ipc";
 import "./open-file.ipc";
 import "./vision.ipc";
+import "./gpu.ipc";
 import { registerWindowIpc } from "./window.ipc";
 
 registerWindowIpc();

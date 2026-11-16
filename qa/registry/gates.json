@@ -1,0 +1,303 @@
+[
+  {
+    "id": "GATE-BOOT",
+    "name": "Application Lifecycle & Windowing",
+    "subsystem": "Electron Main Process & Window Management",
+    "mandatoryCriteria": [
+      "Application launches in < 1.5s",
+      "Window bounds restored atomically from settings.json",
+      "Zero white flashes on startup",
+      "Single-instance lock redirects secondary instances cleanly"
+    ],
+    "mandatoryEvidence": "qa/gates/gate-boot.md",
+    "testFiles": ["tests/e2e/app.spec.ts"],
+    "gateFile": "qa/gates/gate-boot.md",
+    "severity": "CRITICAL",
+    "status": "AUTOMATED PASS"
+  },
+  {
+    "id": "GATE-NAV",
+    "name": "Desktop Navigation & Layout",
+    "subsystem": "Navigation Sidebar, App Header, Hash Routing",
+    "mandatoryCriteria": [
+      "Sidebar collapses/expands smoothly without clipping content",
+      "All top-level routes reachable via single click",
+      "Responsive margin adjusts on viewport change",
+      "Hotkey '?' triggers shortcuts modal"
+    ],
+    "mandatoryEvidence": "qa/gates/gate-nav.md",
+    "testFiles": ["tests/unit/desktop-navigation.test.ts", "tests/e2e/shell.spec.ts"],
+    "gateFile": "qa/gates/gate-nav.md",
+    "severity": "HIGH",
+    "status": "AUTOMATED PASS"
+  },
+  {
+    "id": "GATE-HUB",
+    "name": "Multi-Media Section Hub",
+    "subsystem": "Landing Portal & Routing",
+    "mandatoryCriteria": [
+      "Root route #/ renders hub with Anime, Manga, Novels, Movies",
+      "Clicking any card transitions to section without page reload"
+    ],
+    "mandatoryEvidence": "qa/screenshots/01-landing-hub.png",
+    "testFiles": ["tests/unit/desktop-navigation.test.ts"],
+    "gateFile": "qa/gates/gate-hub.md",
+    "severity": "HIGH",
+    "status": "MANUALLY VERIFIED"
+  },
+  {
+    "id": "GATE-ANIME",
+    "name": "Anime Discovery & Catalog",
+    "subsystem": "Anime Homepage, Carousel & Details",
+    "mandatoryCriteria": [
+      "Hero carousel renders active banner, title, synopsis",
+      "Catalog filters re-query correctly",
+      "Details page displays episode list and metadata"
+    ],
+    "mandatoryEvidence": "qa/screenshots/02-anime-home.png",
+    "testFiles": ["tests/e2e/home-layout.spec.ts", "tests/unit/api.test.ts"],
+    "gateFile": "qa/gates/gate-anime.md",
+    "severity": "HIGH",
+    "status": "AUTOMATED PASS"
+  },
+  {
+    "id": "GATE-MEDIA",
+    "name": "Real-Time Video Player (CinePlayer)",
+    "subsystem": "HLS Video Engine & Playback Controls",
+    "mandatoryCriteria": [
+      "Video playback starts within 2s of selection",
+      "Controls (play, seek, volume, fullscreen) respond to clicks and keys",
+      "Server fallback initiates automatically on 404/500 errors",
+      "Subtitles synchronize with video playhead"
+    ],
+    "mandatoryEvidence": "qa/gates/gate-media.md",
+    "testFiles": ["tests/unit/playback-correctness.test.ts", "tests/unit/servers.test.ts"],
+    "gateFile": "qa/gates/gate-media.md",
+    "severity": "CRITICAL",
+    "status": "AUTOMATED PASS"
+  },
+  {
+    "id": "GATE-VISION",
+    "name": "WebGPU Neural Video Enhancement",
+    "subsystem": "WebGPU Pipeline, WGSL Shaders & Watchdog",
+    "mandatoryCriteria": [
+      "Physical WebGPU adapter acquired without CPU fallback",
+      "Anime4K WGSL shader executes without compute pipeline crashes",
+      "Draggable split slider updates comparison clip-path from 5% to 95%",
+      "Watchdog auto-degrades to fast preset if latency > 50ms"
+    ],
+    "mandatoryEvidence": "qa/gates/gate-vision.md",
+    "testFiles": ["tests/unit/vision-live.test.ts", "tests/unit/vision-hardware.test.ts"],
+    "gateFile": "qa/gates/gate-vision.md",
+    "severity": "CRITICAL",
+    "status": "AUTOMATED PASS"
+  },
+  {
+    "id": "GATE-MANGA",
+    "name": "Manga Catalog & Reader",
+    "subsystem": "Manga Catalog & Interactive Reader",
+    "mandatoryCriteria": [
+      "Manga catalog renders cards with title and covers",
+      "Chapter reader loads image pages cleanly",
+      "Keyboard navigation advances chapters"
+    ],
+    "mandatoryEvidence": "qa/screenshots/10-manga-hub.png",
+    "testFiles": ["tests/unit/desktop-navigation.test.ts"],
+    "gateFile": "qa/gates/gate-manga.md",
+    "severity": "HIGH",
+    "status": "MANUALLY VERIFIED"
+  },
+  {
+    "id": "GATE-NOVEL",
+    "name": "Light Novel Catalog & Reader",
+    "subsystem": "Light Novel Catalog & Reader",
+    "mandatoryCriteria": [
+      "Novel catalog lists titles with chapter counts",
+      "Reader renders text typography with customizable themes",
+      "Graceful error recovery on upstream timeout"
+    ],
+    "mandatoryEvidence": "qa/screenshots/14-novel-details.png",
+    "testFiles": ["tests/unit/desktop-navigation.test.ts"],
+    "gateFile": "qa/gates/gate-novel.md",
+    "severity": "HIGH",
+    "status": "MANUALLY VERIFIED"
+  },
+  {
+    "id": "GATE-MOVIES",
+    "name": "Movies & TV Shows",
+    "subsystem": "TMDB Catalog & Movies Streaming",
+    "mandatoryCriteria": [
+      "Movies homepage loads trending movies from TMDB",
+      "Movie stream player resolves stream and begins playback"
+    ],
+    "mandatoryEvidence": "qa/gates/gate-movies.md",
+    "testFiles": ["tests/unit/api.test.ts"],
+    "gateFile": "qa/gates/gate-movies.md",
+    "severity": "MEDIUM",
+    "status": "MANUALLY VERIFIED"
+  },
+  {
+    "id": "GATE-SEARCH",
+    "name": "Live Search Modals",
+    "subsystem": "Global Search & Autocomplete",
+    "mandatoryCriteria": [
+      "Hotkey '/' or search bar opens modal",
+      "Queries return debounced results within 400ms",
+      "Clicking result navigates to details page and dismisses modal"
+    ],
+    "mandatoryEvidence": "qa/screenshots/05-search-results.png",
+    "testFiles": ["tests/unit/api.test.ts"],
+    "gateFile": "qa/gates/gate-search.md",
+    "severity": "HIGH",
+    "status": "AUTOMATED PASS"
+  },
+  {
+    "id": "GATE-DOWNLOAD",
+    "name": "HLS Offline Downloader",
+    "subsystem": "Download Queue, FFmpeg Muxing & Disk Safety",
+    "mandatoryCriteria": [
+      "Download initiates from details or downloads page",
+      "Segments fetch concurrently via proxy and merge into MP4 on disk",
+      "Offline player streams downloaded file directly via file://",
+      "Path traversal protection bounds writes strictly inside downloadDir"
+    ],
+    "mandatoryEvidence": "qa/gates/gate-downloads.md",
+    "testFiles": ["tests/unit/downloads.test.ts", "tests/unit/downloads-page-and-rpc.test.ts"],
+    "gateFile": "qa/gates/gate-downloads.md",
+    "severity": "CRITICAL",
+    "status": "AUTOMATED PASS"
+  },
+  {
+    "id": "GATE-USER",
+    "name": "User Profile & Watchlist",
+    "subsystem": "Profile, Watchlist Store & State Sync",
+    "mandatoryCriteria": [
+      "Profile page displays watch statistics and history",
+      "Watchlist status changes persist to local store and AniList"
+    ],
+    "mandatoryEvidence": "qa/screenshots/19-my-list.png",
+    "testFiles": ["tests/unit/desktop-navigation.test.ts"],
+    "gateFile": "qa/gates/gate-user.md",
+    "severity": "HIGH",
+    "status": "MANUALLY VERIFIED"
+  },
+  {
+    "id": "GATE-COMM",
+    "name": "Community & Watch Parties",
+    "subsystem": "Supabase Realtime Chat & WebRTC",
+    "mandatoryCriteria": [
+      "Community rooms connect to realtime WebSocket",
+      "Messages render in stream without duplicate keys"
+    ],
+    "mandatoryEvidence": "qa/gates/gate-comm.md",
+    "testFiles": ["tests/unit/desktop-navigation.test.ts"],
+    "gateFile": "qa/gates/gate-comm.md",
+    "severity": "MEDIUM",
+    "status": "STRUCTURAL ONLY"
+  },
+  {
+    "id": "GATE-ASCEND",
+    "name": "RPG Ascension & Gamification",
+    "subsystem": "Hunter Rank Ladder & Streak Rewards",
+    "mandatoryCriteria": [
+      "Daily streak claim button awards XP and updates streak counter",
+      "Rank progression persists in localStorage"
+    ],
+    "mandatoryEvidence": "qa/screenshots/09-ascension-hunter.png",
+    "testFiles": ["tests/unit/desktop-navigation.test.ts"],
+    "gateFile": "qa/gates/gate-ascend.md",
+    "severity": "HIGH",
+    "status": "AUTOMATED PASS"
+  },
+  {
+    "id": "GATE-GPU",
+    "name": "Universal GPU Acceleration",
+    "subsystem": "Multi-Vendor GPU Detection & Routing",
+    "mandatoryCriteria": [
+      "configureGpuSwitches applies platform-specific Chromium flags",
+      "Multi-GPU routing switch passes cleanly",
+      "gpu:getDiagnostics returns structured state",
+      "UI reflects real-time decoder target and graphics backend"
+    ],
+    "mandatoryEvidence": "qa/gates/gate-gpu.md",
+    "testFiles": ["tests/unit/gpu.test.ts"],
+    "gateFile": "qa/gates/gate-gpu.md",
+    "severity": "CRITICAL",
+    "status": "AUTOMATED PASS"
+  },
+  {
+    "id": "GATE-SETTINGS",
+    "name": "Desktop Settings & Health Center",
+    "subsystem": "Settings Schema & Diagnostics",
+    "mandatoryCriteria": [
+      "All settings save atomically and validate against Zod schema",
+      "Run Diagnostics measures latency to AniList, GitHub, and Cloud CDN",
+      "Active playback guard suppresses disruptive actions during video"
+    ],
+    "mandatoryEvidence": "qa/gates/gate-settings.md",
+    "testFiles": ["tests/unit/settings.test.ts", "tests/unit/canary-health.test.ts"],
+    "gateFile": "qa/gates/gate-settings.md",
+    "severity": "CRITICAL",
+    "status": "AUTOMATED PASS"
+  },
+  {
+    "id": "GATE-UPDATER",
+    "name": "OTA Production Updater",
+    "subsystem": "Electron Updater & Hash Verification",
+    "mandatoryCriteria": [
+      "Queries GitHub releases API securely without exposing tokens",
+      "Verifies SHA256 blockmap hash before applying update",
+      "Safe error handling when offline or up-to-date"
+    ],
+    "mandatoryEvidence": "qa/gates/gate-updater.md",
+    "testFiles": ["tests/unit/updater.test.ts", "tests/unit/renderer-updater.test.ts", "tests/unit/updater-webhook.test.ts"],
+    "gateFile": "qa/gates/gate-updater.md",
+    "severity": "CRITICAL",
+    "status": "AUTOMATED PASS"
+  },
+  {
+    "id": "GATE-THEME",
+    "name": "Theme Engine & Persistence",
+    "subsystem": "Dark/Light Engine & Window Splash",
+    "mandatoryCriteria": [
+      "Theme toggle switches between Dark and Light",
+      "HTML root class updates immediately without white flash",
+      "Setting persists across restart"
+    ],
+    "mandatoryEvidence": "qa/gates/gate-theme.md",
+    "testFiles": ["tests/e2e/shell.spec.ts"],
+    "gateFile": "qa/gates/gate-theme.md",
+    "severity": "HIGH",
+    "status": "AUTOMATED PASS"
+  },
+  {
+    "id": "GATE-SECURITY",
+    "name": "Security & SSRF Shield Gate",
+    "subsystem": "Context Isolation & Stream Proxy Shield",
+    "mandatoryCriteria": [
+      "ShieldGate prevents unauthorized embedding",
+      "Internal IP addresses and private loopbacks blocked on stream proxy",
+      "Zero secrets leaked in client bundles or application logs"
+    ],
+    "mandatoryEvidence": "qa/gates/gate-security.md",
+    "testFiles": ["tests/unit/shield.test.ts", "tests/unit/ssrf-maturity.test.ts"],
+    "gateFile": "qa/gates/gate-security.md",
+    "severity": "CRITICAL",
+    "status": "AUTOMATED PASS"
+  },
+  {
+    "id": "GATE-RECOVERY",
+    "name": "Fault Isolation & Boundaries",
+    "subsystem": "React Error Boundary & Hardware Fallback",
+    "mandatoryCriteria": [
+      "React Error Boundary catches unexpected render errors",
+      "Try Again and Return Home recover gracefully",
+      "WebGPU device loss fails over to standard video without crash"
+    ],
+    "mandatoryEvidence": "qa/gates/gate-recovery.md",
+    "testFiles": ["tests/unit/vision-live.test.ts", "tests/unit/ipc-validation.test.ts"],
+    "gateFile": "qa/gates/gate-recovery.md",
+    "severity": "CRITICAL",
+    "status": "AUTOMATED PASS"
+  }
+]

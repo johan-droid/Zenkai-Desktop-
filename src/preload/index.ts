@@ -67,6 +67,9 @@ contextBridge.exposeInMainWorld("zenkai", {
     onJobListChanged: (cb: (p: IpcEvents["vision:jobListChanged"]) => void) =>
       on("vision:jobListChanged", cb),
   },
+  gpu: {
+    getDiagnostics: call("gpu:getDiagnostics"),
+  },
   onPlaybackPause: (cb: () => void) => on("playback:pause", () => cb()),
   onNotifyClick: (cb: (p: IpcEvents["notify:click"]) => void) =>
     on("notify:click", cb),

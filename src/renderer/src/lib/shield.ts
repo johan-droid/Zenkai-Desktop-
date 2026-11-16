@@ -7,7 +7,7 @@ import { SECURITY_DISABLED } from './securityToggle'
  * same-origin /api and /proxy fetch. It is invisible unless DevTools / a bot is detected, or the server asks for a captcha.
  * The server half is server/shield.js; with no SHIELD_SECRET set there it hands out no token and this stays idle.
  */
-const API = (import.meta.env.VITE_API_BASE as string | undefined) ?? ''
+const API = (import.meta.env.VITE_API_BASE as string | undefined) || 'https://zenkaii.pages.dev'
 const KEY = { tok: 'zenkai_shield_token', exp: 'zenkai_shield_exp' }
 
 /* ---------- tiny store for the overlay ---------- */
@@ -178,7 +178,12 @@ const forget = () => {
 /* ---------- fetch interceptor ---------- */
 const origins =
   typeof location !== 'undefined'
-    ? new Set([location.origin, API ? new URL(API, location.href).origin : ''])
+    ? new Set([
+        location.origin,
+        API ? new URL(API, location.href).origin : '',
+        'https://zenkaii.pages.dev',
+        'https://zenkai-web.pages.dev',
+      ])
     : new Set<string>()
 
 const isProtected = (input: RequestInfo | URL) => {
@@ -225,6 +230,7 @@ function install() {
     const send = (tok: string | null) => {
       const h = new Headers(init?.headers ?? (input instanceof Request ? input.headers : undefined))
       if (tok && !h.has('X-Zenkai-Shield')) h.set('X-Zenkai-Shield', tok)
+      if (isDesktopApp() && !h.has('X-Zenkai-Barrier')) h.set('X-Zenkai-Barrier', 'zenkai-barrier-apk-2026-v1')
       return nativeFetch(input, { ...init, headers: h })
     }
     let res = await send(await getToken())
@@ -308,11 +314,11 @@ let started = false
 export function startShield() {
   if (started) return
   started = true
+  install()
   if (import.meta.env.DEV || isDesktopApp()) {
     set({ verified: true, failed: false, bot: false, devtools: false, captcha: null })
     return
   }
-  install()
   if (looksAutomated()) return set({ bot: true })
   window.addEventListener('keydown', onKey, true)
   window.addEventListener('resize', checkDevTools)

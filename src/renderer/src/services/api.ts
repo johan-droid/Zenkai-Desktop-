@@ -2,12 +2,13 @@ import { tmdbDirect, tmdbEpisodesDirect } from './tmdbDirect'
 import { isCompanionActive, companionHas } from '../lib/useCompanion'
 import { resolveAcdnClient, getResolveTrace, type ClientStream } from '../lib/acdnClient'
 import { toast } from '../lib/toast'
+import { isDesktopApp } from '../lib/shield'
 
 /** Client for the Zenkai API (Cloudflare Pages Functions in production, Vite middleware in dev). */
 const DEFAULT_API_BASE = 'https://zenkaii.pages.dev'
 const BASE =
   (import.meta.env.VITE_API_BASE as string | undefined) ||
-  (typeof window !== 'undefined' && window.location.protocol === 'file:' ? DEFAULT_API_BASE : '')
+  (typeof window !== 'undefined' && (window.location.protocol === 'file:' || isDesktopApp()) ? DEFAULT_API_BASE : DEFAULT_API_BASE)
 
 /** Root-relative API paths (e.g. the proxied HLS url) are prefixed with VITE_API_BASE when it is set. */
 export const apiUrl = (path: string) => (path.startsWith('/') ? BASE + path : path)
@@ -26,7 +27,10 @@ async function getJson<T>(path: string, timeout = 20000): Promise<T> {
   const t = window.setTimeout(() => ctl.abort(), timeout)
   try {
     const isZenkaiPlayer = typeof window !== 'undefined' && (window.self !== window.top || window.location.pathname.startsWith('/embed') || window.location.pathname.startsWith('/watch'))
-    const headers: Record<string, string> = isZenkaiPlayer ? { 'X-Zenkai-Embed': '1' } : {}
+    const headers: Record<string, string> = {
+      ...(isZenkaiPlayer ? { 'X-Zenkai-Embed': '1' } : {}),
+      'X-Zenkai-Barrier': 'zenkai-barrier-apk-2026-v1',
+    }
     const res = await fetch(apiUrl(path), { signal: ctl.signal, headers })
     const data = await res.json().catch(() => null)
     if (!res.ok) throw new Error(failMsg(res, data as { error?: string } | null))

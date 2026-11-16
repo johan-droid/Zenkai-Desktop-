@@ -97,6 +97,9 @@ export function registerSecurity(): void {
   session.defaultSession.webRequest.onBeforeSendHeaders(
     {
       urls: [
+        "*://*.pages.dev/*",
+        "*://zenkaii.pages.dev/*",
+        "*://zenkai-web.pages.dev/*",
         "*://graphql.anilist.co/*",
         "*://*.anilist.co/*",
         "*://api.jikan.moe/*",
@@ -112,6 +115,7 @@ export function registerSecurity(): void {
       const requestHeaders = { ...details.requestHeaders };
       requestHeaders["Origin"] = "https://zenkaii.pages.dev";
       requestHeaders["Referer"] = "https://zenkaii.pages.dev/";
+      requestHeaders["X-Zenkai-Barrier"] = "zenkai-barrier-apk-2026-v1";
       requestHeaders["User-Agent"] =
         "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36";
       callback({ requestHeaders });

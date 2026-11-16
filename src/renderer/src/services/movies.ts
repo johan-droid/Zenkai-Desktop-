@@ -380,7 +380,9 @@ export async function fetchMovieBoxStream(p: {
   // 2. Secondary: Cloudflare Pages Worker / local resolver fallback
   if (!resOk) {
     try {
-      const res = await fetch(apiUrl(`/api/movies/stream?${qs}`))
+      const res = await fetch(apiUrl(`/api/movies/stream?${qs}`), {
+        headers: { 'X-Zenkai-Barrier': 'zenkai-barrier-apk-2026-v1', 'X-Zenkai-Embed': '1' },
+      })
       if (res.ok) {
         const d = await res.json().catch(() => null)
         if (d && d.success === true && d.streams?.length > 0) {

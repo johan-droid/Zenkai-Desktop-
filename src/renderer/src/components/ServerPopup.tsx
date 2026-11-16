@@ -26,7 +26,11 @@ export const BLOB_T = { duration: 0.6, times: [0, 0.45, 1], ease: 'easeOut' as c
 export function ServerPopup({ servers, value, onPick }: { servers: ServerOpt[]; value: string; onPick: (id: string) => void }) {
   const [open, setOpen] = useState(false)
   const box = useRef<HTMLDivElement>(null)
-  const cur = servers.find((s) => s.id === value) ?? SERVERS.find((s) => s.id === value)
+  const cur =
+    servers.find((s) => s.id === value) ??
+    SERVERS.find((s) => s.id === value) ??
+    servers[0] ??
+    SERVERS[0]
 
   useEffect(() => {
     if (!open) return

@@ -255,8 +255,26 @@ export default function WatchPage() {
   const directList = DIRECT.filter((s) => s.id !== 'acdn' || acdn === true)
   const audio: 'sub' | 'dub' = (sp.get('audio') ?? saved.audio) === 'dub' ? 'dub' : 'sub'
   // Where "try another" (button or plugging Plugo in) sends people when the current server has nothing
-  const altId = server.kind === 'animesalt' ? (server.id === 'animesalt-1' ? 'animesalt-2' : 'megaplay') : (directList.find((s) => s.id !== server.id)?.id ?? 'megaplay')
-  const altName = serverById(altId).name
+  const altServer = useMemo(() => {
+    if (server.kind === 'animesalt') {
+      return server.id === 'animesalt-1' ? serverById('animesalt-2') : serverById('megaplay')
+    }
+    const workingDirect = directList.find((s) => {
+      if (s.id === server.id) return false
+      const info = serverAudio?.[s.id]
+      return info && (audio === 'dub' ? info.dub : info.sub)
+    })
+    if (workingDirect) return workingDirect
+
+    const curIdx = directList.findIndex((s) => s.id === server.id)
+    if (curIdx >= 0) {
+      const nextDirect = directList[(curIdx + 1) % directList.length]
+      if (nextDirect && nextDirect.id !== server.id) return nextDirect
+    }
+    return directList.find((s) => s.id !== server.id) ?? serverById('flixcloud')
+  }, [directList, server.id, server.kind, serverAudio, audio])
+  const altId = altServer.id
+  const altName = altServer.name
 
   function go(patch: { ep?: number; server?: string; audio?: string }, replace = true, fromPartySync = false) {
     if (room) {
@@ -937,14 +955,33 @@ export default function WatchPage() {
                     Play downloaded file
                   </button>
                 )}
-                <button onClick={() => go({ server: altId })} className={cn(pill, 'border-transparent bg-white text-black')}>
-                  Try {altName}
-                </button>
+                {directList
+                  .filter((s) => s.id !== server.id)
+                  .map((s) => (
+                    <button
+                      key={s.id}
+                      onClick={() => go({ server: s.id })}
+                      className={cn(
+                        pill,
+                        s.id === altId
+                          ? 'border-transparent bg-white text-black'
+                          : 'border-white/15 bg-white/5 text-white hover:bg-white/10',
+                      )}
+                    >
+                      Try {s.name}
+                    </button>
+                  ))}
                 {server.audio && (
                   <button onClick={() => go({ audio: audio === 'sub' ? 'dub' : 'sub' })} className={cn(pill, 'border-white/15 bg-white/5 text-white')}>
                     {audio === 'sub' ? 'DUB' : 'SUB'} instead
                   </button>
                 )}
+                <button
+                  onClick={() => go({ server: 'megaplay-ani' })}
+                  className={cn(pill, 'border-accent/40 bg-accent/20 text-accent hover:bg-accent/30')}
+                >
+                  Try Embed
+                </button>
               </Problem>
             ) : (
               <Frame>

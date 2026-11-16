@@ -95,7 +95,10 @@ export async function startVisionLive(
     throw new Error('Video source is already 4K native resolution; live enhancement bypassed.');
   }
 
-  const adapter = await navigator.gpu.requestAdapter({ powerPreference: 'high-performance' });
+  let adapter = await navigator.gpu.requestAdapter({ powerPreference: 'high-performance' }).catch(() => null);
+  if (!adapter) {
+    adapter = await navigator.gpu.requestAdapter().catch(() => null);
+  }
   if (!adapter) {
     throw new Error('No compatible GPU adapter found for WebGPU live processing');
   }

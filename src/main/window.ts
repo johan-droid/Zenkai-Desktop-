@@ -112,29 +112,32 @@ export function createMainWindow(): BrowserWindow {
     );
   });
 
-  // Forward renderer console logs to terminal
-  win.webContents.on(
-    "console-message",
-    (_event, level, message, line, sourceId) => {
-      if (
-        message.includes("Download the React DevTools") ||
-        message.includes("React Router Future Flag")
-      ) {
-        return;
-      }
-      const shortSrc = sourceId ? sourceId.split("/").pop()?.split("?")[0] : "";
-      const loc = shortSrc ? ` (${shortSrc}:${line})` : "";
-      if (level === 3) {
-        log.ui.error(`${message}${loc}`);
-      } else if (level === 2) {
-        log.ui.warn(`${message}${loc}`);
-      } else if (level === 1) {
-        log.ui.info(`${message}${loc}`);
-      } else {
-        log.ui.debug(`${message}${loc}`);
-      }
-    },
-  );
+  // Forward renderer console logs to terminal (using single Event param signature to avoid deprecation warning)
+  win.webContents.on("console-message", (event: any, ...args: any[]) => {
+    const isEventObj = event && typeof event === "object" && typeof event.message === "string";
+    const level: number = isEventObj ? (event.level ?? 0) : ((args[0] as number) ?? 0);
+    const message: string = isEventObj ? (event.message ?? "") : ((args[1] as string) ?? "");
+    const line: number = isEventObj ? (event.line ?? 0) : ((args[2] as number) ?? 0);
+    const sourceId: string = isEventObj ? (event.sourceId ?? "") : ((args[3] as string) ?? "");
+
+    if (
+      message.includes("Download the React DevTools") ||
+      message.includes("React Router Future Flag")
+    ) {
+      return;
+    }
+    const shortSrc = sourceId ? sourceId.split("/").pop()?.split("?")[0] : "";
+    const loc = shortSrc ? ` (${shortSrc}:${line})` : "";
+    if (level === 3) {
+      log.ui.error(`${message}${loc}`);
+    } else if (level === 2) {
+      log.ui.warn(`${message}${loc}`);
+    } else if (level === 1) {
+      log.ui.info(`${message}${loc}`);
+    } else {
+      log.ui.debug(`${message}${loc}`);
+    }
+  });
 
   if (target.type === "file") {
     setupCanaryHealthCheck(win, target.path);

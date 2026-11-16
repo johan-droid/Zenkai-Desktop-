@@ -11,15 +11,18 @@ const ALLOWED_PERMISSIONS = new Set(["notifications", "fullscreen", "media"]);
 
 // §6.3 CSP — change only after review; never add 'unsafe-eval'.
 const CSP =
-  "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; " +
-  "img-src 'self' data: https:; media-src 'self' blob: https:; " +
-  "connect-src 'self' https:; font-src 'self' data:; " +
+  "default-src 'self'; script-src 'self' 'unsafe-inline' https://www.gstatic.com; " +
+  "worker-src 'self' blob:; child-src 'self' blob:; " +
+  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
+  "img-src 'self' data: blob: https:; media-src 'self' blob: https:; " +
+  "connect-src 'self' https: blob: data:; font-src 'self' data: https://fonts.gstatic.com; " +
   "frame-src 'self' blob: https:; object-src 'none'; base-uri 'none';";
 
 function isAllowedOrigin(url: string): boolean {
   try {
     const parsed = new URL(url);
     if (parsed.protocol === "file:" || parsed.protocol === "data:") return true;
+    if (!app.isPackaged && parsed.origin === "http://localhost:5173") return true;
     return (ALLOWED_ORIGINS as readonly string[]).includes(parsed.origin);
   } catch {
     return false;
@@ -154,6 +157,7 @@ export function registerSecurity(): void {
 
     const isAppOrigin =
       details.url.startsWith("file:") ||
+      (!app.isPackaged && details.url.startsWith("http://localhost:5173")) ||
       (ALLOWED_ORIGINS as readonly string[]).some((o) =>
         details.url.startsWith(o),
       );

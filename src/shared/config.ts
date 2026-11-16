@@ -7,10 +7,10 @@ export const ALLOWED_ORIGINS = [
 ] as const;
 
 export const API_BASE =
-  process.env.ZENKAI_API_BASE ?? WEB_URL.replace(/\/+$/, "");
+  process.env.ZENKAI_API_BASE ?? "https://zenkaii.pages.dev";
 
 export const API_FALLBACK_BASE =
-  process.env.ZENKAI_API_FALLBACK_BASE ?? "https://zenkaii.pages.dev";
+  process.env.ZENKAI_API_FALLBACK_BASE ?? "https://zenkai-web.pages.dev";
 
 export const BARRIER_TOKEN =
   process.env.ZENKAI_BARRIER ?? "zenkai-barrier-apk-2026-v1";

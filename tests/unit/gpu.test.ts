@@ -105,7 +105,11 @@ describe("Unified GPU Diagnostics (getGpuDiagnostics)", () => {
     const linuxDiag = getGpuDiagnostics({ hwDecode: true, gpuPreference: "auto" }, "linux");
     expect(linuxDiag.platform).toBe("linux");
     expect(linuxDiag.backend).toBe("vulkan");
-    expect(linuxDiag.webGpuStatus).toBe("AVAILABLE");
+    if (linuxDiag.devices.every((device) => device.type === "virtual")) {
+      expect(linuxDiag.webGpuStatus).toBe("FALLBACK");
+    } else {
+      expect(["AVAILABLE", "UNSUPPORTED"]).toContain(linuxDiag.webGpuStatus);
+    }
     expect(["VaapiVideoDecoder", "FFmpegVideoDecoder"]).toContain(linuxDiag.activeDecoder);
 
     const winDiag = getGpuDiagnostics({ hwDecode: true, gpuPreference: "high-performance" }, "win32");

@@ -24,7 +24,9 @@ Read this document completely before modifying code, configuration, or documenta
    - Keep API keys, private tokens, signing certificates, and credentials out of Git.
    - Do not commit large binary packages (`.AppImage`, `.exe`, `.deb`, `.rpm`, `.zip`, `.asar`). Distributables belong in GitHub Releases.
 6. **No Unauthorized Commits, Merges, or Releases**:
-   - Do not commit, push, merge to `main`, create git tags, or trigger GitHub releases without explicit user approval.
+   - `main` is the **single canonical branch**. All work is committed and pushed directly to `main` (or via short-lived topic branches that are merged and deleted promptly).
+   - Do not create long-lived feature branches. If a topic branch is needed for a large task, delete it immediately after merging to `main`.
+   - Do not commit, push to `main`, create git tags, or trigger GitHub releases without explicit user approval.
    - Never overwrite the user's installed production AppImage (`/home/ashutoshsahoo/Applications/Zenkai/Zenkai-Desktop-1.0.0-x86_64.AppImage`).
 
 ---

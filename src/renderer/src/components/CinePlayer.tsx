@@ -202,12 +202,12 @@ const loadVideoFilters = (): VideoFilters => {
 }
 
 const ANIME4K_MODES: Array<{ id: Anime4KMode; label: string; desc: string }> = [
-  { id: 'modeA', label: 'Mode A', desc: 'Balanced restoration & 2× upscale (Best for 720p/1080p anime)' },
+  { id: 'fast', label: 'Fast CNN', desc: 'Ultra-efficient neural net (Recommended for iGPU / Laptops · 60+ FPS)' },
+  { id: 'modeA', label: 'Mode A', desc: 'Balanced restoration & 2× upscale (Best for Dedicated GPUs)' },
   { id: 'modeB', label: 'Mode B', desc: 'Soft restoration (Reduces compression ringing & artifacts)' },
   { id: 'modeC', label: 'Mode C', desc: 'Sharp outlines & high detail for crisp modern animation' },
-  { id: 'modeAA', label: 'Mode AA', desc: 'Double-pass ultra restoration for maximum clean detail' },
+  { id: 'modeAA', label: 'Mode AA', desc: 'Double-pass ultra restoration for high-end dedicated GPUs' },
   { id: 'denoise', label: 'Denoise', desc: 'Artifact removal & debanding + 2× CNN upscale' },
-  { id: 'fast', label: 'Fast CNN', desc: 'Lightweight 2× neural net (low battery / integrated GPU)' },
 ]
 const EP_PAGE = 25
 const fmtAir = (d: string | null) => (d ? new Date(d + 'T00:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : null)
@@ -1037,7 +1037,7 @@ export default function CinePlayer({
   const [upInt, setUpIntRaw] = useState(() => readNum('zp-upi', 100))
   const [upMode, setUpModeRaw] = useState<Anime4KMode>(() => {
     const m = (typeof localStorage !== 'undefined' ? localStorage.getItem('zp-upm') : null) as Anime4KMode
-    return m && ['modeA', 'modeB', 'modeC', 'modeAA', 'denoise', 'fast'].includes(m) ? m : 'modeA'
+    return m && ['modeA', 'modeB', 'modeC', 'modeAA', 'denoise', 'fast'].includes(m) ? m : 'fast'
   })
   const [upErr, setUpErr] = useState<string | null>(null)
   const [vkey, setVkey] = useState(0)
@@ -2388,7 +2388,7 @@ const slider = (label: string, key: 'opacity' | 'lh' | 'width' | 'blur' | 'scale
           onEnded?.()
         }}
       />
-      {up && !upErr && <canvas ref={cv} className="zp-v" style={{ ...aspectStyle(ar), opacity: upInt / 100, pointerEvents: 'none', filter: videoFilterStyle }} />}
+      {up && !upErr && <canvas ref={cv} className="zp-v" style={{ ...aspectStyle(ar), opacity: upInt / 100, pointerEvents: 'none', filter: videoFilterStyle, background: 'transparent' }} />}
 
       {/* Live Vision Performance HUD Overlay */}
       {showMetrics && up && upMetrics && !upErr && (
@@ -3490,6 +3490,14 @@ const slider = (label: string, key: 'opacity' | 'lh' | 'width' | 'blur' | 'scale
                   <p className="text-[11px] text-zinc-400">
                     GPU-accelerated super-resolution via WebGPU neural shaders
                   </p>
+                  {gpuSupported && (
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-medium text-emerald-300 border border-emerald-500/25">
+                        <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                        Hardware Accelerated (iGPU & dGPU Ready)
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -3575,7 +3583,7 @@ const slider = (label: string, key: 'opacity' | 'lh' | 'width' | 'blur' | 'scale
                     ? 'Live AI enhancement is unsupported for third-party embed servers due to cross-origin boundaries. Please select a direct stream (Sub/Dub).'
                     : upErr
                       ? `Vision note: ${upErr}. Try selecting another preset or re-toggling.`
-                      : 'Runs 100% locally on your GPU. Automatically bypassed if frame drops occur.'}
+                      : 'Runs 100% locally on your GPU (integrated or dedicated). Optimized for high-efficiency real-time neural upscaling.'}
               </p>
             </div>
           )}

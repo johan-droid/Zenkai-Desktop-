@@ -104,11 +104,29 @@ export async function startVisionLive(
   }
 
   let adapterName = 'GPU Adapter';
+  let isIGPU = false;
   try {
-    const info = (adapter as any).info;
-    if (info?.device || info?.description) {
+    const info = (adapter as any).info || (await (adapter as any).requestAdapterInfo?.()) || {};
+    const desc = (info.description || info.device || '').toLowerCase();
+    const vendor = (info.vendor || '').toLowerCase();
+    const arch = (info.architecture || '').toLowerCase();
+    if (info.description || info.device) {
       adapterName = info.description || info.device;
+    } else if (info.vendor) {
+      adapterName = `${info.vendor.toUpperCase()}${arch ? ` (${arch})` : ''} GPU`;
     }
+    isIGPU =
+      desc.includes('intel') ||
+      desc.includes('uhd') ||
+      desc.includes('iris') ||
+      desc.includes('vega') ||
+      desc.includes('lucienne') ||
+      desc.includes('renoir') ||
+      desc.includes('cezanne') ||
+      desc.includes('radeon graphics') ||
+      desc.includes('integrated') ||
+      vendor.includes('intel') ||
+      (vendor.includes('amd') && (desc.includes('graphics') || !desc.includes('radeon rx') || (typeof navigator !== 'undefined' && ((navigator as any).deviceMemory || 8) <= 8)));
   } catch {}
 
   const device = await adapter.requestDevice();
@@ -117,16 +135,19 @@ export async function startVisionLive(
     'anime4k-webgpu'
   );
 
-  // Screen-conscious scaling: scale up to 2x or screen bounds, bounded by 4K limit
-  const dpr = Math.min((typeof window !== 'undefined' ? window.devicePixelRatio : 1) || 1, 2);
+  // Screen-conscious scaling: on iGPU cap to native display (1.5x / 1440p) to preserve memory bandwidth; on dGPU allow 2x / 4K
+  const dpr = Math.min((typeof window !== 'undefined' ? window.devicePixelRatio : 1) || 1, isIGPU ? 1.25 : 2);
   const sw = typeof screen !== 'undefined' ? screen.width : 1920;
   const sh = typeof screen !== 'undefined' ? screen.height : 1080;
   const scaleX = (sw * dpr) / inW;
   const scaleY = (sh * dpr) / inH;
-  const k = Math.max(1, Math.min(2, scaleX, scaleY));
+  const maxFactor = isIGPU ? 1.5 : 2;
+  const k = Math.max(1, Math.min(maxFactor, scaleX, scaleY));
 
-  const outW = Math.min(3840, Math.round(inW * k));
-  const outH = Math.min(2160, Math.round(inH * k));
+  const maxW = isIGPU ? 2560 : 3840;
+  const maxH = isIGPU ? 1440 : 2160;
+  const outW = Math.min(maxW, Math.round(inW * k));
+  const outH = Math.min(maxH, Math.round(inH * k));
 
   canvas.width = outW;
   canvas.height = outH;
@@ -289,32 +310,38 @@ export async function startVisionLive(
 
       device.queue.submit([enc.finish()]);
 
-      device.queue
-        .onSubmittedWorkDone()
-        .then(() => {
-          inFlight = Math.max(0, inFlight - 1);
-          const t1 = performance.now();
-          currentRenderMs = Math.round((t1 - t0) * 10) / 10;
+      // Sample GPU latency asynchronously without stalling the pipeline every single frame
+      const isSampleFrame = frameCount % 8 === 0;
+      if (isSampleFrame) {
+        device.queue
+          .onSubmittedWorkDone()
+          .then(() => {
+            inFlight = Math.max(0, inFlight - 1);
+            const t1 = performance.now();
+            currentRenderMs = Math.round((t1 - t0) * 10) / 10;
 
-          // Watchdog: monitor rendering latency
-          if (currentRenderMs > 35) {
-            consecutiveSlowFrames++;
-            if (consecutiveSlowFrames >= 10) {
-              if (mode !== 'fast' && onDegrade) {
-                consecutiveSlowFrames = 0;
-                onDegrade('fast');
-              } else if (onBypass) {
-                alive = false;
-                onBypass('Performance watchdog: frame render time exceeded 35ms (>30 dropped frames)');
+            // Watchdog: auto-switch to fast preset if frame time consistently exceeds 50ms (below 20 FPS)
+            if (currentRenderMs > 50) {
+              consecutiveSlowFrames++;
+              if (consecutiveSlowFrames >= 8) {
+                if (mode !== 'fast' && onDegrade) {
+                  consecutiveSlowFrames = 0;
+                  onDegrade('fast');
+                }
               }
+            } else {
+              consecutiveSlowFrames = Math.max(0, consecutiveSlowFrames - 1);
             }
-          } else {
-            consecutiveSlowFrames = Math.max(0, consecutiveSlowFrames - 1);
-          }
-        })
-        .catch(() => {
+          })
+          .catch(() => {
+            inFlight = Math.max(0, inFlight - 1);
+          });
+      } else {
+        // Fast-path queue clearance for intermediate frames
+        Promise.resolve().then(() => {
           inFlight = Math.max(0, inFlight - 1);
         });
+      }
     } catch {
       inFlight = Math.max(0, inFlight - 1);
     }

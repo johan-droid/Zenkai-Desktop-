@@ -20,9 +20,10 @@ log.main.info(
 );
 log.main.info("========================================================");
 
-// Hardware acceleration and WebGPU enablement
+// Hardware acceleration and WebGPU enablement (optimized for both Linux Wayland/X11 and Windows)
+app.commandLine.appendSwitch('enable-unsafe-webgpu');
 app.commandLine.appendSwitch('enable-webgpu-developer-features');
-app.commandLine.appendSwitch('enable-features', 'Vulkan,WebGPU,VaapiVideoDecoder,VaapiVideoEncoder');
+app.commandLine.appendSwitch('enable-features', 'WebGPU,VaapiVideoDecoder,VaapiVideoEncoder');
 app.commandLine.appendSwitch('ignore-gpu-blocklist');
 app.commandLine.appendSwitch('enable-gpu-rasterization');
 app.commandLine.appendSwitch('enable-zero-copy');

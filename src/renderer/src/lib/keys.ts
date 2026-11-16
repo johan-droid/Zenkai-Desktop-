@@ -74,6 +74,10 @@ export const SHORTCUT_GROUPS: ShortcutGroup[] = [
     rows: [
       [['/'], 'Search'],
       [['Ctrl', 'K'], 'Search (⌘ K on Mac)'],
+      [['Alt', '←'], 'Navigate Back (or Mouse 4)'],
+      [['Alt', '→'], 'Navigate Forward (or Mouse 5)'],
+      [['Ctrl', 'R'], 'Reload current page'],
+      [['F11'], 'Toggle window fullscreen'],
       [['?'], 'This list'],
       [['1', '–', '4'], 'Pick a section on the opening page'],
     ],

@@ -103,6 +103,19 @@ export function createMainWindow(): BrowserWindow {
     win.removeMenu();
   }
 
+  // OS-level mouse button (mouse 4 / 5) and multimedia back/forward support
+  win.on("app-command", (_e, cmd) => {
+    if (cmd === "browser-backward") {
+      if (win.webContents.canGoBack()) {
+        win.webContents.goBack();
+      }
+    } else if (cmd === "browser-forward") {
+      if (win.webContents.canGoForward()) {
+        win.webContents.goForward();
+      }
+    }
+  });
+
   win.webContents.on("before-input-event", (event, input) => {
     if (input.type !== "keyDown") return;
     if (input.key === "F11") {
@@ -114,6 +127,16 @@ export function createMainWindow(): BrowserWindow {
     ) {
       win.webContents.reload();
       event.preventDefault();
+    } else if (input.alt && input.key === "ArrowLeft") {
+      if (win.webContents.canGoBack()) {
+        win.webContents.goBack();
+        event.preventDefault();
+      }
+    } else if (input.alt && input.key === "ArrowRight") {
+      if (win.webContents.canGoForward()) {
+        win.webContents.goForward();
+        event.preventDefault();
+      }
     } else if (
       !app.isPackaged &&
       (input.control || input.meta) &&

@@ -18,6 +18,7 @@ import {
   Sparkles,
   Download,
   RefreshCw,
+  Settings,
   type LucideIcon,
 } from 'lucide-react'
 import { cn } from '../lib/utils'
@@ -51,6 +52,7 @@ const MORE: Item[] = [
   { label: 'WatchParty', to: '/watchparty', icon: Tv, match: (p) => p.startsWith('/watchparty') || p.startsWith('/watchtogether') },
   { label: 'Community', to: '/community', icon: Users, match: (p) => p.startsWith('/community') },
   { label: 'Messages', to: '/messages', icon: MessageSquare, match: (p) => p.startsWith('/messages') },
+  { label: 'Settings', to: '/settings', icon: Settings, match: (p) => p === '/settings' },
   { label: 'Support', to: '/support', icon: Heart, match: (p) => p === '/support' },
 ]
 

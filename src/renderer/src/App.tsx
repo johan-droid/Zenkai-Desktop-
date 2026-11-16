@@ -5,6 +5,7 @@ import { AniListDownBanner } from './components/AniListDownBanner'
 import { Footer } from './components/Footer'
 import { MobileDock } from './components/MobileDock'
 import { DesktopSidebar } from './components/DesktopSidebar'
+import { DesktopHeader } from './components/DesktopHeader'
 import { MobileHeader } from './components/MobileHeader'
 import { NavDrawer } from './components/NavDrawer'
 import { ScrollProgress } from './components/ScrollProgress'
@@ -25,6 +26,7 @@ import { useTrackHistory } from './lib/backToDetails'
 import { initAniListSync } from './lib/anilist'
 import { useApplyTvMode } from './lib/keys'
 import { useSpatialNav } from './lib/spatial'
+import { useDesktopNavigation } from './hooks/useDesktopNavigation'
 import { isDetailsPath, isReaderPath, isWatchPath, sectionOf } from './lib/sections'
 import { useAuth } from './context/AuthContext'
 import { checkDailySync } from './lib/sync'
@@ -114,8 +116,11 @@ export default function App() {
   const bare = gate || pathname === '/busted' || isEmbed || reader || isWatchPath(pathname) || isCall || isMessages || isAuth
   const section = sectionOf(pathname)
 
-  const showNav = !bare && !isDetailsPath(pathname) && !isApi
+  const isDesktop = typeof window !== 'undefined' && Boolean(window.zenkai?.isDesktop)
+  const showNav = !bare && (!isDetailsPath(pathname) || isDesktop) && !isApi
+  const showDesktopHeader = !gate && pathname !== '/busted' && !isEmbed && !reader && !isApi
 
+  useDesktopNavigation()
   useTrackHistory()
   useApplyTvMode()
   useSpatialNav()
@@ -173,6 +178,7 @@ export default function App() {
             : 'pl-0 pt-0'
         )}
       >
+        {showDesktopHeader && <DesktopHeader />}
         <ErrorBoundary resetKey={pathname}>
           <Suspense fallback={<PageLoader />}>
             <Routes>
@@ -189,6 +195,7 @@ export default function App() {
               <Route path="/extension/how-to" element={<ExtensionGuidePage />} />
               <Route path="/companion" element={<ExtensionPage />} />
               <Route path="/profile" element={<ProfilePage />} />
+              <Route path="/settings" element={<ProfilePage />} />
               <Route path="/u/:username" element={<PublicProfilePage />} />
               <Route path="/user/:username" element={<PublicProfilePage />} />
               <Route path="/messages" element={<MessagesPage />} />

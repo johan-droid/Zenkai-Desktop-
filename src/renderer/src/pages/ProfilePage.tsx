@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useEffect, useState, useMemo } from 'react'
+import { Link, useLocation } from 'react-router-dom'
 import {
   BookmarkCheck,
   ChevronRight,
@@ -101,7 +101,16 @@ export default function ProfilePage() {
   const [showAuth, setShowAuth] = useState(false)
   const [editTab, setEditTab] = useState<SectionKey>('identity')
   const isDesktop = typeof window !== 'undefined' && Boolean(window.zenkai?.isDesktop)
-  const [activeTab, setActiveTab] = useState<TabKey>(() => (isDesktop ? 'desktop' : 'preferences'))
+  const { pathname, search } = useLocation()
+  const searchParams = useMemo(() => new URLSearchParams(search), [search])
+  const requestedTab = (searchParams.get('tab') as TabKey | null) ?? (pathname === '/settings' ? 'desktop' : null)
+  const [activeTab, setActiveTab] = useState<TabKey>(() => requestedTab ?? (isDesktop ? 'desktop' : 'preferences'))
+
+  useEffect(() => {
+    if (requestedTab) {
+      setActiveTab(requestedTab)
+    }
+  }, [requestedTab])
 
   const [prefs, setPrefs] = useState(getPrefs)
   const [autoNext, setAutoNext] = useFlag('zk:autonext', true)

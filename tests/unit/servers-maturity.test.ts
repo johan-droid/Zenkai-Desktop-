@@ -37,3 +37,4 @@ describe("Server registry — maturity gate", () => {
     expect(found?.id).toBe(first.id);
   });
 });
+

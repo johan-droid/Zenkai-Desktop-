@@ -101,6 +101,7 @@ export const DesktopSidebar = memo(function DesktopSidebar({ collapsed, onToggle
   const profile = useProfile()
   const [activeDownloads, setActiveDownloads] = useState(0)
   const [checkingUpdates, setCheckingUpdates] = useState(false)
+  const [updateAvailable, setUpdateAvailable] = useState<string | null>(null)
 
   const handleCheckUpdates = async () => {
     if (!window.zenkai?.app || checkingUpdates) return
@@ -108,8 +109,10 @@ export const DesktopSidebar = memo(function DesktopSidebar({ collapsed, onToggle
     try {
       const res = await window.zenkai.app.checkUpdate()
       if (res?.updateAvailable) {
+        setUpdateAvailable(res.version || 'new')
         toast(`Update v${res.version} available! Check bottom right prompt.`, 'success')
       } else {
+        setUpdateAvailable(null)
         toast('Zenkai Desktop is up to date', 'info')
       }
     } catch {
@@ -118,6 +121,26 @@ export const DesktopSidebar = memo(function DesktopSidebar({ collapsed, onToggle
       setCheckingUpdates(false)
     }
   }
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.zenkai?.app) return
+
+    const unbind = window.zenkai.app.onStatus((s) => {
+      if (s.status === 'available') {
+        setUpdateAvailable(s.version || 'new')
+      } else if (s.status === 'not-available' || s.status === 'downloaded') {
+        setUpdateAvailable(null)
+      }
+    })
+
+    window.zenkai.app.checkUpdate().then((res) => {
+      if (res?.updateAvailable && res.version) {
+        setUpdateAvailable(res.version)
+      }
+    }).catch(() => {})
+
+    return () => unbind?.()
+  }, [])
 
   useEffect(() => {
     if (typeof window === 'undefined' || !window.zenkai?.downloads) return
@@ -201,10 +224,13 @@ export const DesktopSidebar = memo(function DesktopSidebar({ collapsed, onToggle
           <button
             type="button"
             onClick={handleCheckUpdates}
-            title="Check for updates"
-            className={cn(iconBtn, 'size-11 mx-auto rounded-2xl')}
+            title={updateAvailable ? `Update v${updateAvailable} available` : 'Check for updates'}
+            className={cn(iconBtn, 'relative size-11 mx-auto rounded-2xl')}
           >
             <RefreshCw className={cn('size-4', checkingUpdates && 'animate-spin text-accent')} />
+            {updateAvailable && (
+              <span className="absolute top-1.5 right-1.5 size-2.5 rounded-full bg-accent ring-2 ring-background animate-pulse" />
+            )}
           </button>
         ) : (
           <button
@@ -212,8 +238,18 @@ export const DesktopSidebar = memo(function DesktopSidebar({ collapsed, onToggle
             onClick={handleCheckUpdates}
             className="flex w-full items-center gap-3.5 rounded-2xl px-3.5 py-2 text-[13px] font-medium text-muted transition hover:bg-foreground/[0.06] hover:text-foreground active:scale-95"
           >
-            <RefreshCw className={cn('size-4 shrink-0', checkingUpdates && 'animate-spin text-accent')} />
+            <div className="relative">
+              <RefreshCw className={cn('size-4 shrink-0', checkingUpdates && 'animate-spin text-accent')} />
+              {updateAvailable && (
+                <span className="absolute -top-1 -right-1 size-2 rounded-full bg-accent animate-pulse" />
+              )}
+            </div>
             <span>{checkingUpdates ? 'Checking for updates...' : 'Check for updates'}</span>
+            {updateAvailable && (
+              <span className="ml-auto rounded-full bg-accent/20 px-2 py-0.5 text-[10px] font-bold text-accent ring-1 ring-accent/30 animate-pulse">
+                v{updateAvailable}
+              </span>
+            )}
           </button>
         )}
 

@@ -222,3 +222,4 @@ describe("startUpdateDownload — download lifecycle", () => {
     expect(r.success).toBe(true);
   });
 });
+

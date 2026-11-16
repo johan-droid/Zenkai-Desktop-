@@ -20,7 +20,19 @@ export function UpdatePrompt() {
     })
 
     // 2. Proactively check GitHub releases on launch
-    void window.zenkai.app.checkUpdate().catch(() => {})
+    void window.zenkai.app
+      .checkUpdate()
+      .then((res) => {
+        if (res?.updateAvailable && res.version) {
+          setStatus({
+            status: 'available',
+            version: res.version,
+            notes: res.notes,
+          })
+          setDismissed(false)
+        }
+      })
+      .catch(() => {})
 
     return () => {
       unbind?.()

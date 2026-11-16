@@ -1058,12 +1058,12 @@ export default function WatchPage() {
               </Problem>
             ) : (
               <Frame>
-                <iframe key={salt.data} src={salt.data} title={title} allow="autoplay; fullscreen; picture-in-picture; encrypted-media" allowFullScreen className="absolute inset-0 size-full border-0 bg-black" />
+                <iframe key={salt.data} src={salt.data} title={title} allow="autoplay; fullscreen; picture-in-picture; encrypted-media" allowFullScreen className="absolute inset-0 size-full border-0 bg-black" style={{ backgroundColor: '#000000' }} />
               </Frame>
             )
           ) : embedSrc ? (
             <Frame>
-              <iframe key={embedSrc} src={embedSrc} title={title} allow="autoplay; fullscreen; picture-in-picture; encrypted-media" allowFullScreen className="absolute inset-0 size-full border-0 bg-black" />
+              <iframe key={embedSrc} src={embedSrc} title={title} allow="autoplay; fullscreen; picture-in-picture; encrypted-media" allowFullScreen className="absolute inset-0 size-full border-0 bg-black" style={{ backgroundColor: '#000000' }} />
             </Frame>
           ) : bundle === null ? (
             <Loading quiet={serverBusy} logo={logo} />

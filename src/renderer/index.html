@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" class="dark">
+<html lang="en" class="dark" style="background-color: #050506; color-scheme: dark;">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
@@ -22,6 +22,40 @@
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&family=Roboto:wght@400;500;700;900&family=Nunito:wght@400;500;700;900&family=Poppins:wght@400;500;700;900&family=Montserrat:wght@400;500;700;900&family=Oswald:wght@400;500;700&family=Merriweather:wght@400;700;900&family=Roboto+Mono:wght@400;500;700&family=Comic+Neue:wght@400;700&family=Atkinson+Hyperlegible:wght@400;700&family=Bebas+Neue&family=Bangers&family=Open+Sans:wght@400;500;700;800&family=Lato:wght@400;700;900&family=Playfair+Display:wght@400;500;700;900&family=Lora:wght@400;500;700&family=JetBrains+Mono:wght@400;500;700&family=Lobster&family=Permanent+Marker&family=Caveat:wght@400;500;700&family=Outfit:wght@400;500;700;900&display=swap"
       rel="stylesheet"
     />
+    <style>
+      :root, html, body {
+        background-color: #050506 !important;
+        color: #ffffff;
+        color-scheme: dark;
+        margin: 0;
+        padding: 0;
+      }
+      #root {
+        background-color: #050506;
+        min-height: 100vh;
+        width: 100%;
+      }
+      .zk-initial-splash {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        background: #050506;
+        z-index: 9999;
+      }
+      .zk-initial-logo {
+        width: 60px;
+        height: 60px;
+        border-radius: 14px;
+        animation: zk-initial-pulse 1.5s ease-in-out infinite;
+      }
+      @keyframes zk-initial-pulse {
+        0%, 100% { transform: scale(1); opacity: 0.8; }
+        50% { transform: scale(1.06); opacity: 1; }
+      }
+    </style>
     <script>
       (function () {
         try {
@@ -32,8 +66,12 @@
       })();
     </script>
   </head>
-  <body>
-    <div id="root"></div>
+  <body style="background-color: #050506; color: #ffffff; margin: 0;">
+    <div id="root">
+      <div class="zk-initial-splash">
+        <img class="zk-initial-logo" src="./logo.png" alt="Zenkai" width="60" height="60" onerror="this.style.display='none'" />
+      </div>
+    </div>
     <script type="module" src="./src/main.tsx"></script>
   </body>
 </html>

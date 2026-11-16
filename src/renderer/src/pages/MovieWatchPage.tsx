@@ -427,7 +427,8 @@ export default function MovieWatchPage() {
                 allowFullScreen
                 referrerPolicy="origin"
                 onLoad={() => setFrameLoaded(true)}
-                className="absolute inset-0 size-full border-0"
+                className="absolute inset-0 size-full border-0 bg-black"
+                style={{ backgroundColor: '#000000' }}
               />
             )}
             {(providers.loading || src.loading || (src.data && !frameLoaded)) && !src.error && !providers.error && (

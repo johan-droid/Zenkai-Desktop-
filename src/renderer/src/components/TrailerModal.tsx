@@ -49,7 +49,8 @@ export function TrailerModal({ trailer, onClose }: { trailer: AniTrailer | null;
             <iframe
               src={src}
               title="Anime trailer"
-              className="h-full w-full"
+              className="h-full w-full bg-black border-0"
+              style={{ backgroundColor: '#000000' }}
               allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
               allowFullScreen
             />

@@ -170,6 +170,18 @@ test.describe('Zenkai Desktop: Full QA Automated Workflows & Release Gates', () 
     await win.evaluate(() => { window.location.hash = '#/vision'; });
     await assertHealthyScreen(win, { label: 'Vision Studio' });
 
+    // A late first-session promo can open while the workflow is running.
+    // Dismiss transient dialogs before interacting with the page controls.
+    await win.keyboard.press('Escape');
+    await win.waitForTimeout(200);
+    for (const name of ['Maybe later', 'Close', 'Continue', 'Got it']) {
+      const dismiss = win.getByRole('button', { name, exact: true }).first();
+      if (await dismiss.isVisible().catch(() => false)) {
+        await dismiss.click().catch(() => {});
+        await win.waitForTimeout(200);
+      }
+    }
+
     const modelsTab = win.locator('button:has-text("AI Models")').first();
     if (await modelsTab.isVisible()) {
       await modelsTab.click();

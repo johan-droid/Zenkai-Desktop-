@@ -45,6 +45,22 @@ function openExternalSafe(url: string): void {
   }
 }
 
+// Embeds must not turn pop-ups into real browser windows/tabs (ad redirects). Only pop-ups
+// requested by our own UI (app origin or no referrer) may reach the system browser.
+function isAppReferrer(
+  referrer: string | { url: string } | undefined,
+): boolean {
+  const raw = typeof referrer === "string" ? referrer : referrer?.url;
+  if (!raw) return true;
+  try {
+    const u = new URL(raw);
+    if (u.protocol === "file:" || u.protocol === "data:") return true;
+    return (ALLOWED_ORIGINS as readonly string[]).includes(u.origin);
+  } catch {
+    return false;
+  }
+}
+
 export function registerSecurity(): void {
   // Navigation lockdown (§6.4): allowlisted origins load in-app, everything
   // else goes to the system browser and never loads in the app.
@@ -57,7 +73,7 @@ export function registerSecurity(): void {
 
     wc.setWindowOpenHandler((details) => {
       if (isAllowedOrigin(details.url)) return { action: "allow" };
-      openExternalSafe(details.url);
+      if (isAppReferrer(details.referrer)) openExternalSafe(details.url);
       return { action: "deny" };
     });
   });

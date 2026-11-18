@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.0.1] - 2026-11-18
+
+### Fixed
+- **Streaming servers connect again in the packaged AppImage**: direct servers (MegaPlay, Vidstream, FlixCloud, ACDN) now send the player identity header on hash routes (`#/watch/...`) used by the desktop shell. The API previously answered `403 Direct stream extraction is private`, so every direct server failed to start.
+- **Embed players are sandboxed**: anime embed and multi-audio iframes now use a sandbox that keeps playback, fullscreen and storage working while blocking top-level navigation and pop-up ad redirects.
+- **Ad pop-ups no longer open in the system browser**: pop-up windows requested by embed frames are denied; only links clicked in Zenkai's own UI open externally.
+
 ## [Unreleased]
 
 ### Added

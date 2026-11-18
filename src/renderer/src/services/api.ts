@@ -4,6 +4,24 @@ import { tmdbDirect, tmdbEpisodesDirect } from './tmdbDirect'
 import { isCompanionActive, companionHas } from '../lib/useCompanion'
 import { resolveAcdnClient, getResolveTrace, type ClientStream } from '../lib/acdnClient'
 import { toast } from '../lib/toast'
+import { isDesktopApp } from '../lib/shield'
+
+/**
+ * Contexts that must announce themselves to the API as a Zenkai player. The API refuses direct stream
+ * extraction without it (403 "Direct stream extraction is private"). The desktop build loads
+ * file:///.../index.html and routes with HashRouter, so pathname alone is not enough — the hash counts too.
+ */
+export const isPlayerContext = (
+  loc: { pathname: string; hash: string },
+  inFrame: boolean,
+  desktop: boolean,
+): boolean =>
+  desktop ||
+  inFrame ||
+  loc.pathname.startsWith('/watch') ||
+  loc.pathname.startsWith('/embed') ||
+  loc.hash.startsWith('#/watch') ||
+  loc.hash.startsWith('#/embed')
 
 /** Cloudflare answers 429 (or its own HTML error page) once the free Workers quota is used up. */
 export const failMsg = (res: Response, data: { error?: string } | null) =>
@@ -18,7 +36,11 @@ async function getJson<T>(path: string, timeout = 20000): Promise<T> {
   const ctl = new AbortController()
   const t = window.setTimeout(() => ctl.abort(), timeout)
   try {
-    const isZenkaiPlayer = typeof window !== 'undefined' && (window.self !== window.top || window.location.pathname.startsWith('/embed') || window.location.pathname.startsWith('/watch'))
+    const isZenkaiPlayer = isPlayerContext(
+      window.location,
+      window.self !== window.top,
+      isDesktopApp(),
+    )
     const headers: Record<string, string> = {
       ...(isZenkaiPlayer ? { 'X-Zenkai-Embed': '1' } : {}),
       'X-Zenkai-Barrier': 'zenkai-barrier-apk-2026-v1',

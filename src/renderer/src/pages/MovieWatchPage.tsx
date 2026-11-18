@@ -422,7 +422,6 @@ export default function MovieWatchPage() {
                 key={src.data}
                 src={src.data}
                 title={title}
-                sandbox="allow-scripts allow-same-origin allow-forms allow-presentation"
                 allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
                 allowFullScreen
                 referrerPolicy="origin"

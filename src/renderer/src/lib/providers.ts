@@ -17,11 +17,31 @@ interface ProviderDef {
   animeUrl?:      (id: number | string, ep: number, lang?: string) => string;
 }
 
+// Embed hosts that stopped serving content (re-checked 2026-11-18). They only produce a dead
+// player frame, so they are hidden from the movie/TV server list instead of being offered.
+const UNREACHABLE = new Set([
+  'cinemaos', // connection aborted
+  'videasy', // TLS certificate failure
+  'vidup', // upstream 500
+  'vidcore', // upstream 500
+  'vidsrc-ru', // domain parked
+  'vidlove', // DNS no longer resolves
+  '1embed', // connection timeout
+]);
+
 const PROVIDER_DEFS: ProviderDef[] = [
+  // ── vidsrc.su (verified playing for movies + TV from the desktop shell) ──
+  {
+    id: 'vidsrc-su', label: 'Nebula',
+    searchType: 'tmdb', contentTypes: ['movie', 'tv'], priority: 0,
+    tags: ['Multi audio'],
+    movieUrl: (id) => `https://vidsrc.su/embed/movie/${id}`,
+    tvUrl: (id, s, e) => `https://vidsrc.su/embed/tv/${id}/${s}/${e}`,
+  },
   // ── MovieBox (Direct stream player with multi-audio dubs) ──
   {
     id: 'moviebox', label: 'MovieBox',
-    searchType: 'tmdb', contentTypes: ['movie', 'tv'], priority: 0,
+    searchType: 'tmdb', contentTypes: ['movie', 'tv'], priority: 1,
     tags: ['Direct', 'Multi audio'],
     movieUrl: (id) => `/api/movies/stream?id=${id}&type=movie`,
     tvUrl:    (id, s, e) => `/api/movies/stream?id=${id}&type=tv&s=${s}&e=${e}`,
@@ -156,7 +176,10 @@ const PROVIDER_DEFS: ProviderDef[] = [
 ];
 
 function getProviders(ct: ContentType): ProviderDef[] {
-  return PROVIDER_DEFS.filter(p => p.contentTypes.includes(ct)).sort((a, b) => a.priority - b.priority);
+  return PROVIDER_DEFS
+    .filter(p => p.contentTypes.includes(ct))
+    .filter(p => ct === 'anime' || !UNREACHABLE.has(p.id))
+    .sort((a, b) => a.priority - b.priority);
 }
 
 function buildUrl(

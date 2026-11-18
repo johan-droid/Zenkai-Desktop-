@@ -14,6 +14,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Embed players are sandboxed**: anime embed and multi-audio iframes now use a sandbox that keeps playback, fullscreen and storage working while blocking top-level navigation and pop-up ad redirects.
 - **Ad pop-ups no longer open in the system browser**: pop-up windows requested by embed frames are denied; only links clicked in Zenkai's own UI open externally.
 
+## [1.0.2] - 2026-11-18
+
+### Fixed
+- **Movies and TV play again**: `vidsrc.su` is now the default movie/TV server and was verified playing (`readyState: 4`, active playback) for both a movie and a TV episode in the packaged build.
+- **Dead movie servers removed from the picker**: CinemaOS, Videasy, VidUp, VidCore, VidSrc.ru, VidLove and 1Embed no longer respond (connection aborted, TLS failure, upstream 500, parked domain, DNS gone). They are hidden instead of showing a black player.
+- **Movie embeds are no longer sandboxed**: the main movie player refused to start inside a sandboxed frame (`Restricted Embed Detected` / `Please Disable Sandbox`). Pop-ups and external navigation are still blocked in the Electron main process, so ad redirects stay contained.
+
 ## [Unreleased]
 
 ### Added

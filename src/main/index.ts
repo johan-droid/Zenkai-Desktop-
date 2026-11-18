@@ -13,7 +13,7 @@ import { configureGpuSwitches } from "./gpu";
 import { getSettings } from "./settings";
 
 log.main.info("========================================================");
-log.main.info(`Starting Zenkai Desktop v${app.getVersion() || "0.0.1"}`);
+log.main.info(`Starting Zenkai Desktop v${app.getVersion()}`);
 log.main.info(
   `OS: ${process.platform} (${process.arch}) | Electron: ${process.versions.electron} | Chromium: ${process.versions.chrome} | Node: ${process.versions.node}`,
 );

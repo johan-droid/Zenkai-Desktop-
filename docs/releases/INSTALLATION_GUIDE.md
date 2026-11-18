@@ -1,7 +1,7 @@
 # Zenkai Desktop — Official Installation & User Guide
 
-**Document Version:** 1.0.0  
-**Target Release:** Zenkai Desktop v0.0.1  
+**Document Version:** 2.0.0  
+**Target Release:** Zenkai Desktop v1.0.4+  
 **Status:** Canonical End-User Documentation
 
 ---
@@ -33,13 +33,13 @@
 The Linux package is distributed as a self-contained **AppImage**, which requires no root privileges or package manager installation.
 
 ### Step 1: Download the AppImage
-Download `Zenkai-Desktop-0.0.1-x86_64.AppImage` from GitHub Releases.
+Download `Zenkai-Desktop-<version>-x86_64.AppImage` from GitHub Releases.
 
 ### Step 2: Make the File Executable
 Open your terminal in the directory where you downloaded the file:
 
 ```bash
-chmod +x Zenkai-Desktop-0.0.1-x86_64.AppImage
+chmod +x Zenkai-Desktop-<version>-x86_64.AppImage
 ```
 
 Alternatively, right-click the file in your desktop file manager (GNOME Files, Dolphin, Nautilus), select **Properties** → **Permissions**, and check **"Allow executing file as program"**.
@@ -48,7 +48,7 @@ Alternatively, right-click the file in your desktop file manager (GNOME Files, D
 Launch directly from terminal or file manager:
 
 ```bash
-./Zenkai-Desktop-0.0.1-x86_64.AppImage
+./Zenkai-Desktop-<version>-x86_64.AppImage
 ```
 
 *(Optional: Use [AppImageLauncher](https://github.com/TheAssassin/AppImageLauncher) to automatically integrate Zenkai Desktop into your desktop application menu).*
@@ -60,10 +60,10 @@ Launch directly from terminal or file manager:
 The Windows package is distributed as a standard Nullsoft Scriptable Install System (NSIS) installer.
 
 ### Step 1: Download the Installer
-Download `Zenkai-Desktop-Setup-0.0.1-x64.exe` from GitHub Releases.
+Download `Zenkai-Desktop-Setup-<version>-x64.exe` from GitHub Releases.
 
 ### Step 2: Run the Installer
-Double-click `Zenkai-Desktop-Setup-0.0.1-x64.exe` to launch the installation wizard.
+Double-click `Zenkai-Desktop-Setup-<version>-x64.exe` to launch the installation wizard.
 
 ### Step 3: Select Installation Options
 1. Choose your preferred installation directory (Default: `%LOCALAPPDATA%\Programs\Zenkai`).
@@ -82,14 +82,14 @@ Before executing downloaded packages, you can verify their cryptographic integri
 
 ### On Linux:
 ```bash
-sha256sum Zenkai-Desktop-0.0.1-x86_64.AppImage
+sha256sum Zenkai-Desktop-<version>-x86_64.AppImage
 # Compare against dist/SHA256SUMS.txt:
 # a88280364a8729aadf11d3114811d2aede1da7daa1614cd150267f1fddb528fa
 ```
 
 ### On Windows (PowerShell):
 ```powershell
-Get-FileHash -Algorithm SHA256 .\Zenkai-Desktop-Setup-0.0.1-x64.exe
+Get-FileHash -Algorithm SHA256 .\Zenkai-Desktop-Setup-<version>-x64.exe
 # Compare against:
 # dc51fde3a865c6cb1e8883da1cbcc27da7c9c0ff47d290188613ee167159f278
 ```
@@ -105,7 +105,7 @@ sudo apt update && sudo apt install libfuse2
 ```
 Or run the AppImage with:
 ```bash
-./Zenkai-Desktop-0.0.1-x86_64.AppImage --appimage-extract-and-run
+./Zenkai-Desktop-<version>-x86_64.AppImage --appimage-extract-and-run
 ```
 
 ### Windows: SmartScreen Prompt ("Windows protected your PC")

@@ -1,20 +1,25 @@
 name: Release
 
-# Manual only. Publishing a release (gh release create / GitHub UI) is the single
-# release path; a pushed tag no longer starts a duplicate build that has to be cancelled.
+# Tag-driven: pushing an approved v* tag builds, verifies and publishes that version.
+# Re-running is idempotent: a release that already exists is never overwritten.
 on:
+  push:
+    tags:
+      - "v*"
   workflow_dispatch:
     inputs:
-      force_bump:
-        description: "Force semver bump (patch, minor, major, or auto)"
+      tag:
+        description: "Tag to build (e.g. v1.0.4)"
+        required: true
+        type: string
+      publish:
+        description: "Publish the GitHub Release (false = build and verify only)"
         required: false
-        default: "auto"
+        default: "true"
         type: choice
         options:
-          - auto
-          - patch
-          - minor
-          - major
+          - "true"
+          - "false"
 
 concurrency:
   group: release-pipeline
@@ -25,7 +30,7 @@ permissions:
 
 jobs:
   determine-version:
-    name: Semantic Versioning & Conventional Commit Analysis
+    name: Verify Tag Matches Committed Version
     runs-on: ubuntu-22.04
     outputs:
       should_release: ${{ steps.versioning.outputs.should_release }}
@@ -49,29 +54,39 @@ jobs:
           version: 12
           run_install: false
 
-      - name: Calculate release version from Conventional Commits
+      - name: Verify tag matches the committed version
         id: versioning
         shell: bash
         run: |
-          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
-            TAG="${GITHUB_REF#refs/tags/}"
-            VERSION="${TAG#v}"
-            echo "Triggered by tag: $TAG ($VERSION)"
-            echo "should_release=true" >> $GITHUB_OUTPUT
-            echo "version=$VERSION" >> $GITHUB_OUTPUT
-            echo "tag=$TAG" >> $GITHUB_OUTPUT
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            TAG="${{ inputs.tag }}"
           else
-            echo "Analyzing commits since latest tag on main..."
-            node scripts/release-version.mjs --apply
+            TAG="${GITHUB_REF#refs/tags/}"
+          fi
+          VERSION="${TAG#v}"
+          PKG_VERSION="$(node -p "require('./package.json').version")"
+          echo "Tag: $TAG | package.json: $PKG_VERSION"
+
+          if [[ "$TAG" != "v$VERSION" ]]; then
+            echo "::error::Tag '$TAG' is not a v-prefixed version"; exit 1
+          fi
+          if [[ "$VERSION" != "$PKG_VERSION" ]]; then
+            echo "::error::Tag $TAG does not match package.json version $PKG_VERSION"; exit 1
           fi
 
-      - name: Upload temporary release notes
-        if: steps.versioning.outputs.should_release == 'true'
-        uses: actions/upload-artifact@v4
-        with:
-          name: release-notes
-          path: RELEASE_NOTES.tmp.md
-          if-no-files-found: ignore
+          HIGHEST="$(git tag -l 'v*' | sed 's/^v//' | sort -V | tail -1)"
+          if git rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then
+            # Re-running an existing tag is allowed, but it must still be the newest.
+            if [[ "$HIGHEST" != "$VERSION" ]]; then
+              echo "::error::$TAG is not the highest version (highest is v$HIGHEST)"; exit 1
+            fi
+          elif [[ -n "$HIGHEST" ]] && [[ "$(printf '%s\n%s\n' "$HIGHEST" "$VERSION" | sort -V | tail -1)" != "$VERSION" ]]; then
+            echo "::error::$TAG is not newer than the highest release v$HIGHEST"; exit 1
+          fi
+
+          echo "should_release=true" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
 
   build-linux:
     name: Build Linux Packages
@@ -104,13 +119,6 @@ jobs:
 
       - name: Gate B — Zero-Mock Production Data Integrity Check
         run: node scripts/verify-zero-mock.mjs
-
-      - name: Synchronize package version
-        shell: bash
-        run: |
-          VERSION="${{ needs.determine-version.outputs.version }}"
-          npm version "$VERSION" --no-git-tag-version --allow-same-version
-          echo "Packaging version: $(node -p "require('./package.json').version")"
 
       - name: Build application bundle
         run: pnpm build
@@ -166,13 +174,6 @@ jobs:
 
       - name: Gate B — Zero-Mock Production Data Integrity Check
         run: node scripts/verify-zero-mock.mjs
-
-      - name: Synchronize package version
-        shell: bash
-        run: |
-          VERSION="${{ needs.determine-version.outputs.version }}"
-          npm version "$VERSION" --no-git-tag-version --allow-same-version
-          echo "Packaging version: $(node -p "require('./package.json').version")"
 
       - name: Build application bundle
         run: pnpm build
@@ -249,6 +250,7 @@ jobs:
   publish-release:
     name: Publish Production GitHub Release
     needs: [determine-version, verify-artifacts]
+    if: github.event_name == 'push' || inputs.publish == 'true'
     runs-on: ubuntu-22.04
 
     steps:
@@ -261,14 +263,38 @@ jobs:
           name: verified-dist-bundle
           path: dist
 
-      - name: Download release notes if generated
-        uses: actions/download-artifact@v4
-        with:
-          name: release-notes
-          path: release-notes-dir
-        continue-on-error: true
+      - name: Extract release notes from CHANGELOG
+        shell: bash
+        env:
+          VERSION: ${{ needs.determine-version.outputs.version }}
+        run: |
+          node -e '
+          const fs = require("fs");
+          const v = process.env.VERSION;
+          const md = fs.readFileSync("CHANGELOG.md", "utf8");
+          const start = md.search(new RegExp("^## \\[" + v.replace(/\./g, "\\.") + "\\]", "m"));
+          if (start === -1) { console.error("No CHANGELOG entry for " + v); process.exit(1); }
+          const rest = md.slice(start);
+          const next = rest.slice(1).search(/^## \[/m);
+          const section = (next === -1 ? rest : rest.slice(0, next + 1)).trim();
+          fs.writeFileSync("release-notes.md", section + "\n");
+          console.log(section);
+          '
+
+      - name: Refuse to overwrite an existing release
+        id: guard
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ needs.determine-version.outputs.tag }}
+        run: |
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG already exists — leaving it untouched." | tee -a "$GITHUB_STEP_SUMMARY"
+            echo "already_published=true" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Pre-publish validation — Ensure all critical platform assets exist
+        if: steps.guard.outputs.already_published != 'true'
         shell: bash
         run: |
           echo "Validating release assets before publication..."
@@ -302,13 +328,15 @@ jobs:
           echo "All release assets validated."
 
       - name: Publish Release to GitHub
+        if: steps.guard.outputs.already_published != 'true'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ needs.determine-version.outputs.tag }}
           name: "Zenkai Desktop ${{ needs.determine-version.outputs.tag }}"
-          body_path: ${{ hashFiles('release-notes-dir/RELEASE_NOTES.tmp.md') != '' && 'release-notes-dir/RELEASE_NOTES.tmp.md' || '' }}
+          body_path: release-notes.md
           files: dist/*
-          generate_release_notes: ${{ hashFiles('release-notes-dir/RELEASE_NOTES.tmp.md') == '' }}
+          fail_on_unmatched_files: true
+          generate_release_notes: false
           draft: false
           prerelease: ${{ contains(needs.determine-version.outputs.tag, '-beta') || contains(needs.determine-version.outputs.tag, '-alpha') || contains(needs.determine-version.outputs.tag, '-rc') }}
         env:

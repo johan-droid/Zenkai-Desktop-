@@ -47,7 +47,7 @@ let latestUpdateResult: UpdateCheckResult | null = null;
 let downloadedPackagePath: string | null = null;
 
 const currentDiagnostics: UpdateDiagnostics = {
-  currentVersion: "0.0.1",
+  currentVersion: "", // filled from app.getVersion() on the first check
   channel: "stable",
   updateAvailable: false,
   downloadState: "idle",

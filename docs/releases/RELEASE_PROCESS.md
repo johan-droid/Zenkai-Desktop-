@@ -9,27 +9,28 @@
 
 ## 1. Release Philosophy
 
-Zenkai Desktop has **one release path** and it is explicit:
+Zenkai Desktop has **one authoritative version** and **one automated release path**:
 
-> **"Publish deliberately, verify always."**
+> **"The tag is the release. The pipeline verifies it."**
 
-1. Merges to `main` run `CI` and `QA — Main Branch Integration`. Nothing is published from them.
-2. A pushed `v*` tag does **not** start a build. Tags are created only by the publish step itself.
-3. The publisher builds locally, then publishes a GitHub Release with the built artifacts:
+1. `package.json.version` is the only version source. electron-builder embeds it, and `app.getVersion()` reads it back.
+2. Merges to `main` run `CI` and `QA — Main Branch Integration`. Nothing is published from them.
+3. An approved `v*` tag starts `.github/workflows/release.yml`:
+   - `determine-version` refuses to build unless the tag equals `v<package.json.version>` and is newer than every existing tag.
+   - `build-linux` (ubuntu-22.04) builds AppImage, deb, rpm and `latest-linux.yml`.
+   - `build-windows` (windows-latest) builds the NSIS setup, portable zip and `latest.yml`.
+   - `verify-artifacts` consolidates `SHA256SUMS.txt` and runs `scripts/verify-artifacts.mjs`.
+   - `publish-release` refuses to overwrite an existing release and attaches every verified artifact.
+4. `workflow_dispatch` runs the same pipeline for one tag; `publish: false` builds and verifies without publishing.
 
 ```bash
+# Prepare, verify, then release (tag push requires approval)
 pnpm typecheck && pnpm lint && pnpm test && pnpm release:check
-pnpm build && pnpm exec electron-builder --linux AppImage deb -p never
-sha256sum Zenkai-Desktop-<v>-x86_64.AppImage Zenkai-Desktop-v<v>-Linux-x64.deb > release/SHA256SUMS.txt
-gh release create v<v> --target main --title "Zenkai Desktop v<v>" --notes-file <notes>.md \
-  release/Zenkai-Desktop-<v>-x86_64.AppImage \
-  release/Zenkai-Desktop-v<v>-Linux-x64.deb \
-  release/latest-linux.yml release/SHA256SUMS.txt
+pnpm build
+git tag v<version> && git push origin v<version>
 ```
 
-4. `.github/workflows/release.yml` is a **manual fallback** (`workflow_dispatch`) that rebuilds the same bundle in CI. It never runs automatically, so a locally published release can never be overwritten or cancelled by a concurrent pipeline.
-
-The desktop app reads updates straight from these GitHub Releases (`latest-linux.yml` for the electron-updater feed and the Releases API for the version/checksum check).
+The desktop app reads updates straight from these GitHub Releases (`latest-linux.yml` / `latest.yml` for the electron-updater feed and the Releases API for the version and checksum check).
 
 ---
 
@@ -45,36 +46,38 @@ Zenkai Desktop strictly enforces [Conventional Commits v1.0.0](https://www.conve
 | `BREAKING CHANGE:` or `type!:` | **Major Release** (`X+1.0.0`) | `feat(ipc)!: redesign vision hardware schema` | Releases new major version |
 | `docs:`, `test:`, `chore:`, `style:`, `refactor:` | **No Release** (Internal) | `docs: update troubleshooting guide` | CI runs, no release triggered |
 
-### Automated Versioning Engine (`scripts/release-version.mjs`)
-When code lands on `main`:
-1. Discovers the highest existing Git tag (e.g. `v0.0.2`).
-2. Extracts all commits in the range `<latest-tag>..HEAD`.
-3. Evaluates conventional commit types and detects highest required bump (`major` > `minor` > `patch`).
-4. Calculates next semver and guarantees it is strictly greater than any existing Git tag or package version.
-5. Formats structured release notes grouped into Features, Fixes, and Performance.
-6. Synchronizes `package.json` with the authoritative version.
+### Versioning Engine (`scripts/release-version.mjs`)
+The released version is **chosen and committed** before tagging — the workflow never rewrites it.
+`pnpm release:version` reports the semver bump implied by the commits since the last tag and previews
+the release notes, so the maintainer can edit `package.json` and `CHANGELOG.md` deliberately:
+
+1. Discovers the highest existing Git tag.
+2. Extracts commits in `<latest-tag>..HEAD` and evaluates conventional commit types.
+3. Reports the required bump (`major` > `minor` > `patch`) and formats notes grouped into Features, Fixes, and Performance.
+4. Writes nothing unless invoked with `--apply` (the automated pipeline never does).
+5. The release workflow then enforces `tag == v<package.json.version>`, so the artifact version, the tag and the release can never drift.
 
 ---
 
 ## 3. GitHub Actions CI/CD Architecture
 
-The release automation is divided into modular, least-privilege workflows:
+The release automation is a single least-privilege workflow:
 
 ```
 .github/workflows/
-├── ci.yml                 # Runs on PRs and pushes to main (Quality & Zero-Mock Gates)
-├── release.yml            # Manual release orchestrator (workflow_dispatch only)
-├── release-linux.yml      # Modular builder for Linux AppImage, deb, rpm
-├── release-windows.yml    # Modular builder for Windows NSIS Setup & Portable Zip
-└── release-verify.yml     # Independent artifact verification & smoke tests
+├── ci.yml                 # PRs and pushes to main (typecheck, lint, tests, zero-mock gate)
+├── qa-main.yml            # Post-merge integration gate (Linux release gate + Win/macOS builds)
+├── qa-pr.yml              # Pull-request gate
+├── qa-nightly.yml         # Scheduled deep regression
+├── qa-release.yml         # Manual release QA
+└── release.yml            # Tag-driven build, verify and publish pipeline
 ```
 
 ### 3.1 Pipeline Sequence
 
 1. **Job 1: `determine-version` (Ubuntu 22.04)**
-   - Runs `node scripts/release-version.mjs --apply`.
-   - If no release-worthy commits exist, exits cleanly (`should_release=false`).
-   - If release-worthy, sets outputs: `version=X.Y.Z`, `tag=vX.Y.Z`, `should_release=true`.
+   - Resolves the tag from `github.ref_name` (or the `tag` input on manual runs).
+   - Fails unless the tag equals `v<package.json.version>` and is newer than every existing tag.
 
 2. **Job 2: `build-linux` (Ubuntu 22.04)**
    - Executes `node scripts/verify-zero-mock.mjs`.

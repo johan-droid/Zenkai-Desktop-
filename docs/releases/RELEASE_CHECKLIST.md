@@ -12,10 +12,10 @@
 |---|---|---|---|
 | **Gate A: Source Integrity** | Branch is `main`, clean dependency install from frozen lockfile, strict typecheck, ESLint, secret scan | `.github/workflows/ci.yml` (`quality-linux`, `quality-windows`) | **PASSED** |
 | **Gate B: Production Correctness** | Zero-mock-data policy, authentic API endpoints, genuine hardware sensors, no bundled test fixtures | `scripts/verify-zero-mock.mjs` (488 files inspected) | **PASSED** |
-| **Gate C: Cross-Platform Packaging** | Linux AppImage (x86_64) & Windows NSIS Setup (x64) generated on clean native runners | `.github/workflows/release-linux.yml`, `.github/workflows/release-windows.yml` | **PASSED** |
+| **Gate C: Cross-Platform Packaging** | Linux AppImage (x86_64) & Windows NSIS Setup (x64) generated on clean native runners | `.github/workflows/release.yml` (`build-linux`, `build-windows`) | **PASSED** |
 | **Gate D: Runtime Verification** | Packaged AppImage extracted and verified, native ONNX Runtime modules loaded, PE headers validated | `scripts/verify-artifacts.mjs --dir dist` | **PASSED** |
 | **Gate E: Update Infrastructure** | In-app updater verifies SHA-256 before launch, active playback invariant enforced, downgrade blocked | `src/main/updater.ts`, `tests/unit/updater.test.ts`, `tests/unit/release-automation.test.ts` | **PASSED** |
-| **Gate F: Automated Publication** | Conventional commit semver calculation, changelog generation, checksums attached, atomicity enforced | `scripts/release-version.mjs`, `.github/workflows/release.yml` | **PASSED** |
+| **Gate F: Automated Publication** | Tag/version equality enforced, changelog extracted as release notes, checksums attached, existing releases never overwritten | `.github/workflows/release.yml` (`determine-version`, `publish-release`) | **PASSED** |
 
 ---
 

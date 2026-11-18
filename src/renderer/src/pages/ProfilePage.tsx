@@ -22,7 +22,7 @@ import { AniListCard } from '../components/AniListCard'
 import { DesktopSettingsCard } from '../components/DesktopSettingsCard'
 import { ProfileEditor, ProfileHero, type SectionKey } from '../components/ProfileCustomizer'
 import { CustomSelect } from '../components/CustomSelect'
-import { DISCORD_URL, REPO_URL, TELEGRAM_URL } from '../lib/app'
+import { DISCORD_URL, LATEST_URL, REPO_URL, TELEGRAM_URL } from '../lib/app'
 import { getPrefs, savePrefs, setStatus, useCustomLists, useList, type Audio } from '../lib/library'
 import { WatchlistPanel } from '../components/WatchlistPanel'
 import { useWatchlistPrivacy } from '../lib/watchlistPrivacy'
@@ -128,6 +128,15 @@ export default function ProfilePage() {
 
   const [ascensionState, setAscensionState] = useState(getAscensionState())
   const [claimLoading, setClaimLoading] = useState<string | null>(null)
+  const [appVersion, setAppVersion] = useState('')
+
+  useEffect(() => {
+    // Packaged version only; the web build has no desktop bridge.
+    window.zenkai?.app
+      ?.version()
+      .then((v) => setAppVersion(v))
+      .catch(() => {})
+  }, [])
 
   useEffect(() => {
     return ascensionCell.subscribe(() => {
@@ -629,6 +638,22 @@ export default function ProfilePage() {
               aria-label="About and legal"
             >
               <h2 className={h2}>About &amp; Legal</h2>
+              {appVersion && (
+                <div>
+                  <h3 className="mb-1 font-semibold text-foreground">Version</h3>
+                  <p>
+                    Zenkai Desktop v{appVersion} ·{' '}
+                    <a
+                      href={LATEST_URL}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-foreground underline underline-offset-2"
+                    >
+                      Release notes
+                    </a>
+                  </p>
+                </div>
+              )}
               <div>
                 <h3 className="mb-1 font-semibold text-foreground">Disclaimer</h3>
                 <p>

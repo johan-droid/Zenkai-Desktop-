@@ -75,24 +75,22 @@ flowchart TD
 
 ## 3. Workflow Decomposition
 
-To maintain clean separation of concerns, the CI/CD pipeline is organized into modular GitHub Actions workflows:
+The CI/CD pipeline is split by responsibility: continuous checks on every change, and one release pipeline per tag.
 
 1. `.github/workflows/ci.yml`:
    - Runs on all Pull Requests and pushes to `main`.
    - Multi-OS matrix: `ubuntu-22.04` and `windows-latest`.
    - Validates lockfile integrity, typecheck, linting, unit tests, IPC bridge contracts, security audits (`pnpm audit`), and executes the **Zero-Mock-Data Integrity Gate**.
-2. `.github/workflows/release.yml`:
-   - Concurrency group `release-pipeline` prevents race conditions.
-   - Orchestrates automated semantic versioning, calls platform builders, verifies artifacts, and publishes the release assets.
-3. `.github/workflows/release-linux.yml`:
-   - Builds Linux AppImage, deb, and rpm packages.
-   - Generates `latest-linux.yml` update metadata.
-4. `.github/workflows/release-windows.yml`:
-   - Builds Windows NSIS setup executable and portable zip.
-   - Generates `latest.yml` update metadata and differential `.blockmap`.
-5. `.github/workflows/release-verify.yml`:
-   - Independent verification job that downloads all published artifacts.
-   - Confirms non-empty files, validates SHA-256 digests, tests AppImage runtime extraction, and verifies Windows installer PE headers.
+2. `.github/workflows/qa-*.yml`:
+   - Post-merge integration, pull-request, nightly and manual release QA gates.
+3. `.github/workflows/release.yml` (single release workflow):
+   - Triggered by an approved `v*` tag (or `workflow_dispatch` with `publish: false` for a dry run).
+   - `determine-version` fails the run unless the tag equals `v<package.json.version>` and is newer than every existing tag.
+   - `build-linux` builds AppImage, deb, rpm and `latest-linux.yml`.
+   - `build-windows` builds the NSIS setup, portable zip, `latest.yml` and `.blockmap`.
+   - `verify-artifacts` consolidates `SHA256SUMS.txt` and runs the independent verifier (ELF/PE headers, ASAR layout, native ONNX modules, checksum consistency, AppImage extraction).
+   - `publish-release` refuses to overwrite an existing release and attaches the verified bundle.
+   - Concurrency group `release-pipeline` prevents overlapping runs.
 
 ---
 

@@ -12,7 +12,7 @@
 <p align="center">
   <a href="https://github.com/johan-droid/Zenkai-Desktop-/actions/workflows/ci.yml"><img src="https://github.com/johan-droid/Zenkai-Desktop-/actions/workflows/ci.yml/badge.svg" alt="CI Status" /></a>
   <a href="https://github.com/johan-droid/Zenkai-Desktop-/actions/workflows/release.yml"><img src="https://github.com/johan-droid/Zenkai-Desktop-/actions/workflows/release.yml/badge.svg" alt="Release Workflow" /></a>
-  <a href="package.json"><img src="https://img.shields.io/badge/version-0.0.1-blue.svg" alt="Version 0.0.1" /></a>
+  <a href="package.json"><img src="https://img.shields.io/github/package-json/v/johan-droid/Zenkai-Desktop-?label=version" alt="Version" /></a>
   <a href="electron-builder.yml"><img src="https://img.shields.io/badge/platform-Linux%20%7C%20Windows%20%7C%20macOS-purple.svg" alt="Supported Platforms" /></a>
   <a href="tsconfig.json"><img src="https://img.shields.io/badge/TypeScript-strict-informational.svg" alt="TypeScript Strict" /></a>
   <a href="package.json"><img src="https://img.shields.io/badge/license-UNLICENSED-lightgrey.svg" alt="License" /></a>
@@ -186,14 +186,19 @@ TMDB-backed catalog integration for western cinema and television series with mu
 
 ## Release Downloads & Checksums
 
-### Certified Production Distributables (v0.0.1)
+### Latest Release
 
-| Platform | Format | Target File | Size | SHA-256 Checksum |
-|---|---|---|---|---|
-| **Linux** | AppImage (`x86_64`) | [`Zenkai-Desktop-0.0.1-x86_64.AppImage`](dist/linux/Zenkai-Desktop-0.0.1-x86_64.AppImage) | 187 MB | `a88280364a8729aadf11d3114811d2aede1da7daa1614cd150267f1fddb528fa` |
-| **Windows** | NSIS Setup (`x64`) | [`Zenkai-Desktop-Setup-0.0.1-x64.exe`](dist/windows/Zenkai-Desktop-Setup-0.0.1-x64.exe) | 213 MB | `dc51fde3a865c6cb1e8883da1cbcc27da7c9c0ff47d290188613ee167159f278` |
+Download the newest packages from **[GitHub Releases → latest](https://github.com/johan-droid/Zenkai-Desktop-/releases/latest)**.
 
-*Cryptographic manifest:* [`dist/SHA256SUMS.txt`](dist/SHA256SUMS.txt)
+| Platform | Format | Asset name |
+|---|---|---|
+| **Linux** | AppImage (`x86_64`) | `Zenkai-Desktop-<version>-x86_64.AppImage` |
+| **Linux** | Debian / Ubuntu (`.deb`) | `Zenkai-Desktop-v<version>-Linux-x64.deb` |
+| **Linux** | Fedora / RHEL (`.rpm`) | `Zenkai-Desktop-v<version>-Linux-x64.rpm` |
+| **Windows** | NSIS Setup (`x64`) | `Zenkai-Desktop-Setup-<version>-x64.exe` |
+| **Windows** | Portable (`.zip`) | `Zenkai-Desktop-v<version>-Windows-x64-Portable.zip` |
+
+*Cryptographic manifest:* `SHA256SUMS.txt` in the same release. Update metadata: `latest-linux.yml` (Linux) and `latest.yml` (Windows).
 
 ---
 
@@ -219,10 +224,10 @@ Comprehensive technical documentation is maintained under [`docs/releases/`](doc
 The AppImage is fully self-contained and requires no installation privileges:
 ```bash
 # 1. Make executable
-chmod +x Zenkai-Desktop-0.0.1-x86_64.AppImage
+chmod +x Zenkai-Desktop-<version>-x86_64.AppImage
 
 # 2. Run
-./Zenkai-Desktop-0.0.1-x86_64.AppImage
+./Zenkai-Desktop-<version>-x86_64.AppImage
 ```
 
 #### Option B: Debian / Ubuntu Package (`.deb`)
@@ -241,7 +246,7 @@ sudo rpm -Uvh Zenkai-Desktop-*-Linux-x64.rpm
 ### Windows
 
 #### Option A: Interactive NSIS Setup (`.exe`)
-1. Download `Zenkai-Desktop-Setup-0.0.1-x64.exe`.
+1. Download `Zenkai-Desktop-Setup-<version>-x64.exe` from [Releases](https://github.com/johan-droid/Zenkai-Desktop-/releases/latest).
 2. Run the installer and select your destination directory (default: `%LOCALAPPDATA%\Programs\Zenkai`).
 3. The installer creates desktop and Start Menu shortcuts, associates `.zenkaits` files, and registers the `zenkai://` protocol.
 4. Launch **Zenkai Desktop** from the Start Menu or Desktop shortcut.
@@ -293,6 +298,10 @@ Official binary packages are published on the GitHub Releases page:
 
 | Release Tag | Status | Date | Highlights |
 |---|---|---|---|
+| **`v1.0.4`** | Latest | Nov 18, 2026 | Version is shown in About, single authoritative version source, tag-driven cross-platform release pipeline. |
+| **`v1.0.3`** | Stable | Nov 18, 2026 | Update checks always resolve the newest release; rate limits no longer reported as up to date. |
+| **`v1.0.2`** | Stable | Nov 18, 2026 | Movie and TV playback restored (`vidsrc.su` default server), dead movie hosts hidden. |
+| **`v1.0.1`** | Stable | Nov 18, 2026 | Direct anime servers restored in the packaged AppImage; embed pop-ups contained. |
 | **`v0.0.1`** | Certified Production | Nov 15, 2026 | Production packaging for Linux AppImage & Windows NSIS Setup, Zenkai Vision GPU AI upscaling, offline downloads manager, zero mock data policy. |
 
 > [!NOTE]

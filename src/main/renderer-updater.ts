@@ -7,7 +7,7 @@ import { z } from "zod";
 export const RendererManifestSchema = z.object({
   manifestVersion: z.string().default("1"),
   rendererVersion: z.string(),
-  minDesktopVersion: z.string().default("0.0.1"),
+  minDesktopVersion: z.string().default("0.0.0"),
   maxDesktopVersion: z.string().optional(),
   publishedAt: z.string().optional(),
   artifactUrl: z.string().url(),

@@ -63,7 +63,7 @@ interface LatencyStatus {
 
 export function DesktopSettingsCard() {
   const [settings, setSettings] = useState<Settings | null>(null)
-  const [appVersion, setAppVersion] = useState<string>('0.0.1')
+  const [appVersion, setAppVersion] = useState<string>('')
   const [updaterStatus, setUpdaterStatus] = useState<IpcEvents['updater:status']>({
     status: 'idle',
   })
@@ -246,7 +246,7 @@ export function DesktopSettingsCard() {
             </p>
           </div>
           <span className="rounded-full bg-foreground/10 px-3 py-1 font-mono text-xs font-semibold text-foreground">
-            v{appVersion}
+            v{appVersion || '…'}
           </span>
         </div>
 

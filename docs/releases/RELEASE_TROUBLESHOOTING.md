@@ -9,10 +9,15 @@
 
 ## 1. Troubleshooting CI/CD Pipeline Failures
 
-### 1.1 "No release-worthy commits detected"
-- **Symptom:** Workflow runs on `main` push, but `determine-version` finishes without building packages.
-- **Cause:** Commits since the last release tag only used `chore:`, `docs:`, `test:`, or `style:` prefixes.
-- **Resolution:** This is normal and expected behavior under Phase 1 requirements. To trigger a release, land a commit with `fix:` (patch) or `feat:` (minor). For emergency manual releases, run `Release` via GitHub Actions `workflow_dispatch` with input `force_bump: patch`.
+### 1.1 "Tag does not match package.json version"
+- **Symptom:** `determine-version` fails immediately, before any packaging job runs.
+- **Cause:** The pushed tag and `package.json.version` disagree (or the tag is not newer than the highest existing tag).
+- **Resolution:** Bump `package.json` and `CHANGELOG.md` in the same commit, push to `main`, delete the wrong tag, and re-tag the corrected commit. Never move a published tag.
+
+### 1.2 "Release … already exists — leaving it untouched"
+- **Symptom:** The publish job logs the guard message and skips.
+- **Cause:** A release for that tag is already published; the pipeline is idempotent by design.
+- **Resolution:** Nothing to do. For a follow-up fix, publish a new patch version instead of rewriting the existing release.
 
 ### 1.2 "Gate B FAILED: Zero-Mock-Data policy violation detected"
 - **Symptom:** CI job `quality-linux` or packaging job fails on `node scripts/verify-zero-mock.mjs`.
@@ -45,7 +50,12 @@
 - **Check 2: Channel Preference:** If the user is on the `stable` channel and a pre-release (`-beta`) was published, the client will ignore it. Check **Desktop Settings → Application Updates**.
 - **Check 3: Downgrade Prevention:** If the candidate version on GitHub is equal to or lower than the current application version, the updater reports "Application is up to date".
 
-### 2.2 "Cryptographic SHA-256 integrity check failed. Update aborted."
+### 2.2 "GitHub check returned status 429"
+- **Symptom:** Update check reports a GitHub status instead of "up to date".
+- **Cause:** Unauthenticated Releases API rate limit.
+- **Resolution:** The client already retries via `/releases/latest`; a 429 means both endpoints were limited. Wait a few minutes and check again. The check never reports "up to date" when the API could not be reached.
+
+### 2.3 "Cryptographic SHA-256 integrity check failed. Update aborted."
 - **Symptom:** The user clicks download, download reaches 100%, but fails during the verifying state.
 - **Cause:** Network corruption during transit or an incomplete file on GitHub Releases CDN.
 - **Resolution:**

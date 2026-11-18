@@ -30,6 +30,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - **One release path**: pushing a `v*` tag no longer starts a duplicate release build, so a published release can't be overwritten or cancelled by a concurrent CI run. `release.yml` is now `workflow_dispatch` only (manual fallback), and `docs/releases/RELEASE_PROCESS.md` documents the single local-build + `gh release create` flow.
 
+## [1.0.4] - 2026-11-18
+
+### Added
+- **Version is visible in About**: the About & Legal panel now shows the installed Zenkai Desktop version, read from the packaged application, with a link to the release notes.
+
+### Fixed
+- **One authoritative version source**: stale `0.0.1` fallbacks in updater diagnostics, the startup log, the extension compatibility floor and the Settings header are gone. Settings no longer flashes `v0.0.1` while the real version loads.
+- **Release versions can no longer drift from the tag**: the release workflow no longer rewrites `package.json`; it refuses to build unless the pushed tag matches the committed version exactly.
+
+### Changed
+- **Tag-driven release pipeline**: pushing an approved `v*` tag builds Linux (AppImage, deb, rpm) and Windows (NSIS setup, portable zip) on their native runners, verifies every artifact, and publishes one GitHub Release. Re-running the workflow never overwrites a published release.
+- **Duplicate release workflows removed**: `release-linux.yml`, `release-windows.yml` and `release-verify.yml` repeated jobs already inlined in `release.yml`, so they are gone.
+
 ## [Unreleased]
 
 ### Added

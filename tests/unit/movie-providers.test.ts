@@ -16,8 +16,8 @@ const DEAD = [
 
 describe("movie/TV provider list", () => {
   it("defaults to a provider that actually plays", () => {
-    expect(listProviders("movie")[0]?.id).toBe("vidsrc-su");
-    expect(listProviders("tv")[0]?.id).toBe("vidsrc-su");
+    expect(listProviders("movie")[0]?.id).toBe("moviebox");
+    expect(listProviders("tv")[0]?.id).toBe("moviebox");
   });
 
   it("hides unreachable embed hosts", () => {

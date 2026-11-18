@@ -30,21 +30,22 @@ const UNREACHABLE = new Set([
 ]);
 
 const PROVIDER_DEFS: ProviderDef[] = [
-  // ── vidsrc.su (verified playing for movies + TV from the desktop shell) ──
-  {
-    id: 'vidsrc-su', label: 'Nebula',
-    searchType: 'tmdb', contentTypes: ['movie', 'tv'], priority: 0,
-    tags: ['Multi audio'],
-    movieUrl: (id) => `https://vidsrc.su/embed/movie/${id}`,
-    tvUrl: (id, s, e) => `https://vidsrc.su/embed/tv/${id}/${s}/${e}`,
-  },
-  // ── MovieBox (Direct stream player with multi-audio dubs) ──
+  // ── MovieBox (direct stream player with multi-audio dubs) ──
+  // Keep this first so movies use the same CinePlayer experience as anime.
   {
     id: 'moviebox', label: 'MovieBox',
-    searchType: 'tmdb', contentTypes: ['movie', 'tv'], priority: 1,
+    searchType: 'tmdb', contentTypes: ['movie', 'tv'], priority: 0,
     tags: ['Direct', 'Multi audio'],
     movieUrl: (id) => `/api/movies/stream?id=${id}&type=movie`,
     tvUrl:    (id, s, e) => `/api/movies/stream?id=${id}&type=tv&s=${s}&e=${e}`,
+  },
+  // ── vidsrc.su (verified playing fallback for movies + TV) ──
+  {
+    id: 'vidsrc-su', label: 'Nebula',
+    searchType: 'tmdb', contentTypes: ['movie', 'tv'], priority: 1,
+    tags: ['Multi audio'],
+    movieUrl: (id) => `https://vidsrc.su/embed/movie/${id}`,
+    tvUrl: (id, s, e) => `https://vidsrc.su/embed/tv/${id}/${s}/${e}`,
   },
   // ── Top three (multi audio: the audio track is switched inside the player itself) ──
   // Order shown in the UI: Scarlet Witch, Captain America, Iron Man, then the rest.

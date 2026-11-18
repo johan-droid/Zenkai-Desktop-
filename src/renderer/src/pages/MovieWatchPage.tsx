@@ -263,6 +263,14 @@ export default function MovieWatchPage() {
   }
   const nextServer = list[(list.findIndex((p) => p.id === providerId) + 1) % Math.max(list.length, 1)]
 
+  // If the direct resolver itself is unavailable, use the same verified
+  // fallback as the CinePlayer media-error path. This keeps the default movie
+  // experience resilient to CDN/API outages.
+  useEffect(() => {
+    if (!isMovieBox || mbStream.loading || !mbStream.error) return
+    if (nextServer && nextServer.id !== providerId) pick(nextServer.id)
+  }, [isMovieBox, mbStream.loading, mbStream.error, nextServer?.id, providerId])
+
   const chatPanel = (glass: boolean, className?: string, bare?: boolean) =>
     party.room ? (
       <PartyChatPanel
@@ -370,6 +378,11 @@ export default function MovieWatchPage() {
                 intro={skipTimes.intro}
                 outro={skipTimes.outro}
                 onVideoRef={party.setVideo}
+                onStreamError={() => {
+                  // Direct streams can expire or be rate-limited. Move to the
+                  // verified embed fallback instead of leaving a dead player.
+                  if (nextServer && nextServer.id !== providerId) pick(nextServer.id)
+                }}
                 onPlayerAction={party.onPlayerAction}
                 externalControl={party.external}
                 onWatchTogetherClick={() => setPartyOpen((o) => !o)}

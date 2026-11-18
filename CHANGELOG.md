@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [Unreleased]
+
+### Fixed
+- **Movies and TV now use CinePlayer by default**, matching anime playback controls, subtitles, quality selection, watch-party support, and resume behavior.
+- **Direct movie stream failures recover automatically** by switching to the verified Nebula embed server instead of leaving a dead player surface.
+
 ## [1.0.1] - 2026-11-18
 
 ### Fixed
@@ -42,8 +48,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - **Tag-driven release pipeline**: pushing an approved `v*` tag builds Linux (AppImage, deb, rpm) and Windows (NSIS setup, portable zip) on their native runners, verifies every artifact, and publishes one GitHub Release. Re-running the workflow never overwrites a published release.
 - **Duplicate release workflows removed**: `release-linux.yml`, `release-windows.yml` and `release-verify.yml` repeated jobs already inlined in `release.yml`, so they are gone.
-
-## [Unreleased]
 
 ### Added
 - **Production Distribution Packages (Linux & Windows)**:

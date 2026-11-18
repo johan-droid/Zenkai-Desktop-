@@ -21,6 +21,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Dead movie servers removed from the picker**: CinemaOS, Videasy, VidUp, VidCore, VidSrc.ru, VidLove and 1Embed no longer respond (connection aborted, TLS failure, upstream 500, parked domain, DNS gone). They are hidden instead of showing a black player.
 - **Movie embeds are no longer sandboxed**: the main movie player refused to start inside a sandboxed frame (`Restricted Embed Detected` / `Please Disable Sandbox`). Pop-ups and external navigation are still blocked in the Electron main process, so ad redirects stay contained.
 
+## [1.0.3] - 2026-11-18
+
+### Fixed
+- **Update checks always see the newest release**: the GitHub releases API is ordered by creation time, so a late-published older hotfix could shadow a newer version and the app reported "up to date" while an update existed. The checker now selects the highest semantic version.
+- **Rate limits no longer read as "up to date"**: when the releases list is rate-limited or fails, the check falls back to `/releases/latest`; if both fail the UI reports the real GitHub status instead of claiming the app is current.
+
+### Changed
+- **One release path**: pushing a `v*` tag no longer starts a duplicate release build, so a published release can't be overwritten or cancelled by a concurrent CI run. `release.yml` is now `workflow_dispatch` only (manual fallback), and `docs/releases/RELEASE_PROCESS.md` documents the single local-build + `gh release create` flow.
+
 ## [Unreleased]
 
 ### Added

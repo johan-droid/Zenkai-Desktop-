@@ -113,6 +113,45 @@ export function isStrictlyNewer(candidate: string, current: string): boolean {
   return false;
 }
 
+export interface GitHubRelease {
+  tag_name: string;
+  prerelease: boolean;
+  draft: boolean;
+  body: string;
+  published_at: string;
+  html_url: string;
+  assets?: Array<{ name: string; browser_download_url: string; size: number }>;
+}
+
+const releaseVersion = (r: GitHubRelease): string =>
+  r.tag_name.replace(/^v/, "").trim();
+
+/**
+ * Picks the highest semver release for the channel. The GitHub list API is ordered by
+ * creation time, not version, so a late-published older release must never shadow a newer one.
+ */
+export function pickNewestRelease(
+  releases: GitHubRelease[],
+  channel: string,
+): GitHubRelease | null {
+  const eligible = releases.filter((r) => {
+    if (r.draft) return false;
+    if (!r.tag_name) return false;
+    if (channel === "beta" || channel === "internal") return true;
+    return (
+      !r.prerelease &&
+      !/-beta|-alpha|-rc|-internal/.test(r.tag_name)
+    );
+  });
+  let newest: GitHubRelease | null = null;
+  for (const r of eligible) {
+    if (!newest || isStrictlyNewer(releaseVersion(r), releaseVersion(newest))) {
+      newest = r;
+    }
+  }
+  return newest;
+}
+
 /**
  * Downloads a file while streaming into a destination and simultaneously calculating its SHA-256.
  */
@@ -367,6 +406,40 @@ export function setupAutoUpdater(): void {
   }, CHECK_INTERVAL_MS);
 }
 
+const RELEASES_API = "https://api.github.com/repos/johan-droid/Zenkai-Desktop-/releases";
+
+/**
+ * Fetches release metadata straight from GitHub. Falls back to the /releases/latest
+ * endpoint when the list endpoint is rate-limited or failing, so a transient 403/403
+ * never turns into a false "you are up to date".
+ */
+async function fetchGitHubReleases(
+  currentVersion: string,
+): Promise<{ releases: GitHubRelease[] | null; status?: number }> {
+  const headers = {
+    "User-Agent": `Zenkai-Desktop/${currentVersion}`,
+    Accept: "application/vnd.github+json",
+  };
+  let status: number | undefined;
+
+  for (const url of [`${RELEASES_API}?per_page=30`, `${RELEASES_API}/latest`]) {
+    try {
+      const res = await fetch(url, {
+        headers,
+        signal: AbortSignal.timeout(8000),
+      });
+      status ??= res.status;
+      if (!res.ok) continue;
+      const json = (await res.json()) as GitHubRelease | GitHubRelease[];
+      const list = Array.isArray(json) ? json : [json];
+      if (list.length > 0) return { releases: list, status };
+    } catch {
+      // try the next endpoint
+    }
+  }
+  return { releases: null, status };
+}
+
 /**
  * Check for updates purely via GitHub Releases API with cryptographic hash discovery and downgrade prevention.
  */
@@ -382,49 +455,22 @@ export async function checkForUpdatesClient(): Promise<UpdateCheckResult> {
   broadcastToWindows("updater:status", { status: "checking" });
 
   try {
-    const res = await fetch(
-      "https://api.github.com/repos/johan-droid/Zenkai-Desktop-/releases",
-      {
-        headers: { "User-Agent": `Zenkai-Desktop/${currentVersion}` },
-        signal: AbortSignal.timeout(8000),
-      },
-    );
+    const { releases, status } = await fetchGitHubReleases(currentVersion);
 
-    if (!res.ok) {
-      currentDiagnostics.lastFailureReason = `GitHub check returned status ${res.status}`;
+    if (releases === null) {
+      const reason = `GitHub check returned status ${status ?? "unreachable"}`;
+      currentDiagnostics.lastFailureReason = reason;
       persistDiagnostics();
-      return { updateAvailable: false, reason: `GitHub check returned status ${res.status}` };
+      return { updateAvailable: false, reason };
     }
 
-    const releases = (await res.json()) as Array<{
-      tag_name: string;
-      prerelease: boolean;
-      draft: boolean;
-      body: string;
-      published_at: string;
-      html_url: string;
-      assets?: Array<{
-        name: string;
-        browser_download_url: string;
-        size: number;
-      }>;
-    }>;
+    const newest = pickNewestRelease(releases, channel);
 
-    // Filter by user-selected channel: "stable", "beta", or "internal"
-    const eligible = releases.filter((r) => {
-      if (r.draft) return false;
-      if (channel === "internal") return true;
-      if (channel === "beta") return true;
-      // Stable channel rejects prereleases and non-standard tags
-      return !r.prerelease && !r.tag_name.includes("-beta") && !r.tag_name.includes("-alpha") && !r.tag_name.includes("-rc") && !r.tag_name.includes("-internal");
-    });
+    if (newest && isStrictlyNewer(releaseVersion(newest), currentVersion)) {
+      const newVer = releaseVersion(newest);
 
-    if (eligible.length > 0) {
-      const newest = eligible[0];
-      const newVer = newest.tag_name.replace(/^v/, "").trim();
-
-      // STRICT DOWNGRADE PREVENTION: Candidate version must be strictly newer than current version
-      if (isStrictlyNewer(newVer, currentVersion)) {
+      // STRICT DOWNGRADE PREVENTION (enforced by the isStrictlyNewer guard above)
+      {
         let matchingAssetUrl = newest.html_url;
         let matchingAssetName: string | undefined;
         let isLinuxNative = false;

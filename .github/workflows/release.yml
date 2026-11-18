@@ -1,9 +1,8 @@
 name: Release
 
+# Manual only. Publishing a release (gh release create / GitHub UI) is the single
+# release path; a pushed tag no longer starts a duplicate build that has to be cancelled.
 on:
-  push:
-    tags:
-      - "v*"
   workflow_dispatch:
     inputs:
       force_bump:

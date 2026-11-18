@@ -1,19 +1,35 @@
-# Zenkai Desktop — Fully Automated Production Release Process
+# Zenkai Desktop — Production Release Process
 
-**Document Version:** 2.0.0  
+**Document Version:** 3.0.0  
 **Target Release:** Zenkai Desktop Production Lifecycle  
 **Author:** Zenkai Release Engineering Team  
 **Status:** Canonical Release Process Reference  
 
 ---
 
-## 1. Automated Release Philosophy
+## 1. Release Philosophy
 
-Zenkai Desktop employs a **hands-free, fully automated continuous delivery system** built on strict quality gates:
+Zenkai Desktop has **one release path** and it is explicit:
 
-> **"Automate delivery, never bypass quality gates."**
+> **"Publish deliberately, verify always."**
 
-Releases are never assembled manually or published by clicking arbitrary web UI buttons without CI verification. Code merges to the protected `main` branch trigger automated commit analysis, semantic version calculation, cross-platform compilation, independent artifact verification, and GitHub Releases distribution.
+1. Merges to `main` run `CI` and `QA — Main Branch Integration`. Nothing is published from them.
+2. A pushed `v*` tag does **not** start a build. Tags are created only by the publish step itself.
+3. The publisher builds locally, then publishes a GitHub Release with the built artifacts:
+
+```bash
+pnpm typecheck && pnpm lint && pnpm test && pnpm release:check
+pnpm build && pnpm exec electron-builder --linux AppImage deb -p never
+sha256sum Zenkai-Desktop-<v>-x86_64.AppImage Zenkai-Desktop-v<v>-Linux-x64.deb > release/SHA256SUMS.txt
+gh release create v<v> --target main --title "Zenkai Desktop v<v>" --notes-file <notes>.md \
+  release/Zenkai-Desktop-<v>-x86_64.AppImage \
+  release/Zenkai-Desktop-v<v>-Linux-x64.deb \
+  release/latest-linux.yml release/SHA256SUMS.txt
+```
+
+4. `.github/workflows/release.yml` is a **manual fallback** (`workflow_dispatch`) that rebuilds the same bundle in CI. It never runs automatically, so a locally published release can never be overwritten or cancelled by a concurrent pipeline.
+
+The desktop app reads updates straight from these GitHub Releases (`latest-linux.yml` for the electron-updater feed and the Releases API for the version/checksum check).
 
 ---
 
@@ -47,7 +63,7 @@ The release automation is divided into modular, least-privilege workflows:
 ```
 .github/workflows/
 ├── ci.yml                 # Runs on PRs and pushes to main (Quality & Zero-Mock Gates)
-├── release.yml            # Main release orchestrator (Runs on main push or v* tag)
+├── release.yml            # Manual release orchestrator (workflow_dispatch only)
 ├── release-linux.yml      # Modular builder for Linux AppImage, deb, rpm
 ├── release-windows.yml    # Modular builder for Windows NSIS Setup & Portable Zip
 └── release-verify.yml     # Independent artifact verification & smoke tests

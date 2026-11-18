@@ -80,6 +80,30 @@ afterEach(() => {
 const logged = () =>
   [...logSpy.mock.calls, ...warnSpy.mock.calls].flat().join(" ");
 
+describe("release selection", () => {
+  it("picks the highest semver, not the most recently published", async () => {
+    const { pickNewestRelease } = await freshSetup();
+    const rel = (tag: string, extra: Record<string, unknown> = {}) => ({
+      tag_name: tag,
+      prerelease: false,
+      draft: false,
+      body: "",
+      published_at: "",
+      html_url: "",
+      ...extra,
+    });
+    // a late-published older hotfix must not shadow the newer version
+    const picked = pickNewestRelease(
+      [rel("v1.0.2"), rel("v1.0.1"), rel("v1.0.3")],
+      "stable",
+    );
+    expect(picked?.tag_name).toBe("v1.0.3");
+    expect(pickNewestRelease([rel("v1.0.3", { prerelease: true })], "stable")).toBeNull();
+    expect(pickNewestRelease([rel("v1.0.3", { draft: true })], "stable")).toBeNull();
+    expect(pickNewestRelease([rel("v2.0.0-beta.1")], "beta")?.tag_name).toBe("v2.0.0-beta.1");
+  });
+});
+
 describe("auto-updater decisions (T14)", () => {
   it("development (not packaged) → skipped, updater untouched", async () => {
     h.app.isPackaged = false;

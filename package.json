@@ -1,6 +1,6 @@
 {
   "name": "zenkai-desktop",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Zenkai desktop shell — wraps the Zenkai web app in a secure Electron window",
   "homepage": "https://github.com/johan-droid/Zenkai-Desktop-#readme",
   "repository": {

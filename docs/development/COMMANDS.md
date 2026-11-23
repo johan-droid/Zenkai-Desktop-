@@ -26,7 +26,7 @@ This is the canonical reference for all commands defined in `package.json` and u
 | `pnpm qa:unit` | `vitest run tests/unit` | Targeted execution of all unit test suites under `tests/unit/`. |
 | `pnpm qa:integration` | `vitest run stream-proxy updater hls` | Targeted integration tests for network streaming, HLS parsing, and updater. |
 | `pnpm qa:electron` | `xvfb-run -a playwright test app.spec.ts qa-workflows.spec.ts` | Runs primary Electron application startup and workflow tests. |
-| `pnpm qa:gpu` | `vitest run gpu.test.ts vision-hardware.test.ts vision-live.test.ts` | Tests multi-GPU routing, WebGPU switch matrices, and capability tiering. |
+| `pnpm qa:gpu` | `vitest run gpu.test.ts vision-hardware.test.ts webgpu-upscale.test.ts` | Tests multi-GPU routing, WebGPU switch matrices, and capability tiering. |
 | `pnpm qa:security` | `vitest run shield.test.ts ssrf-maturity.test.ts ipc-validation.test.ts` | Security regression tests (SSRF guards, protocol filters, IPC schema checks). |
 | `pnpm qa:performance` | `vitest run canary-health.test.ts` | Performance latency benchmarks and canary health checks. |
 | `pnpm qa:regression` | `typecheck + lint + qa:unit + qa:electron` | Full automated local regression pipeline. |

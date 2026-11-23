@@ -8,15 +8,25 @@ import { ThemeProvider } from './context/ThemeContext'
 import { VoiceCallProvider } from './context/VoiceCallContext'
 import { startShield } from './lib/shield'
 import { initAniListSync } from './lib/anilist'
-import { startVisionLive, gpuSupported } from './lib/vision-live'
+import { startUpscale, gpuSupported } from './lib/upscale'
 import './index.css'
 
 startShield()
 initAniListSync()
 
 if (typeof window !== 'undefined') {
-  (window as any).__startVisionLive = startVisionLive;
+  (window as any).__startUpscale = startUpscale;
   (window as any).__gpuSupported = gpuSupported;
+  (window as any).__startVisionLive = async (video: HTMLVideoElement, canvas: HTMLCanvasElement, opts?: any) => {
+    const stopFn = await startUpscale(video, canvas, {
+      mode: (opts?.mode || 'modeA') as any,
+      onSlow: opts?.onBypass || opts?.onSlow,
+      onWarn: opts?.onWarn,
+    });
+    return {
+      stop: stopFn,
+    };
+  };
 }
 
 const isFileProtocol = typeof window !== 'undefined' && window.location.protocol === 'file:'

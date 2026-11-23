@@ -34,7 +34,7 @@
     "qa:browser": "env -u ELECTRON_RUN_AS_NODE xvfb-run -a playwright test tests/e2e/home-layout.spec.ts tests/e2e/shell.spec.ts",
     "qa:electron": "env -u ELECTRON_RUN_AS_NODE xvfb-run -a playwright test tests/e2e/app.spec.ts tests/e2e/qa-workflows.spec.ts",
     "qa:desktop": "vitest run tests/unit/desktop-navigation.test.ts tests/unit/notify.test.ts",
-    "qa:gpu": "vitest run tests/unit/gpu.test.ts tests/unit/vision-hardware.test.ts tests/unit/vision-live.test.ts",
+    "qa:gpu": "vitest run tests/unit/gpu.test.ts tests/unit/vision-hardware.test.ts tests/unit/webgpu-upscale.test.ts",
     "qa:accessibility": "node scripts/validate-qa-registry.mjs",
     "qa:visual": "ls -l qa/screenshots/*.png",
     "qa:security": "vitest run tests/unit/shield.test.ts tests/unit/ssrf-maturity.test.ts tests/unit/ipc-validation.test.ts",

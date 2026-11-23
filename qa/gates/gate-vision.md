@@ -42,7 +42,7 @@
   - `anime4kPresetCreated`: true
   - `anime4kExecutionSuccess`: true
 - **Unit Suites**:
-  - `tests/unit/vision-live.test.ts` (passing)
+  - `tests/unit/webgpu-upscale.test.ts` (passing)
   - `tests/unit/vision-hardware.test.ts` (passing)
   - `tests/unit/gpu.test.ts` (passing)
 

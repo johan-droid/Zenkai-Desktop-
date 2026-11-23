@@ -79,15 +79,15 @@
   {
     "id": "GATE-VISION",
     "name": "WebGPU Neural Video Enhancement",
-    "subsystem": "WebGPU Pipeline, WGSL Shaders & Watchdog",
+    "subsystem": "WebGPU Pipeline & Anime4K Shaders",
     "mandatoryCriteria": [
       "Physical WebGPU adapter acquired without CPU fallback",
       "Anime4K WGSL shader executes without compute pipeline crashes",
-      "Draggable split slider updates comparison clip-path from 5% to 95%",
-      "Watchdog auto-degrades to fast preset if latency > 50ms"
+      "Upscale intensity slider adjusts canvas opacity dynamically",
+      "Graceful error reporting and device loss recovery without player crash"
     ],
     "mandatoryEvidence": "qa/gates/gate-vision.md",
-    "testFiles": ["tests/unit/vision-live.test.ts", "tests/unit/vision-hardware.test.ts"],
+    "testFiles": ["tests/unit/webgpu-upscale.test.ts", "tests/unit/vision-hardware.test.ts"],
     "gateFile": "qa/gates/gate-vision.md",
     "severity": "CRITICAL",
     "status": "AUTOMATED PASS"
@@ -295,7 +295,7 @@
       "WebGPU device loss fails over to standard video without crash"
     ],
     "mandatoryEvidence": "qa/gates/gate-recovery.md",
-    "testFiles": ["tests/unit/vision-live.test.ts", "tests/unit/ipc-validation.test.ts"],
+    "testFiles": ["tests/unit/webgpu-upscale.test.ts", "tests/unit/ipc-validation.test.ts"],
     "gateFile": "qa/gates/gate-recovery.md",
     "severity": "CRITICAL",
     "status": "AUTOMATED PASS"

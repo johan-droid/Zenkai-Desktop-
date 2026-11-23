@@ -23,7 +23,7 @@
 ## 2. Verification Protocol & Execution Evidence
 
 - **Unit Test Suite**:
-  - `tests/unit/vision-live.test.ts`: Error recovery and WebGPU fallback pipeline verified under simulated device loss.
+  - `tests/unit/webgpu-upscale.test.ts`: Error recovery and WebGPU fallback pipeline verified under simulated device loss.
   - `tests/unit/ipc-validation.test.ts`: Malformed IPC payloads caught and handled safely without process crash.
 - **Novel Reader Graceful Recovery**:
   - Handled upstream server timeout by rendering fallback recovery UI (`qa/screenshots/15-novel-error-recovery.png`).

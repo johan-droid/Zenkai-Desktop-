@@ -70,7 +70,9 @@ test.describe("Phase 6: Sustained Playback & Thermal Load Verification", () => {
             video.style.left = "0";
             video.style.width = "400px";
             video.style.height = "225px";
-            video.style.zIndex = "99999";
+            video.style.opacity = "0.001";
+            video.style.pointerEvents = "none";
+            video.style.zIndex = "-9999";
             video.addEventListener("ended", () => {
               video.currentTime = 0;
               video.play().catch(() => {});
@@ -84,7 +86,9 @@ test.describe("Phase 6: Sustained Playback & Thermal Load Verification", () => {
             canvas.style.left = "0";
             canvas.style.width = "400px";
             canvas.style.height = "225px";
-            canvas.style.zIndex = "99999";
+            canvas.style.opacity = "0.001";
+            canvas.style.pointerEvents = "none";
+            canvas.style.zIndex = "-9999";
             document.body.appendChild(canvas);
 
             let metricHistory: any[] = [];
@@ -93,40 +97,47 @@ test.describe("Phase 6: Sustained Playback & Thermal Load Verification", () => {
             let degradeOccurred = false;
 
             const startVision = (window as any).__startVisionLive;
-            const handle = await startVision(video, canvas, {
-              mode: "fast",
-              onMetrics: (m: any) => {
-                metricHistory.push({
-                  fps: m.currentFps,
-                  renderTimeMs: m.renderTimeMs,
-                  droppedFrames: m.droppedFrames,
-                  watchdogStatus: m.watchdogStatus,
-                });
-                droppedTotal = m.droppedFrames;
-              },
-              onBypass: () => {
-                bypassOccurred = true;
-              },
-              onDegrade: () => {
-                degradeOccurred = true;
-              },
-            });
+            let handle: any;
+            let actualDurationSec = 0;
+            let finalPlaybackTime = 0;
+            let isPlayingAtEnd = false;
 
-            // Run sustained playback for 10 seconds for stable measurement
-            const durationMs = 10000;
-            const startT = performance.now();
+            try {
+              handle = await startVision(video, canvas, {
+                mode: "fast",
+                onMetrics: (m: any) => {
+                  metricHistory.push({
+                    fps: m.currentFps,
+                    renderTimeMs: m.renderTimeMs,
+                    droppedFrames: m.droppedFrames,
+                    watchdogStatus: m.watchdogStatus,
+                  });
+                  droppedTotal = m.droppedFrames;
+                },
+                onBypass: () => {
+                  bypassOccurred = true;
+                },
+                onDegrade: () => {
+                  degradeOccurred = true;
+                },
+              });
 
-            await new Promise((r) => setTimeout(r, durationMs));
+              // Run sustained playback for 10 seconds for stable measurement
+              const durationMs = 10000;
+              const startT = performance.now();
 
-            const actualDurationSec = Math.round((performance.now() - startT) / 1000);
-            const finalPlaybackTime = video.currentTime;
-            const isPlayingAtEnd = !video.paused && !video.ended;
+              await new Promise((r) => setTimeout(r, durationMs));
 
-            handle.stop();
-            video.pause();
-            video.remove();
-            canvas.remove();
-            URL.revokeObjectURL(blobUrl);
+              actualDurationSec = Math.round((performance.now() - startT) / 1000);
+              finalPlaybackTime = video.currentTime;
+              isPlayingAtEnd = !video.paused && !video.ended;
+            } finally {
+              handle?.stop?.();
+              video.pause();
+              video.remove();
+              canvas.remove();
+              URL.revokeObjectURL(blobUrl);
+            }
 
             const nonZeroMetrics = metricHistory.filter((m) => m.renderTimeMs > 0);
             const avgLatency = nonZeroMetrics.length > 0

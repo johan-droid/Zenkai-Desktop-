@@ -186,7 +186,7 @@ test.describe("Phase 2: Real-Time WebGPU Pipeline & Preset Benchmarks", () => {
                   resolve({ error: err?.message || String(err), initTimeMs: Math.round(performance.now() - initStart) });
                 }
             });
-          }, { src: videoSrc, mode: presetName });
+          }, { src: videoSrc, mode: presetName }).catch((err: any) => ({ error: err?.message || String(err) }));
 
           await new Promise((r) => setTimeout(r, 200));
           const cpu1 = getCpuUsage();

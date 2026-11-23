@@ -22,6 +22,7 @@ if (typeof window !== 'undefined') {
       mode: (opts?.mode || 'modeA') as any,
       onSlow: opts?.onBypass || opts?.onSlow,
       onWarn: opts?.onWarn,
+      onMetrics: opts?.onMetrics,
     });
     return {
       stop: stopFn,

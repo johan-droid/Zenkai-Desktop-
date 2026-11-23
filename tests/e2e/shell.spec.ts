@@ -109,7 +109,8 @@ test("launch → local stub window loads with desktop bridge", async () => {
 test("play/pause: window hide → renderer receives playback:pause", async () => {
   const { app, page } = await launchApp();
   try {
-    await page.evaluate(() => {
+    await page.evaluate(async () => {
+      await (window as any).zenkai.settings.set({ pauseOnClose: true });
       (window as any).__ev = [];
       (window as any).zenkai.onPlaybackPause(() =>
         (window as any).__ev.push("pause"),

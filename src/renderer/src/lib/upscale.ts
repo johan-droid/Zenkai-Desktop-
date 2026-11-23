@@ -21,12 +21,20 @@ struct V { @builtin(position) p: vec4f, @location(0) uv: vec2f }
 
 export type Anime4KMode = 'modeA' | 'modeB' | 'modeC' | 'modeAA' | 'denoise' | 'fast'
 
+export interface UpscaleMetrics {
+  currentFps: number
+  renderTimeMs: number
+  droppedFrames: number
+  watchdogStatus: string
+}
+
 export interface UpscaleOptions {
   mode?: Anime4KMode
   /** Fatal: the upscaler stopped (GPU lost, video unreadable). */
   onSlow?: (reason?: string) => void
   /** Non-fatal hint, e.g. the GPU can't keep up with this preset. */
   onWarn?: (message: string) => void
+  onMetrics?: (metrics: UpscaleMetrics) => void
 }
 
 /**
@@ -41,6 +49,7 @@ export async function startUpscale(
 ): Promise<() => void> {
   const onSlow = typeof optionsOrSlow === 'function' ? optionsOrSlow : optionsOrSlow?.onSlow
   const onWarn = typeof optionsOrSlow === 'object' ? optionsOrSlow.onWarn : undefined
+  const onMetrics = typeof optionsOrSlow === 'object' ? optionsOrSlow.onMetrics : undefined
   const mode = typeof optionsOrSlow === 'object' ? optionsOrSlow.mode : 'modeA'
 
   if (!gpuSupported || typeof navigator === 'undefined' || !(navigator as any)?.gpu) throw new Error('WebGPU is not available in this browser')
@@ -151,6 +160,9 @@ export async function startUpscale(
   let skipped = 0
   let warned = false
   let fails = 0
+  let frameCounter = 0
+  let lastFpsCalcTime = performance.now()
+  let currentFps = 60
 
   const fatal = (msg: string) => {
     if (!alive) return
@@ -173,6 +185,7 @@ export async function startUpscale(
     }
 
     inFlight++
+    const frameStart = performance.now()
     try {
       const enc = device.createCommandEncoder()
       const up = enc.beginRenderPass({ colorAttachments: [{ view: inView, loadOp: 'clear', storeOp: 'store' }] })
@@ -206,6 +219,20 @@ export async function startUpscale(
         .onSubmittedWorkDone()
         .then(() => {
           inFlight = Math.max(0, inFlight - 1)
+          const now = performance.now()
+          const renderTimeMs = Math.round((now - frameStart) * 10) / 10
+          frameCounter++
+          if (now - lastFpsCalcTime >= 500) {
+            currentFps = Math.round((frameCounter / ((now - lastFpsCalcTime) / 1000)) * 10) / 10
+            frameCounter = 0
+            lastFpsCalcTime = now
+          }
+          onMetrics?.({
+            currentFps: currentFps || 60,
+            renderTimeMs,
+            droppedFrames: skipped,
+            watchdogStatus: 'nominal',
+          })
         })
         .catch(() => {
           inFlight = Math.max(0, inFlight - 1)

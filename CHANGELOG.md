@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.6] - 2026-11-23
+
+### Fixed
+- **In-App Direct OTA Updater Engine**: Fixed updater issue where incomplete releases or missing manifests caused false "Please check update first" notices and browser redirects to GitHub. The updater now strictly verifies platform-compatible downloadable assets before advertising an update, downloads packages with cryptographic SHA-256 verification in-app, performs atomic in-place replacement, and relaunches without external browser redirection.
+- **Upstream Anime4K WebGPU Fidelity**: Restored exact upstream WebGPU upscaler implementation and clean player settings UI under Video -> 4K upscaler (GPU). Removed all experimental/unprompted custom Vision AI tabs and split sliders.
+
 ## [1.0.5] - 2026-11-23
 
 ### Added

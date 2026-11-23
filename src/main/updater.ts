@@ -46,6 +46,7 @@ export interface UpdateDiagnostics {
 
 let latestUpdateResult: UpdateCheckResult | null = null;
 let downloadedPackagePath: string | null = null;
+let isAutoUpdaterReady = false;
 let isAutoUpdaterStaged = false;
 let isDownloading = false;
 let isApplyingUpdate = false;
@@ -233,6 +234,76 @@ function getArchSuffixes(): { deb: string[]; rpm: string[] } {
   return { deb: ["amd64", "x86_64"], rpm: ["x86_64", "amd64"] };
 }
 
+export function findMatchingPlatformAsset(
+  release: GitHubRelease,
+  platform: NodeJS.Platform = process.platform,
+): { assetUrl: string; assetName: string; isLinuxNativePackage: boolean } | null {
+  if (!release.assets || release.assets.length === 0) {
+    return null;
+  }
+
+  if (platform === "win32") {
+    const winAsset =
+      release.assets.find((a) => a.name.toLowerCase().endsWith(".exe") && a.name.toLowerCase().includes("setup")) ||
+      release.assets.find((a) => a.name.toLowerCase().endsWith(".exe"));
+    if (winAsset) {
+      return {
+        assetUrl: winAsset.browser_download_url,
+        assetName: winAsset.name,
+        isLinuxNativePackage: false,
+      };
+    }
+  } else if (platform === "linux") {
+    if (process.env.APPIMAGE || (!fs.existsSync("/etc/debian_version") && !fs.existsSync("/etc/redhat-release"))) {
+      const appImageAsset = release.assets.find((a) => a.name.toLowerCase().endsWith(".appimage"));
+      if (appImageAsset) {
+        return {
+          assetUrl: appImageAsset.browser_download_url,
+          assetName: appImageAsset.name,
+          isLinuxNativePackage: false,
+        };
+      }
+    }
+    const pref = detectLinuxPackagePreference();
+    const suffixes = getArchSuffixes();
+    const preferredExt = `.${pref}`;
+    const targetSuffixes = suffixes[pref];
+
+    let asset = release.assets.find((a) => {
+      const lower = a.name.toLowerCase();
+      return lower.endsWith(preferredExt) && targetSuffixes.some((s) => lower.includes(s));
+    });
+
+    if (!asset) {
+      asset = release.assets.find((a) => a.name.toLowerCase().endsWith(preferredExt));
+    }
+    if (!asset) {
+      asset = release.assets.find(
+        (a) => a.name.toLowerCase().endsWith(".deb") || a.name.toLowerCase().endsWith(".rpm") || a.name.toLowerCase().endsWith(".appimage"),
+      );
+    }
+
+    if (asset) {
+      return {
+        assetUrl: asset.browser_download_url,
+        assetName: asset.name,
+        isLinuxNativePackage: !asset.name.toLowerCase().endsWith(".appimage"),
+      };
+    }
+  } else if (platform === "darwin") {
+    const macAsset = release.assets.find((a) => a.name.toLowerCase().endsWith(".dmg"));
+    if (macAsset) {
+      return {
+        assetUrl: macAsset.browser_download_url,
+        assetName: macAsset.name,
+        isLinuxNativePackage: false,
+      };
+    }
+  }
+
+  return null;
+}
+
 export function setupAutoUpdater(): void {
   // Don't run updater in development
   if (!app.isPackaged) {
@@ -297,6 +368,7 @@ export function setupAutoUpdater(): void {
   autoUpdater.on("update-available", (info) => {
     log.updater.info(`Update available: v${info.version}`);
     console.log(`[updater] update available: ${info.version}`);
+    isAutoUpdaterReady = true;
     currentDiagnostics.updateAvailable = true;
     currentDiagnostics.availableVersion = info.version;
     currentDiagnostics.downloadState = "idle";
@@ -334,6 +406,7 @@ export function setupAutoUpdater(): void {
   autoUpdater.on("update-not-available", () => {
     log.updater.success("Application is up to date");
     console.log("[updater] app is up to date");
+    isAutoUpdaterReady = false;
     currentDiagnostics.updateAvailable = false;
     currentDiagnostics.availableVersion = undefined;
     persistDiagnostics();
@@ -381,25 +454,28 @@ export function setupAutoUpdater(): void {
 
   autoUpdater.on("error", (err) => {
     console.warn("[updater] update check error:", err.message);
+    isAutoUpdaterReady = false;
     currentDiagnostics.downloadState = "failed";
     currentDiagnostics.lastFailureReason = err.message;
     persistDiagnostics();
 
-    // If the error is a 404 on the release metadata file (e.g. latest-linux.yml not yet uploaded or release in progress),
-    // do not broadcast an alarming error banner to the user; fall back gracefully to checkForUpdatesClient.
-    const isMissingManifest =
+    // If the error is a 404 on the release metadata file or electron-updater unready state,
+    // do not broadcast an alarming error banner to the user; fall back gracefully to direct release check.
+    const isSuppressedError =
       err.message.includes("404") ||
       err.message.includes("latest-linux.yml") ||
-      err.message.includes("latest.yml");
+      err.message.includes("latest.yml") ||
+      err.message.includes("Please check update first");
 
-    if (!isMissingManifest) {
+    if (!isSuppressedError) {
       broadcastToWindows("updater:status", {
         status: "error",
         error: err.message,
       });
     } else {
       console.log(
-        "[updater] update manifest not found on GitHub release (404), falling back to direct release check",
+        "[updater] autoUpdater check or manifest missing, falling back to direct release check:",
+        err.message,
       );
     }
   });
@@ -489,65 +565,16 @@ export async function checkForUpdatesClient(): Promise<UpdateCheckResult> {
 
     if (newest && isStrictlyNewer(releaseVersion(newest), currentVersion)) {
       const newVer = releaseVersion(newest);
+      let matchingAssetUrl = newest.html_url;
+      let matchingAssetName: string | undefined;
+      let isLinuxNative = false;
 
-      // STRICT DOWNGRADE PREVENTION (enforced by the isStrictlyNewer guard above)
-      {
-        let matchingAssetUrl = newest.html_url;
-        let matchingAssetName: string | undefined;
-        let isLinuxNative = false;
-
-        // Locate matching platform asset from GitHub release assets
-        if (newest.assets && newest.assets.length > 0) {
-          if (process.platform === "win32") {
-            const winAsset =
-              newest.assets.find((a) => a.name.toLowerCase().endsWith(".exe") && a.name.toLowerCase().includes("setup")) ||
-              newest.assets.find((a) => a.name.toLowerCase().endsWith(".exe"));
-            if (winAsset) {
-              matchingAssetUrl = winAsset.browser_download_url;
-              matchingAssetName = winAsset.name;
-            }
-          } else if (process.platform === "linux") {
-            if (process.env.APPIMAGE || (!fs.existsSync("/etc/debian_version") && !fs.existsSync("/etc/redhat-release"))) {
-              const appImageAsset = newest.assets.find((a) => a.name.toLowerCase().endsWith(".appimage"));
-              if (appImageAsset) {
-                matchingAssetUrl = appImageAsset.browser_download_url;
-                matchingAssetName = appImageAsset.name;
-              }
-            }
-            if (!matchingAssetName) {
-              const pref = detectLinuxPackagePreference();
-              const suffixes = getArchSuffixes();
-              const preferredExt = `.${pref}`;
-              const targetSuffixes = suffixes[pref];
-
-              let asset = newest.assets.find((a) => {
-                const lower = a.name.toLowerCase();
-                return lower.endsWith(preferredExt) && targetSuffixes.some((s) => lower.includes(s));
-              });
-
-              if (!asset) {
-                asset = newest.assets.find((a) => a.name.toLowerCase().endsWith(preferredExt));
-              }
-              if (!asset) {
-                asset = newest.assets.find(
-                  (a) => a.name.toLowerCase().endsWith(".deb") || a.name.toLowerCase().endsWith(".rpm") || a.name.toLowerCase().endsWith(".appimage"),
-                );
-              }
-
-              if (asset) {
-                matchingAssetUrl = asset.browser_download_url;
-                matchingAssetName = asset.name;
-                isLinuxNative = !asset.name.toLowerCase().endsWith(".appimage");
-              }
-            }
-          } else if (process.platform === "darwin") {
-            const macAsset = newest.assets.find((a) => a.name.toLowerCase().endsWith(".dmg"));
-            if (macAsset) {
-              matchingAssetUrl = macAsset.browser_download_url;
-              matchingAssetName = macAsset.name;
-            }
-          }
-        }
+      const matched = findMatchingPlatformAsset(newest);
+      if (matched) {
+        matchingAssetUrl = matched.assetUrl;
+        matchingAssetName = matched.assetName;
+        isLinuxNative = matched.isLinuxNativePackage;
+      }
 
         // Attempt to extract expected SHA-256 and SHA-512 hashes from release assets
         let expectedSha256: string | undefined;
@@ -633,7 +660,6 @@ export async function checkForUpdatesClient(): Promise<UpdateCheckResult> {
 
         return latestUpdateResult;
       }
-    }
   } catch (err) {
     console.warn("[updater] direct GitHub check failed:", err);
     currentDiagnostics.lastFailureReason = String(err);

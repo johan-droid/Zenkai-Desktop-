@@ -309,6 +309,7 @@ export interface MovieStreamResult {
   streamUrl: string
   proxyStreamUrl?: string
   downloadUrl?: string
+  downloadFileName?: string
   rawStreamUrl: string
   quality: string
   format: string
@@ -367,7 +368,16 @@ export async function fetchMovieBoxStream(p: {
       })
       if (res.ok) {
         const d = await res.json().catch(() => null)
-        if (d && d.success === true && d.streams?.length > 0) {
+        if (d && d.success === true && (d.streams?.length > 0 || d.streamUrl)) {
+          if (!d.streams?.length && d.streamUrl) {
+            d.streams = [{
+              quality: d.quality || '1080p',
+              format: d.format || 'MP4',
+              url: d.rawStreamUrl || d.streamUrl,
+              streamUrl: d.streamUrl,
+              downloadUrl: d.downloadUrl,
+            }]
+          }
           data = d
           resOk = true
         } else if (d?.embedServers?.length && !data) {
@@ -499,6 +509,7 @@ export async function fetchMovieBoxStream(p: {
     proxyStreamUrl: resolveProxyStreamUrl(data.streamUrl, data.rawStreamUrl),
     streamUrl: resolveStreamUrl(data.streamUrl, data.rawStreamUrl),
     downloadUrl: data.downloadUrl ? resolveProxyStreamUrl(data.downloadUrl, data.rawStreamUrl) : undefined,
+    downloadFileName: data.downloadFileName,
     streams: (data.streams || []).map((s: MovieStream) => {
       const direct = s.url || s.rawStreamUrl || ''
       const proxied = resolveProxyStreamUrl(s.streamUrl, s.url)
@@ -508,6 +519,7 @@ export async function fetchMovieBoxStream(p: {
         proxyStreamUrl: proxied,
         streamUrl: resolveStreamUrl(s.streamUrl, s.url),
         downloadUrl: s.downloadUrl ? resolveProxyStreamUrl(s.downloadUrl, s.url) : undefined,
+        downloadFileName: s.downloadFileName,
       }
     }),
     subtitles: (rawSubs || []).map((s: { id: string; label: string; language: string; lang: string; url: string; source: string }) => ({

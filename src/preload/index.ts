@@ -43,30 +43,6 @@ contextBridge.exposeInMainWorld("zenkai", {
     onStatus: (cb: (p: IpcEvents["updater:status"]) => void) =>
       on("updater:status", cb),
   },
-  vision: {
-    getHardwareProfile: call("vision:getHardwareProfile"),
-    runDiagnostics: call("vision:runDiagnostics"),
-    getWorkerStatus: call("vision:getWorkerStatus"),
-    startWorker: call("vision:startWorker"),
-    stopWorker: call("vision:stopWorker"),
-    getModels: call("vision:getModels"),
-    verifyModel: call("vision:verifyModel"),
-    runBenchmark: call("vision:runBenchmark"),
-    probeVideo: call("vision:probeVideo"),
-    getJobs: call("vision:getJobs"),
-    createJob: call("vision:createJob"),
-    pauseJob: call("vision:pauseJob"),
-    resumeJob: call("vision:resumeJob"),
-    cancelJob: call("vision:cancelJob"),
-    deleteJob: call("vision:deleteJob"),
-    clearCompletedJobs: call("vision:clearCompletedJobs"),
-    onWorkerStatusChanged: (cb: (p: IpcEvents["vision:workerStatusChanged"]) => void) =>
-      on("vision:workerStatusChanged", cb),
-    onJobProgress: (cb: (p: IpcEvents["vision:jobProgress"]) => void) =>
-      on("vision:jobProgress", cb),
-    onJobListChanged: (cb: (p: IpcEvents["vision:jobListChanged"]) => void) =>
-      on("vision:jobListChanged", cb),
-  },
   gpu: {
     getDiagnostics: call("gpu:getDiagnostics"),
   },

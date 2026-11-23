@@ -1,6 +1,6 @@
 {
   "name": "zenkai-desktop",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "Zenkai desktop shell — wraps the Zenkai web app in a secure Electron window",
   "homepage": "https://github.com/johan-droid/Zenkai-Desktop-#readme",
   "repository": {
@@ -20,7 +20,7 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "test": "vitest run",
-    "e2e": "playwright test",
+    "e2e": "env -u ELECTRON_RUN_AS_NODE xvfb-run -a playwright test",
     "dist:linux": "pnpm build && electron-builder --linux AppImage deb -p never",
     "dist:win": "pnpm build && electron-builder --win -p never",
     "dist:mac": "pnpm build && electron-builder --mac -p never",
@@ -71,7 +71,6 @@
     "gifenc": "^1.0.3",
     "hls.js": "^1.7.4",
     "lucide-react": "^1.73.0",
-    "onnxruntime-node": "^1.31.1",
     "qrcode.react": "^4.2.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",

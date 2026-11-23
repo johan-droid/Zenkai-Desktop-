@@ -5,7 +5,6 @@ import {
   CheckCircle2,
   Cpu,
   Download,
-  Eye,
   FolderOpen,
   Laptop,
   RefreshCw,
@@ -14,7 +13,6 @@ import {
 } from 'lucide-react'
 import type { Settings } from '../../../shared/settings.schema'
 import type { IpcEvents } from '../../../shared/ipc-contract'
-import type { VisionDiagnosticsReport, VisionHardwareProfile, VisionWorkerStatus } from '../../../shared/vision-types'
 import type { UnifiedGpuDiagnostics } from '../../../shared/gpu-types'
 import { toast } from '../lib/toast'
 import { cn } from '../lib/utils'
@@ -76,11 +74,7 @@ export function DesktopSettingsCard() {
   ])
   const [probing, setProbing] = useState(false)
 
-  // Zenkai Vision Hardware & Diagnostic state
-  const [visionProfile, setVisionProfile] = useState<VisionHardwareProfile | null>(null)
-  const [visionWorkerStatus, setVisionWorkerStatus] = useState<VisionWorkerStatus | null>(null)
-  const [visionReport, setVisionReport] = useState<VisionDiagnosticsReport | null>(null)
-  const [probingVision, setProbingVision] = useState(false)
+  // GPU Architecture & Hardware Diagnostics state
   const [gpuDiag, setGpuDiag] = useState<UnifiedGpuDiagnostics | null>(null)
   const [refreshingGpu, setRefreshingGpu] = useState(false)
 
@@ -90,8 +84,6 @@ export function DesktopSettingsCard() {
 
     void window.zenkai.settings.get().then((s) => setSettings(s))
     void window.zenkai.app.version().then((v) => setAppVersion(v))
-    void window.zenkai.vision?.getHardwareProfile().then((p: VisionHardwareProfile) => setVisionProfile(p))
-    void window.zenkai.vision?.getWorkerStatus().then((s: VisionWorkerStatus) => setVisionWorkerStatus(s))
     void window.zenkai.gpu?.getDiagnostics().then((d: UnifiedGpuDiagnostics) => setGpuDiag(d)).catch(() => {})
 
     const unsubscribe = window.zenkai.app.onStatus((status) => {
@@ -105,22 +97,6 @@ export function DesktopSettingsCard() {
 
     return () => {
       unsubscribe?.()
-    }
-  }, [])
-
-  const runVisionDiagnostics = useCallback(async () => {
-    const v = window.zenkai?.vision
-    if (!v) return
-    setProbingVision(true)
-    try {
-      const report: VisionDiagnosticsReport = await v.runDiagnostics()
-      setVisionReport(report)
-      setVisionProfile(report.hardware)
-      toast('Vision diagnostics complete')
-    } catch (err: any) {
-      toast(err?.message || 'Vision diagnostics failed', 'error')
-    } finally {
-      setProbingVision(false)
     }
   }, [])
 
@@ -485,211 +461,130 @@ export function DesktopSettingsCard() {
         </div>
       </section>
 
-      {/* 4. Zenkai Vision Subsystem & Hardware Diagnostics */}
+      {/* 4. GPU Architecture & Video Enhancement Diagnostics */}
       <section className="rounded-3xl border border-border bg-card/60 p-5 sm:p-7 shadow-lg space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <div className="flex items-center gap-2">
-              <Eye className="size-5 text-accent" />
-              <h2 className="font-display text-xl font-bold">Zenkai Vision Engine</h2>
-              {visionProfile?.profile && (
-                <span className={cn(
-                  'ml-2 rounded-full px-2.5 py-0.5 text-xs font-mono font-bold uppercase tracking-wider',
-                  visionProfile.profile.profile === 'high_performance' && 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30',
-                  visionProfile.profile.profile === 'advanced' && 'bg-sky-500/15 text-sky-400 border border-sky-500/30',
-                  visionProfile.profile.profile === 'balanced' && 'bg-amber-500/15 text-amber-400 border border-amber-500/30',
-                  visionProfile.profile.profile === 'basic' && 'bg-zinc-500/15 text-zinc-400 border border-zinc-500/30',
-                  visionProfile.profile.profile === 'unsupported' && 'bg-rose-500/15 text-rose-400 border border-rose-500/30',
-                )}>
-                  {visionProfile.profile.profile.replace('_', ' ')}
+              <Cpu className="size-5 text-accent" />
+              <h2 className="font-display text-xl font-bold">Universal GPU Architecture &amp; Decoders</h2>
+              {gpuDiag?.webGpuStatus && (
+                <span
+                  className={cn(
+                    'ml-2 rounded-full px-2.5 py-0.5 text-xs font-mono font-bold uppercase tracking-wider',
+                    gpuDiag.webGpuStatus === 'AVAILABLE' || gpuDiag.webGpuStatus === 'ACTIVE'
+                      ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
+                      : 'bg-amber-500/15 text-amber-400 border border-amber-500/30'
+                  )}
+                >
+                  WebGPU {gpuDiag.webGpuStatus}
                 </span>
               )}
             </div>
             <p className="mt-1 text-xs text-muted">
-              Local GPU-accelerated video enhancement, hardware capability qualification, and offline AI processing.
+              Physical GPU discovery, hardware video decode acceleration (VA-API / D3D11 / VideoToolbox), and real-time WebGPU Anime4K neural shaders in CinePlayer.
             </p>
           </div>
           <button
             type="button"
-            onClick={runVisionDiagnostics}
-            disabled={probingVision}
+            onClick={refreshGpuDiagnostics}
+            disabled={refreshingGpu}
             className="inline-flex h-8 items-center gap-1.5 rounded-full border border-border bg-card px-3 text-xs font-semibold text-foreground transition hover:border-foreground/40 active:scale-95 disabled:opacity-50"
           >
-            <RefreshCw className={cn('size-3.5', probingVision && 'animate-spin')} />
-            <span>{probingVision ? 'Qualifying...' : 'Run Diagnostics'}</span>
+            <RefreshCw className={cn('size-3.5', refreshingGpu && 'animate-spin')} />
+            <span>{refreshingGpu ? 'Refreshing...' : 'Refresh GPU State'}</span>
           </button>
         </div>
 
-        {/* Unified Cross-Platform GPU & Decoder Diagnostics */}
-        {gpuDiag && (
-          <div className="rounded-2xl border border-border/70 bg-card/40 p-4 space-y-3 text-xs">
-            <div className="flex items-center justify-between">
-              <span className="text-muted font-medium flex items-center gap-1.5">
-                <Cpu className="size-4 text-accent" /> Universal GPU Architecture &amp; Decoders
-              </span>
-              <button
-                type="button"
-                onClick={refreshGpuDiagnostics}
-                disabled={refreshingGpu}
-                className="inline-flex h-7 items-center gap-1.5 rounded-full border border-border bg-card px-2.5 text-[11px] font-semibold text-foreground transition hover:border-foreground/40 active:scale-95 disabled:opacity-50"
-              >
-                <RefreshCw className={cn('size-3', refreshingGpu && 'animate-spin')} />
-                <span>{refreshingGpu ? 'Refreshing...' : 'Refresh'}</span>
-              </button>
-            </div>
-
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 border-t border-border/40">
-              <div>
-                <span className="text-muted block">Backend</span>
-                <span className="font-mono font-bold text-accent uppercase">
-                  {gpuDiag.backend}
-                </span>
-              </div>
-              <div>
-                <span className="text-muted block">WebGPU Status</span>
-                <span
-                  className={cn(
-                    'font-mono font-bold',
-                    gpuDiag.webGpuStatus === 'AVAILABLE' || gpuDiag.webGpuStatus === 'ACTIVE'
-                      ? 'text-emerald-400'
-                      : 'text-amber-400'
-                  )}
-                >
-                  {gpuDiag.webGpuStatus}
-                </span>
-              </div>
-              <div>
-                <span className="text-muted block">Active Decoder Target</span>
-                <span
-                  className={cn(
-                    'font-mono font-bold',
-                    gpuDiag.videoDecodeStatus === 'AVAILABLE' || gpuDiag.videoDecodeStatus === 'ACTIVE'
-                      ? 'text-emerald-400'
-                      : 'text-amber-400'
-                  )}
-                >
-                  {gpuDiag.activeDecoder || 'FFmpeg (Software)'}
-                </span>
-              </div>
-              <div>
-                <span className="text-muted block">Routing Preference</span>
-                <span className="font-mono font-medium text-foreground uppercase">
-                  {gpuDiag.gpuPreference}
-                </span>
-              </div>
-            </div>
-
-            {gpuDiag.devices.length > 0 && (
-              <div className="space-y-1.5 pt-2 border-t border-border/40">
-                <span className="text-muted block font-medium">Discovered Accelerators:</span>
-                {gpuDiag.devices.map((d) => (
-                  <div
-                    key={d.id}
-                    className="flex items-center justify-between rounded-xl bg-card/60 px-3 py-2 text-[11px]"
-                  >
-                    <span className="font-medium text-foreground">
-                      {d.model} {d.isPrimary && <span className="text-accent ml-1 font-bold">(Primary)</span>}
-                    </span>
-                    <span className="font-mono text-muted uppercase">
-                      {d.type} {d.vramMb ? `· ${d.vramMb}MB` : ''}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Hardware & Profile Breakdown */}
-        {visionProfile ? (
+        {gpuDiag ? (
           <div className="space-y-3 pt-1">
-            <div className="rounded-2xl border border-border/70 bg-card/40 p-4 space-y-2">
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted flex items-center gap-1.5 font-medium">
-                  <Cpu className="size-4 text-accent" /> Primary Hardware
-                </span>
-                <span className="font-semibold text-foreground">
-                  {visionProfile.selectedDevice?.model || 'Standard CPU'}
-                </span>
-              </div>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-border/40 text-xs">
+            <div className="rounded-2xl border border-border/70 bg-card/40 p-4 space-y-3 text-xs">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
                 <div>
-                  <span className="text-muted block">GPU Type</span>
-                  <span className="font-mono font-medium text-foreground uppercase">
-                    {visionProfile.selectedDevice?.type || 'Integrated'}
+                  <span className="text-muted block">Graphics Backend</span>
+                  <span className="font-mono font-bold text-accent uppercase">
+                    {gpuDiag.backend}
                   </span>
                 </div>
                 <div>
-                  <span className="text-muted block">Max Target</span>
-                  <span className="font-mono font-bold text-accent">
-                    {visionProfile.profile?.maxTargetResolution.toUpperCase() || '1080P'}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-muted block">Memory Budget</span>
-                  <span className="font-mono font-medium text-foreground">
-                    {visionProfile.profile?.memoryBudgetMb || 1024} MB
-                  </span>
-                </div>
-                <div>
-                  <span className="text-muted block">Worker PID</span>
-                  <span className="font-mono font-medium text-foreground">
-                    {visionWorkerStatus?.pid || 'Standby'}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* Media Pipeline & Providers */}
-            <div className="rounded-2xl border border-border/70 bg-card/40 p-4 space-y-2 text-xs">
-              <div className="flex items-center justify-between">
-                <span className="text-muted font-medium">Media Engine (FFmpeg)</span>
-                <span className="font-mono text-foreground font-semibold">
-                  {visionProfile.mediaBackend?.ffmpegVersion || 'Bundled static'}
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-muted font-medium">Hardware Decoders</span>
-                <span className="font-mono text-foreground">
-                  {visionProfile.mediaBackend?.hwaccels?.length
-                    ? visionProfile.mediaBackend.hwaccels.join(', ')
-                    : 'Standard software decoding'}
-                </span>
-              </div>
-            </div>
-
-            {/* Diagnostic Checks if Run */}
-            {visionReport && (
-              <div className="space-y-2 pt-2">
-                <p className="text-xs font-semibold text-muted uppercase tracking-wider">
-                  Verification Report
-                </p>
-                {visionReport.checks.map((chk) => (
-                  <div
-                    key={chk.name}
-                    className="flex items-center justify-between rounded-xl border border-border/50 bg-card/30 px-3.5 py-2.5 text-xs"
+                  <span className="text-muted block">WebGPU Shaders</span>
+                  <span
+                    className={cn(
+                      'font-mono font-bold',
+                      gpuDiag.webGpuStatus === 'AVAILABLE' || gpuDiag.webGpuStatus === 'ACTIVE'
+                        ? 'text-emerald-400'
+                        : 'text-amber-400'
+                    )}
                   >
-                    <span className="font-medium text-foreground">{chk.name}</span>
-                    <div className="flex items-center gap-2">
-                      <span className="text-muted font-mono">{chk.detail}</span>
-                      {chk.status === 'pass' && (
-                        <CheckCircle2 className="size-4 text-emerald-400 shrink-0" />
-                      )}
-                      {chk.status === 'warn' && (
-                        <AlertCircle className="size-4 text-amber-400 shrink-0" />
-                      )}
-                      {chk.status === 'fail' && (
-                        <AlertCircle className="size-4 text-rose-400 shrink-0" />
-                      )}
-                    </div>
-                  </div>
-                ))}
+                    {gpuDiag.webGpuStatus}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-muted block">Hardware Decoder Target</span>
+                  <span
+                    className={cn(
+                      'font-mono font-bold',
+                      gpuDiag.videoDecodeStatus === 'AVAILABLE' || gpuDiag.videoDecodeStatus === 'ACTIVE'
+                        ? 'text-emerald-400'
+                        : 'text-amber-400'
+                    )}
+                  >
+                    {gpuDiag.activeDecoder || 'FFmpeg (Software)'}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-muted block">Routing Preference</span>
+                  <span className="font-mono font-medium text-foreground uppercase">
+                    {gpuDiag.gpuPreference}
+                  </span>
+                </div>
               </div>
-            )}
+
+              {gpuDiag.devices.length > 0 && (
+                <div className="space-y-1.5 pt-2 border-t border-border/40">
+                  <span className="text-muted block font-medium">Discovered Accelerators:</span>
+                  {gpuDiag.devices.map((d) => (
+                    <div
+                      key={d.id}
+                      className="flex items-center justify-between rounded-xl bg-card/60 px-3 py-2 text-[11px]"
+                    >
+                      <span className="font-medium text-foreground">
+                        {d.model} {d.isPrimary && <span className="text-accent ml-1 font-bold">(Primary)</span>}
+                      </span>
+                      <span className="font-mono text-muted uppercase">
+                        {d.type} {d.vramMb ? `· ${d.vramMb}MB` : ''}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {gpuDiag.details.length > 0 && (
+                <div className="pt-2 border-t border-border/40 space-y-1">
+                  <span className="text-muted block font-medium">Diagnostic Details:</span>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-1 text-[11px] font-mono text-muted">
+                    {gpuDiag.details.map((detail, idx) => (
+                      <div key={idx} className="truncate">
+                        • {detail}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-start gap-2.5 rounded-2xl border border-accent/20 bg-accent/5 p-3.5 text-xs text-muted">
+              <Sparkles className="size-4 shrink-0 text-accent mt-0.5" />
+              <p>
+                <strong className="text-foreground font-semibold">Real-Time CinePlayer Enhancement:</strong> Zenkai
+                Desktop executes genuine WebGPU Anime4K GLSL/WGSL shaders directly on your GPU canvas with fail-safe watchdog
+                protection during playback.
+              </p>
+            </div>
           </div>
         ) : (
           <div className="rounded-2xl border border-border/70 bg-card/40 p-4 text-xs text-muted text-center">
-            Initializing Zenkai Vision hardware qualification...
+            Initializing GPU architecture diagnostics...
           </div>
         )}
       </section>

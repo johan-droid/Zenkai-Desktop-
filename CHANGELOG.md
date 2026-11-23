@@ -9,9 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.5] - 2026-11-23
+
+### Added
+- **UI Modernization & Upstream Parity**: Full feature parity with latest upstream Zenkai, including Ascension progression, ranking leaderboards, and bundled local display fonts.
+- **OTA Acceptance Workflow**: Dedicated Windows x64 CI acceptance workflow validating NSIS silent upgrade and user data preservation.
+
 ### Fixed
-- **Movies and TV now use CinePlayer by default**, matching anime playback controls, subtitles, quality selection, watch-party support, and resume behavior.
-- **Direct movie stream failures recover automatically** by switching to the verified Nebula embed server instead of leaving a dead player surface.
+- **Updater Concurrency Locks**: Mutex locks preventing duplicate simultaneous update downloads or overlapping installer invocations.
+- **Dual-Hash Integrity Gate**: Windows OTA assets verified against both SHA-256 and Base64 SHA-512 digests before execution.
+- **E2E Benchmark Display Isolation**: Video benchmark elements rendered invisibly and tests run headlessly under Xvfb to prevent UI overlays.
+
+### Changed
+- **GPU Architecture Consolidation**: Vision Studio batch processing removed; real-time WebGPU neural enhancement consolidated in CinePlayer with adaptive degradation.
 
 ## [1.0.1] - 2026-11-18
 

@@ -1,0 +1,114 @@
+name: Windows OTA Runtime Acceptance (Pre-Release Gate)
+
+# Dedicated pre-release acceptance workflow to validate native Windows x64 NSIS installation,
+# update discovery, streaming hash verification, silent upgrade, and user data persistence.
+on:
+  workflow_dispatch:
+    inputs:
+      target_tag:
+        description: "Candidate release tag to validate (e.g. v1.0.5)"
+        required: true
+        default: "v1.0.5"
+  workflow_call:
+    inputs:
+      target_tag:
+        description: "Candidate release tag to validate (e.g. v1.0.5)"
+        required: true
+        type: string
+        default: "v1.0.5"
+
+concurrency:
+  group: windows-ota-acceptance-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  windows-runtime-acceptance:
+    name: Native Windows x64 OTA Runtime Acceptance
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 12
+          run_install: false
+
+      - name: Get pnpm store directory
+        shell: pwsh
+        run: |
+          $storePath = pnpm store path --silent
+          echo "STORE_PATH=$storePath" >> $env:GITHUB_ENV
+
+      - name: Setup pnpm cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
+      - name: Install dependencies from lockfile
+        run: pnpm install --frozen-lockfile
+
+      - name: Gate A — Static TypeScript & Lint Check
+        run: |
+          pnpm typecheck
+          pnpm lint
+
+      - name: Gate A — Vitest unit test suite (Includes Updater Concurrency Locks)
+        run: pnpm test
+
+      - name: Gate B — Zero-Mock Production Data Integrity Check
+        run: node scripts/verify-zero-mock.mjs
+
+      - name: Build candidate application bundle
+        run: pnpm build
+
+      - name: Package Windows distributions (NSIS Setup)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: pnpm exec electron-builder --win -p never
+
+      - name: Verify candidate packaging outputs
+        shell: pwsh
+        run: |
+          Write-Host "Verifying release output directory:"
+          Get-ChildItem -Path release -Recurse | Select-Object Name, Length, LastWriteTime
+          
+          if (-not (Test-Path "release\latest.yml")) {
+            throw "Missing release\latest.yml metadata manifest"
+          }
+          $exe = Get-ChildItem -Path release\*.exe | Select-Object -First 1
+          if (-not $exe) {
+            throw "Missing candidate Windows NSIS installer in release\"
+          }
+          Write-Host "Candidate installer generated: $($exe.Name) ($([math]::Round($exe.Length / 1MB, 2)) MB)"
+
+      - name: Execute Windows OTA Runtime Acceptance Suite
+        shell: pwsh
+        run: node scripts/windows-ota-acceptance.mjs
+
+      - name: Upload Windows Acceptance Logs & Diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-ota-acceptance-evidence
+          path: |
+            release/*.yml
+            release/*.blockmap
+            release/checksums-windows.txt
+          retention-days: 14

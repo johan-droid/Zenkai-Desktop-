@@ -24,6 +24,7 @@ import {
 import { isCompanionActive } from '../lib/useCompanion'
 import { forFetch } from '../lib/acdnClient'
 import { ACCESS_CLASS, ACCESS_TEXT, type ServerAccess } from '../lib/servers'
+import { downloadMedia } from '../lib/download'
 import './cineplayer.css'
 
 const SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2]
@@ -467,10 +468,14 @@ export interface CinePlayerProps {
     size?: number
     sizeLabel?: string | null
     downloadUrl?: string
+    downloadFileName?: string
+    rawUrl?: string
   }[]
   currentQuality?: string
-  onQualityChange?: (quality: { label: string; url: string; size?: number; sizeLabel?: string | null; downloadUrl?: string }) => void
+  onQualityChange?: (quality: { label: string; url: string; size?: number; sizeLabel?: string | null; downloadUrl?: string; downloadFileName?: string; rawUrl?: string }) => void
   downloadUrl?: string
+  downloadFileName?: string
+  rawDownloadUrl?: string
   fallbackStreamUrl?: string
   isTmdb?: boolean
   onDownload?: () => void
@@ -915,7 +920,7 @@ export default function CinePlayer({
   episodesInfo, fallbackImg, defaultRuntime, kinds,
   onVideoRef, onPlayerAction, externalControl, onWatchTogetherClick, watchPartyActive, watchPartyPeersCount, onChatClick, chatOpen = false, chatUnread = 0, chatPanel,
   isPartyGuest = false,
-  qualities, currentQuality, onQualityChange, downloadUrl, fallbackStreamUrl, isTmdb = false, onStreamError, onDownload,
+  qualities, currentQuality, onQualityChange, downloadUrl, downloadFileName, rawDownloadUrl, fallbackStreamUrl, isTmdb = false, onStreamError, onDownload,
 }: CinePlayerProps) {
   const isMovie = format === 'MOVIE' || (totalEpisodes <= 1 && format !== 'TV')
   const isEmbed = Boolean(streamUrl && (streamUrl.includes('embed') || streamUrl.includes('iframe')))
@@ -1917,20 +1922,29 @@ const slider = (label: string, key: 'opacity' | 'lh' | 'width' | 'blur' | 'scale
       poke()
     }
   }
-  /* ── GPU upscaler (Anime4K): restarts when the toggle flips or the stream changes resolution ── */
+  /* ── GPU upscaler (Anime4K): restarts only when stream URL or video native dimensions change ── */
   useEffect(() => {
     const v = vid.current
     if (!v) return
-    const on = () => setVkey((k) => k + 1)
-    v.addEventListener('resize', on)
-    v.addEventListener('loadedmetadata', on)
-    v.addEventListener('canplay', on)
-    v.addEventListener('playing', on)
+    let lastW = v.videoWidth
+    let lastH = v.videoHeight
+    const onResChange = () => {
+      if (v.videoWidth && v.videoHeight && (v.videoWidth !== lastW || v.videoHeight !== lastH)) {
+        lastW = v.videoWidth
+        lastH = v.videoHeight
+        setVkey((k) => k + 1)
+      }
+    }
+    const onMeta = () => {
+      lastW = v.videoWidth
+      lastH = v.videoHeight
+      setVkey((k) => k + 1)
+    }
+    v.addEventListener('resize', onResChange)
+    v.addEventListener('loadedmetadata', onMeta)
     return () => {
-      v.removeEventListener('resize', on)
-      v.removeEventListener('loadedmetadata', on)
-      v.removeEventListener('canplay', on)
-      v.removeEventListener('playing', on)
+      v.removeEventListener('resize', onResChange)
+      v.removeEventListener('loadedmetadata', onMeta)
     }
   }, [streamUrl])
   useEffect(() => {
@@ -2985,30 +2999,26 @@ const slider = (label: string, key: 'opacity' | 'lh' | 'width' | 'blur' | 'scale
                 </button>
               )}
               {(onDownload || downloadUrl) && (
-                onDownload ? (
-                  <button
-                    type="button"
-                    className="zp-b"
-                    aria-label="Download Episode"
-                    title="Download episode for offline playback"
-                    onClick={onDownload}
-                  >
-                    <Download />
-                  </button>
-                ) : (
-                  <a
-                    href={downloadUrl}
-                    download
-                    target="_blank"
-                    rel="noreferrer"
-                    className="zp-b"
-                    aria-label="Download MP4"
-                    title="Download video file"
-                    onClick={() => flash('ok', 'Download started')}
-                  >
-                    <Download />
-                  </a>
-                )
+                <button
+                  type="button"
+                  className="zp-b zp-x"
+                  aria-label="Download MP4"
+                  title="Download video file"
+                  onClick={() => {
+                    if (onDownload) {
+                      onDownload()
+                    } else if (downloadUrl) {
+                      downloadMedia({
+                        url: downloadUrl,
+                        rawUrl: rawDownloadUrl,
+                        filename: downloadFileName || `${title || 'video'}.mp4`,
+                      })
+                    }
+                    flash('ok', 'Download started')
+                  }}
+                >
+                  <Download />
+                </button>
               )}
               <button
                 className={cx('zp-b relative', up && 'on text-emerald-400')}
@@ -3149,36 +3159,27 @@ const slider = (label: string, key: 'opacity' | 'lh' | 'width' | 'blur' | 'scale
                     ))}
                     {(onDownload || downloadUrl) && (
                       <div className="mt-2 pt-2 border-t border-white/10">
-                        {onDownload ? (
-                          <button
-                            type="button"
-                            className="zp-row flex items-center justify-between text-accent font-semibold hover:bg-white/10 rounded-lg px-2 py-1.5 transition text-xs w-full text-left"
-                            onClick={() => {
-                              closePop()
+                        <button
+                          type="button"
+                          className="zp-row flex w-full items-center justify-between text-accent font-semibold hover:bg-white/10 rounded-lg px-2 py-1.5 transition text-xs"
+                          onClick={() => {
+                            if (onDownload) {
                               onDownload()
-                            }}
-                          >
-                            <span className="flex items-center gap-2">
-                              <Download className="size-3.5" /> Download Episode
-                            </span>
-                          </button>
-                        ) : (
-                          <a
-                            href={downloadUrl}
-                            download
-                            target="_blank"
-                            rel="noreferrer"
-                            className="zp-row flex items-center justify-between text-accent font-semibold hover:bg-white/10 rounded-lg px-2 py-1.5 transition text-xs"
-                            onClick={() => {
-                              flash('ok', 'Download started')
-                              closePop()
-                            }}
-                          >
-                            <span className="flex items-center gap-2">
-                              <Download className="size-3.5" /> Download MP4
-                            </span>
-                          </a>
-                        )}
+                            } else if (downloadUrl) {
+                              downloadMedia({
+                                url: downloadUrl,
+                                rawUrl: rawDownloadUrl,
+                                filename: downloadFileName || `${title || 'video'}.mp4`,
+                              })
+                            }
+                            flash('ok', 'Download started')
+                            closePop()
+                          }}
+                        >
+                          <span className="flex items-center gap-2">
+                            <Download className="size-3.5" /> Download Episode
+                          </span>
+                        </button>
                       </div>
                     )}
                   </div>

@@ -8,10 +8,16 @@ import { ThemeProvider } from './context/ThemeContext'
 import { VoiceCallProvider } from './context/VoiceCallContext'
 import { startShield } from './lib/shield'
 import { initAniListSync } from './lib/anilist'
+import { startVisionLive, gpuSupported } from './lib/vision-live'
 import './index.css'
 
 startShield()
 initAniListSync()
+
+if (typeof window !== 'undefined') {
+  (window as any).__startVisionLive = startVisionLive;
+  (window as any).__gpuSupported = gpuSupported;
+}
 
 const isFileProtocol = typeof window !== 'undefined' && window.location.protocol === 'file:'
 const Router = isFileProtocol ? HashRouter : BrowserRouter

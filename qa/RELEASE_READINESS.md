@@ -1,8 +1,8 @@
 # Zenkai Desktop — Release Readiness & Dual-Track QA Dashboard
 
-**Generated**: 2026-11-16T17:21:05.237Z  
-**Git Branch**: `qa/automation-and-remediation`  
-**Git Commit**: `1b28a65` (`1b28a65074e9415247c050c6b6011b76852fc09f`)  
+**Generated**: 2026-11-23T09:27:56.309Z  
+**Git Branch**: `main`  
+**Git Commit**: `f5dc977` (`f5dc977ae9acc5b7397ec407708614dd79851539`)  
 **Package Evaluated**: Linux Unpacked & Packaged AppImage  
 
 ---
@@ -27,8 +27,8 @@ $$\text{Release Readiness} = \text{LOCAL\_QA\_PASS} \land \text{CI\_PASS} \land 
 
 | Item | Total Cataloged | Automated Pass | Manually Verified | Structural / Unit Only | Blocked |
 |---|---|---|---|---|---|
-| **Feature Modules** | **38** | 26 | 9 | 3 | 0 |
-| **Interactive Components** | **50** | 45 | 4 | 1 | 0 |
+| **Feature Modules** | **37** | 25 | 9 | 3 | 0 |
+| **Interactive Components** | **47** | 43 | 3 | 1 | 0 |
 | **Acceptance Gates** | **20** | 14 | 5 | 1 | 0 |
 
 ---

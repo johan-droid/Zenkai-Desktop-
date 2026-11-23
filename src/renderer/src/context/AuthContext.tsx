@@ -56,8 +56,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           nameColor: data.name_color || null,
         })
         void syncAscensionWithCloud(u.id)
-      } else {
-        // First login for this account: initialize with this account's credentials
+      } else if (!error) {
+        // First login for this account (the lookup succeeded and found no row): initialize with this account's credentials
         setProfileUsername(cleanHandle)
         const initialProfile = {
           name: userOAuthName || cleanHandle,
@@ -79,9 +79,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             bio: '',
             updated_at: new Date().toISOString(),
           },
-          { onConflict: 'id' }
+          { onConflict: 'id', ignoreDuplicates: true }
         )
       }
+      // else: lookup failed (network/RLS). Do nothing: treating it as "first login" used to overwrite the saved name and picture with Google's.
     } catch (err) {
       console.warn('[AuthContext] syncProfile failed:', err)
     }
@@ -120,6 +121,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } else {
         setProfileUsername(null)
         resetProfileStore()
+        clearAscensionCache()
       }
       setLoading(false)
     })

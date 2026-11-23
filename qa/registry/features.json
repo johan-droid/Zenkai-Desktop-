@@ -176,22 +176,6 @@
     "status": "AUTOMATED PASS"
   },
   {
-    "id": "FEAT-VISION-03",
-    "name": "Vision Studio & Batch Video AI",
-    "location": "src/renderer/src/components/VisionStudioPage.tsx, src/main/vision/*",
-    "purpose": "Offline batch upscaling of local video files via neural pipelines",
-    "entryPoint": "Sidebar 'Vision Studio'",
-    "interactions": ["Select input MP4/MKV", "Choose model", "Start/pause/cancel"],
-    "dependencies": ["FFmpeg", "ONNX Runtime", "IPC"],
-    "testFile": "tests/unit/vision-jobs.test.ts",
-    "testCases": ["schedules and validates vision batch jobs"],
-    "acceptanceGate": "GATE-VISION",
-    "preconditions": "Local video file accessible",
-    "expectedBehavior": "Progress percentage, ETA, output file saved without audio sync loss",
-    "evidenceLocation": "qa/screenshots/16-vision-studio.png",
-    "status": "AUTOMATED PASS"
-  },
-  {
     "id": "FEAT-MANGA-01",
     "name": "Manga Catalog & Details",
     "location": "src/renderer/src/components/MangaHomePage.tsx",

@@ -18,6 +18,7 @@ squashfs-root-verify/
 # Test Artifacts & Reports
 test-results/
 playwright-report/
+tests/e2e/fixtures/test-*.mp4
 
 # Agent & AI Tooling Caches
 .agents/

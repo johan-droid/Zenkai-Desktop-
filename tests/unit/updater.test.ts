@@ -11,6 +11,8 @@ const h = vi.hoisted(() => {
       autoUpdater.handlers[ev] = cb;
     }),
     checkForUpdates: vi.fn(async () => undefined),
+    downloadUpdate: vi.fn(async () => undefined) as any,
+    quitAndInstall: vi.fn() as any,
   };
   const app = {
     isPackaged: true,
@@ -261,5 +263,25 @@ describe("auto-updater decisions (T14)", () => {
     const result = await checkForUpdatesClient();
     expect(result.updateAvailable).toBe(false);
     expect(result.reason).toMatch(/429/);
+  });
+
+  it("concurrency & double-invocation protection: startUpdateDownload prevents concurrent executions", async () => {
+    process.env.APPIMAGE = "/tmp/Zenkai.AppImage";
+    const { startUpdateDownload } = await freshSetup();
+    let resolveDownload: () => void = () => {};
+    h.autoUpdater.downloadUpdate = vi.fn(
+      () => new Promise<void>((resolve) => { resolveDownload = resolve; }),
+    );
+
+    // First call initiates download
+    const firstCall = startUpdateDownload();
+    // Immediate second call should be rejected by the concurrency lock
+    const secondCall = await startUpdateDownload();
+    expect(secondCall.success).toBe(false);
+    expect(secondCall.message).toMatch(/already in progress/i);
+
+    resolveDownload();
+    await firstCall;
+    delete process.env.APPIMAGE;
   });
 });

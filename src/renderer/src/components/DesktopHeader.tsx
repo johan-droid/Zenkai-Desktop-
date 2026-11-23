@@ -18,6 +18,7 @@ import {
   Sparkles,
   CalendarDays,
   User,
+  Trophy,
   type LucideIcon,
 } from 'lucide-react'
 import { useDesktopNavigation } from '../hooks/useDesktopNavigation'
@@ -140,8 +141,8 @@ function getBreadcrumbs(pathname: string): BreadcrumbItem[] {
   if (pathname.startsWith('/schedule')) {
     return [{ label: 'Airing Schedule', icon: CalendarDays }]
   }
-  if (pathname.startsWith('/vision')) {
-    return [{ label: 'Vision Studio AI', icon: Sparkles }]
+  if (pathname.startsWith('/ranking')) {
+    return [{ label: 'Hall of Hunters', icon: Trophy }]
   }
   if (pathname.startsWith('/settings')) {
     return [{ label: 'Settings & Preferences', icon: Settings }]

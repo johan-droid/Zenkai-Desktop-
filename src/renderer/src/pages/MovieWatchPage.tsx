@@ -1,5 +1,6 @@
 import { toast } from '../lib/toast'
-import { useEffect, useMemo, useState } from 'react'
+import { recordProgressionActivity } from '../lib/ascension/ascensionStore'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useBackToDetails } from '../lib/backToDetails'
 import { ChevronLeft, ChevronRight, Loader2, Lock, MessageSquare, TriangleAlert, Download, Users, Zap } from 'lucide-react'
@@ -30,6 +31,7 @@ import { WatchTogetherModal } from '../components/WatchTogetherModal'
 import { LiveReactionsOverlay } from '../components/LiveReactionsOverlay'
 import { useMovieParty } from '../hooks/useMovieParty'
 import { useMovieSkipTimes } from '../hooks/useMovieSkipTimes'
+import { downloadMedia } from '../lib/download'
 
 const pill = 'rounded-full border px-4 py-2 text-sm font-semibold transition active:scale-95'
 const PREF = 'zk:movie-server:v1'
@@ -55,6 +57,20 @@ export default function MovieWatchPage() {
   const details = useAsync(() => fetchDetails(type, id), [type, id])
   const providers = useAsync(() => fetchProviders(type), [type])
   const eps = useAsync(() => (type === 'tv' ? fetchEpisodes(id, season) : Promise.resolve([])), [type, id, season])
+
+  // XP: a movie is worth 75, a TV episode 30. Native player reports progress; embeds can't, so they earn it by time on page.
+  // ponytail: idempotency lives in recordProgressionActivity, so both paths firing is harmless
+  const awardWatch = useCallback(() => {
+    void recordProgressionActivity(
+      type === 'movie'
+        ? { action: 'watch_movie', xp: 75, refId: `tmdb_movie_${id}` }
+        : { action: 'watch_episode', xp: 30, refId: `tmdb_tv_${id}_s${season}e${episode}` },
+    )
+  }, [type, id, season, episode])
+  useEffect(() => {
+    const t = window.setTimeout(awardWatch, (type === 'movie' ? 30 : 12) * 60_000)
+    return () => window.clearTimeout(t)
+  }, [awardWatch, type])
 
   const list = providers.data ?? []
   const providerId = list.find((p) => p.id === params.get('p'))?.id ?? list.find((p) => p.id === readPref())?.id ?? list[0]?.id
@@ -82,6 +98,8 @@ export default function MovieWatchPage() {
     return () => window.clearInterval(t)
   }, [sessionVerified])
 
+  const companion = useCompanion()
+
   // MovieBox direct stream extraction
   const mbStream = useAsync(
     () =>
@@ -97,7 +115,7 @@ export default function MovieWatchPage() {
             imdbId: details.data.imdbId,
           })
         : Promise.resolve(null),
-    [sessionVerified, isMovieBox, type, id, season, episode, details.data?.title, details.data?.year, selectedDub, details.data?.imdbId]
+    [sessionVerified, isMovieBox, type, id, season, episode, details.data?.title, details.data?.year, selectedDub, details.data?.imdbId, companion.installed]
   )
 
   const [dubCache, setDubCache] = useState<{ id: number; dubs: MovieDub[] } | null>(null)
@@ -130,7 +148,6 @@ export default function MovieWatchPage() {
   })
   const isGuest = Boolean(party.room && !party.room.isHost)
 
-  const companion = useCompanion()
   const availableStreams = mbStream.data?.streams || []
   const activeStream = useMemo(() => {
     if (!availableStreams.length) return null
@@ -148,8 +165,33 @@ export default function MovieWatchPage() {
     ? (activeStream?.rawStreamUrl || activeStream?.url || activeStream?.streamUrl || '')
     : (activeStream?.proxyStreamUrl || activeStream?.streamUrl || mbStream.data?.streamUrl || '')
   const fallbackStreamUrl = activeStream?.proxyStreamUrl || mbStream.data?.proxyStreamUrl || ''
-  // always the proxied attachment link (dl=1); raw CDN urls just play in the browser instead of downloading
+  
+  const isMovie = type === 'movie'
+  const rawTitle = details.data?.title || mbStream.data?.title || 'Movie'
+  const releaseYear = details.data?.year || ''
+
+  const computedDownloadFileName = useMemo(() => {
+    const q = activeStream?.quality || mbStream.data?.quality || 'HD'
+    const activeDub = dubs.find((d) => d.id === curDub)
+    const dubTag = activeDub && activeDub.id !== 'default' ? `[${activeDub.label}]` : ''
+    if (isMovie) {
+      return [rawTitle, releaseYear ? `(${releaseYear})` : '', dubTag, `[${q}].mp4`].filter(Boolean).join(' ').trim()
+    }
+    const epTag = `S${String(season).padStart(2, '0')}E${String(episode).padStart(2, '0')}`
+    return [rawTitle, epTag, dubTag, `[${q}].mp4`].filter(Boolean).join(' ').trim()
+  }, [isMovie, rawTitle, releaseYear, dubs, curDub, season, episode, activeStream?.quality, mbStream.data?.quality])
+
+  const activeDownloadFileName = computedDownloadFileName || activeStream?.downloadFileName || mbStream.data?.downloadFileName || 'video.mp4'
+  const activeRawUrl = activeStream?.rawStreamUrl || activeStream?.url || mbStream.data?.rawStreamUrl || ''
   const activeDownloadUrl = activeStream?.downloadUrl || mbStream.data?.downloadUrl || ''
+
+  const handleTriggerDownload = useCallback(() => {
+    downloadMedia({
+      url: activeDownloadUrl,
+      rawUrl: activeRawUrl,
+      filename: activeDownloadFileName,
+    })
+  }, [activeDownloadUrl, activeRawUrl, activeDownloadFileName])
 
   // Standard embed iframe stream resolution (Videasy, Vidzee, etc.)
   const src = useAsync(
@@ -347,6 +389,7 @@ export default function MovieWatchPage() {
                 availableEpisodes={type === 'tv' ? lastEp : 1}
                 animeId={id}
                 isTmdb
+                onProgress={(pos, dur) => { if (dur > 0 && pos / dur >= 0.8) awardWatch() }}
                 format={type === 'movie' ? 'MOVIE' : 'TV'}
                 directSubtitles={(mbStream.data.subtitles || []).map((s, idx) => ({
                   id: s.id || `sub-${idx}`,
@@ -360,10 +403,15 @@ export default function MovieWatchPage() {
                   size: s.size,
                   sizeLabel: s.sizeLabel,
                   downloadUrl: s.downloadUrl,
+                  downloadFileName: s.downloadFileName || computedDownloadFileName,
+                  rawUrl: s.rawStreamUrl || s.url,
                 }))}
                 currentQuality={activeStream?.quality || mbStream.data?.quality}
                 onQualityChange={(q: { label: string }) => setSelectedQuality(q.label)}
                 downloadUrl={activeDownloadUrl}
+                downloadFileName={activeDownloadFileName}
+                rawDownloadUrl={activeRawUrl}
+                onDownload={handleTriggerDownload}
                 servers={list.flatMap(expand)}
                 serverId={serverValue}
                 onServer={pickAny}
@@ -569,19 +617,16 @@ export default function MovieWatchPage() {
             />
           )
         )}
-        {isMovieBox && activeDownloadUrl && (
-          <a
-            href={activeDownloadUrl}
-            download={activeStream?.downloadFileName || `${title}.mp4`}
-            target="_blank"
-            rel="noreferrer"
-            onClick={() => toast(`Starting download${activeStream ? `: ${activeStream.quality}` : ''}`)}
+        {isMovieBox && (activeDownloadUrl || activeRawUrl) && (
+          <button
+            type="button"
+            onClick={handleTriggerDownload}
             className="ml-auto inline-flex items-center gap-2 rounded-full border border-border px-4 py-2.5 text-sm font-semibold transition hover:bg-foreground/[0.06] active:scale-95"
           >
             <Download className="size-4 text-accent" />
             Download
             {activeStream && <span className="text-xs text-muted">{activeStream.quality}{activeStream.sizeLabel ? ` · ${activeStream.sizeLabel}` : ''}</span>}
-          </a>
+          </button>
         )}
       </section>
 

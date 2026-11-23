@@ -15,6 +15,7 @@ import { PageLoader } from './components/PageLoader'
 import { ShieldGate } from './components/ShieldGate'
 import { ApiIntro } from './components/ApiIntro'
 import { WelcomeNotes } from './components/WelcomeNotes'
+import { PreReleaseNotice } from './components/PreReleaseNotice'
 import { ShortcutsHelp } from './components/ShortcutsHelp'
 import { Toaster } from './components/Toaster'
 import { UpdatePrompt } from './components/UpdatePrompt'
@@ -59,6 +60,7 @@ const MovieWatchPage = lazy(() => import('./pages/MovieWatchPage'))
 const ProfilePage = lazy(() => import('./pages/ProfilePage'))
 const PublicProfilePage = lazy(() => import('./pages/PublicProfilePage'))
 const MessagesPage = lazy(() => import('./pages/MessagesPage'))
+const RankingPage = lazy(() => import('./pages/RankingPage'))
 const CommunityPage = lazy(() => import('./pages/CommunityPage'))
 const WatchPartyPage = lazy(() => import('./pages/WatchPartyPage'))
 const AniListCallbackPage = lazy(() => import('./pages/AniListCallbackPage'))
@@ -71,7 +73,6 @@ const CallPage = lazy(() => import('./pages/CallPage'))
 const ExtensionGuidePage = lazy(() => import('./pages/ExtensionGuidePage'))
 const SupportPage = lazy(() => import('./pages/SupportPage'))
 const AscensionPage = lazy(() => import('./pages/AscensionPage'))
-const VisionStudioPage = lazy(() => import('./pages/VisionStudioPage'))
 const DownloadsPage = lazy(() => import('./pages/DownloadsPage'))
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage'))
 
@@ -210,6 +211,7 @@ export default function App() {
               <Route path="/messages/:partnerHandle" element={<MessagesPage />} />
               <Route path="/call" element={<CallPage />} />
               <Route path="/community" element={<CommunityPage />} />
+              <Route path="/ranking" element={<RankingPage />} />
               <Route path="/watchparty" element={<WatchPartyPage />} />
               <Route path="/watchtogether" element={<WatchPartyPage />} />
               <Route path="/auth/anilist" element={<AniListCallbackPage />} />
@@ -242,7 +244,6 @@ export default function App() {
               <Route path="/api" element={<DocsPage />} />
               <Route path="/api/docs" element={<DocsPage />} />
               <Route path="/docs" element={<DocsPage />} />
-              <Route path="/vision" element={<VisionStudioPage />} />
               <Route path="/downloads" element={<DownloadsPage />} />
               <Route path="/support" element={<SupportPage />} />
               <Route path="/ascension" element={<AscensionPage />} />
@@ -267,6 +268,7 @@ export default function App() {
       <ShieldGate />
       <ChangelogModal />
       <ChooseUsernameModal />
+      <PreReleaseNotice enabled={!bare} />
       <WelcomeNotes enabled={!isApi && !isEmbed && !reader && !isWatchPath(pathname) && !isCall && !isMessages && pathname !== '/busted'} />
       {!isApi && !isEmbed && !reader && !isWatchPath(pathname) && pathname !== '/busted' && <ApiIntro />}
     </div>

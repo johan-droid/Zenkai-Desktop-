@@ -117,6 +117,15 @@ jobs:
       - name: Install dependencies from lockfile
         run: pnpm install --frozen-lockfile
 
+      - name: Gate A — Static TypeScript check
+        run: pnpm typecheck
+
+      - name: Gate A — ESLint analysis
+        run: pnpm lint
+
+      - name: Gate A — Vitest unit test suite
+        run: pnpm test
+
       - name: Gate B — Zero-Mock Production Data Integrity Check
         run: node scripts/verify-zero-mock.mjs
 
@@ -171,6 +180,15 @@ jobs:
 
       - name: Install dependencies from lockfile
         run: pnpm install --frozen-lockfile
+
+      - name: Gate A — Static TypeScript check
+        run: pnpm typecheck
+
+      - name: Gate A — ESLint analysis
+        run: pnpm lint
+
+      - name: Gate A — Vitest unit test suite
+        run: pnpm test
 
       - name: Gate B — Zero-Mock Production Data Integrity Check
         run: node scripts/verify-zero-mock.mjs
@@ -341,3 +359,78 @@ jobs:
           prerelease: ${{ contains(needs.determine-version.outputs.tag, '-beta') || contains(needs.determine-version.outputs.tag, '-alpha') || contains(needs.determine-version.outputs.tag, '-rc') }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Post-publish verification — Verify public accessibility of release assets
+        if: steps.guard.outputs.already_published != 'true'
+        shell: bash
+        env:
+          TAG: ${{ needs.determine-version.outputs.tag }}
+        run: |
+          echo "Verifying public asset availability for release $TAG..."
+          sleep 5
+          RELEASE_BASE_URL="https://github.com/johan-droid/Zenkai-Desktop-/releases/download/${TAG}"
+
+          HTTP_LINUX=$(curl -s -o /dev/null -w "%{http_code}" -L "${RELEASE_BASE_URL}/latest-linux.yml")
+          echo "latest-linux.yml HTTP status: $HTTP_LINUX"
+
+          HTTP_WIN=$(curl -s -o /dev/null -w "%{http_code}" -L "${RELEASE_BASE_URL}/latest.yml")
+          echo "latest.yml HTTP status: $HTTP_WIN"
+
+          HTTP_SHA=$(curl -s -o /dev/null -w "%{http_code}" -L "${RELEASE_BASE_URL}/SHA256SUMS.txt")
+          echo "SHA256SUMS.txt HTTP status: $HTTP_SHA"
+
+      - name: Trigger Release Webhook (Optional automation)
+        if: steps.guard.outputs.already_published != 'true'
+        shell: bash
+        env:
+          WEBHOOK_URL: ${{ secrets.RELEASE_WEBHOOK_URL }}
+          WEBHOOK_SECRET: ${{ secrets.RELEASE_WEBHOOK_SECRET }}
+          TAG: ${{ needs.determine-version.outputs.tag }}
+          VERSION: ${{ needs.determine-version.outputs.version }}
+        run: |
+          if [ -n "$WEBHOOK_URL" ] && [ -n "$WEBHOOK_SECRET" ]; then
+            echo "Triggering release webhook at $WEBHOOK_URL..."
+            PAYLOAD=$(cat <<EOF
+          {
+            "action": "published",
+            "repository": {
+              "full_name": "${{ github.repository }}"
+            },
+            "release": {
+              "tag_name": "$TAG",
+              "target_commitish": "${{ github.sha }}",
+              "name": "Zenkai Desktop $TAG",
+              "draft": false,
+              "prerelease": ${{ contains(needs.determine-version.outputs.tag, '-beta') }},
+              "published_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            }
+          }
+          EOF
+            )
+            SIGNATURE="sha256=$(echo -n "$PAYLOAD" | openssl dgst -sha256 -hmac "$WEBHOOK_SECRET" | awk '{print $2}')"
+            curl -s -X POST "$WEBHOOK_URL" \
+              -H "Content-Type: application/json" \
+              -H "X-Hub-Signature-256: $SIGNATURE" \
+              -H "X-GitHub-Event: release" \
+              -d "$PAYLOAD" || echo "Webhook trigger non-fatal warning"
+          else
+            echo "RELEASE_WEBHOOK_URL not configured — skipping external webhook notification."
+          fi
+
+      - name: Generate Release Report Summary
+        shell: bash
+        env:
+          TAG: ${{ needs.determine-version.outputs.tag }}
+          VERSION: ${{ needs.determine-version.outputs.version }}
+        run: |
+          cat <<EOF >> "$GITHUB_STEP_SUMMARY"
+          ## 🚀 Zenkai Desktop Production Release Published: \`$TAG\`
+
+          - **Application Version:** \`$VERSION\`
+          - **Git Tag:** \`$TAG\`
+          - **Release URL:** [https://github.com/johan-droid/Zenkai-Desktop-/releases/tag/$TAG](https://github.com/johan-droid/Zenkai-Desktop-/releases/tag/$TAG)
+          - **Linux Distribution:** AppImage (x86_64), Debian (.deb), RPM (.rpm)
+          - **Windows Distribution:** NSIS Setup (.exe), Portable (.zip)
+          - **OTA Update Metadata:** \`latest-linux.yml\`, \`latest.yml\` (SHA-512 cryptographically signed)
+          - **Cryptographic Manifest:** \`SHA256SUMS.txt\`
+          EOF

@@ -94,26 +94,12 @@ export type IpcContract = {
     mandatory?: boolean;
     assetUrl?: string;
     reason?: string;
+    sha256?: string;
+    sha512?: string;
   }>;
   "updater:start-download": () => Promise<{ success: boolean; message?: string }>;
   "updater:install": () => Promise<void>;
   "updater:diagnostics": () => Promise<UpdateDiagnostics>;
-  "vision:getHardwareProfile": () => Promise<import("./vision-types").VisionHardwareProfile>;
-  "vision:runDiagnostics": () => Promise<import("./vision-types").VisionDiagnosticsReport>;
-  "vision:getWorkerStatus": () => Promise<import("./vision-types").VisionWorkerStatus>;
-  "vision:startWorker": () => Promise<{ success: boolean; pid?: number; message?: string }>;
-  "vision:stopWorker": () => Promise<{ success: boolean }>;
-  "vision:getModels": () => Promise<import("./vision-models").VisionModelManifest[]>;
-  "vision:verifyModel": (modelId: string) => Promise<import("./vision-models").ModelVerificationResult>;
-  "vision:runBenchmark": (p: { modelId: string; provider?: import("./vision-types").InferenceProvider }) => Promise<import("./vision-models").InferenceBenchmarkResult>;
-  "vision:probeVideo": (filePath: string) => Promise<import("./vision-jobs").VisionVideoMetadata>;
-  "vision:getJobs": () => Promise<import("./vision-jobs").VisionJob[]>;
-  "vision:createJob": (options: import("./vision-jobs").VisionJobOptions) => Promise<import("./vision-jobs").VisionJob>;
-  "vision:pauseJob": (jobId: string) => Promise<boolean>;
-  "vision:resumeJob": (jobId: string) => Promise<boolean>;
-  "vision:cancelJob": (jobId: string) => Promise<boolean>;
-  "vision:deleteJob": (jobId: string) => Promise<boolean>;
-  "vision:clearCompletedJobs": () => Promise<void>;
   "gpu:getDiagnostics": () => Promise<import("./gpu-types").UnifiedGpuDiagnostics>;
 };
 
@@ -121,9 +107,6 @@ export type IpcEvents = {
   "playback:pause": void;
   "notify:click": { id: string };
   "auth:callback": { token: string };
-  "vision:workerStatusChanged": import("./vision-types").VisionWorkerStatus;
-  "vision:jobProgress": import("./vision-jobs").VisionJobProgress;
-  "vision:jobListChanged": import("./vision-jobs").VisionJob[];
   "updater:status": {
     status:
       | "idle"

@@ -4,15 +4,11 @@ import {
   discoverGpus,
   discoverLinuxGpus,
   discoverMacGpus,
-  discoverMediaBackend,
   discoverWindowsGpus,
   normalizeVendor,
-} from '../../src/main/vision/hardware';
-import { discoverProviders } from '../../src/main/vision/providers';
-import { qualifyHardwareProfile } from '../../src/main/vision/qualification';
-import type { VisionHardwareDevice } from '../../src/shared/vision-types';
+} from '../../src/main/gpu';
 
-describe('Vision Hardware Discovery & Vendor Normalization', () => {
+describe('GPU Hardware Discovery & Vendor Normalization', () => {
   it('correctly normalizes GPU vendor names', () => {
     expect(normalizeVendor('NVIDIA Corporation AD104 [GeForce RTX 4070]')).toBe('nvidia');
     expect(normalizeVendor('PCI\\VEN_10DE&DEV_2786')).toBe('nvidia');
@@ -136,125 +132,5 @@ describe('Vision Hardware Discovery & Vendor Normalization', () => {
     expect(devices.length).toBe(1);
     expect(devices[0].id).toBe('cpu-fallback');
     expect(devices[0].type).toBe('virtual');
-  });
-
-  it('parses media backend and hwaccels from ffmpeg', () => {
-    const mockVersion = 'ffmpeg version 7.0.2-static Copyright (c) 2000-2024';
-    const mockHwaccels = `
-Hardware acceleration methods:
-vdpau
-vaapi
-cuda
-    `.trim();
-
-    const runner = (cmd: string) => {
-      if (cmd.includes('-version')) return mockVersion;
-      if (cmd.includes('-hwaccels')) return mockHwaccels;
-      return '';
-    };
-
-    const media = discoverMediaBackend(runner);
-    expect(media.ffmpegVersion).toBe('7.0.2-static');
-    expect(media.hwaccels).toContain('vaapi');
-    expect(media.hwaccels).toContain('cuda');
-  });
-});
-
-describe('Vision Providers & Capability Qualification', () => {
-  it('identifies available inference providers for NVIDIA GPU', () => {
-    const devices: VisionHardwareDevice[] = [
-      {
-        id: 'gpu-1',
-        vendor: 'nvidia',
-        model: 'GeForce RTX 4080',
-        type: 'dedicated',
-        vramMb: 16384,
-        isPrimary: true,
-      },
-    ];
-
-    const runner = (cmd: string) => {
-      if (cmd.includes('nvidia-smi')) return 'NVIDIA-SMI 535.104.05   Driver Version: 535.104.05   CUDA Version: 12.2';
-      return '';
-    };
-
-    const providers = discoverProviders(devices, 'linux', runner);
-    const cuda = providers.find((p) => p.provider === 'cuda');
-    const cpu = providers.find((p) => p.provider === 'cpu');
-    const webgpu = providers.find((p) => p.provider === 'webgpu');
-
-    expect(cuda?.available).toBe(true);
-    expect(cuda?.version).toBe('535.104.05');
-    expect(cpu?.available).toBe(true);
-    expect(webgpu?.available).toBe(true);
-  });
-
-  it('assigns high_performance profile for dedicated 16GB GPU with CUDA', () => {
-    const devices: VisionHardwareDevice[] = [
-      {
-        id: 'gpu-1',
-        vendor: 'nvidia',
-        model: 'RTX 4080',
-        type: 'dedicated',
-        vramMb: 16384,
-        isPrimary: true,
-      },
-    ];
-    const providers = [
-      { provider: 'cuda' as const, available: true, validated: true },
-      { provider: 'webgpu' as const, available: true, validated: true },
-      { provider: 'cpu' as const, available: true, validated: true },
-    ];
-
-    const profile = qualifyHardwareProfile(devices, providers);
-    expect(profile.profile).toBe('high_performance');
-    expect(profile.maxTargetResolution).toBe('8k');
-    expect(profile.liveEligible).toBe(true);
-    expect(profile.offlineEligible).toBe(true);
-    expect(profile.memoryBudgetMb).toBe(6144);
-  });
-
-  it('assigns balanced profile for AMD integrated GPU', () => {
-    const devices: VisionHardwareDevice[] = [
-      {
-        id: 'gpu-1',
-        vendor: 'amd',
-        model: 'Lucienne Vega Graphics',
-        type: 'integrated',
-        vramMb: 2048,
-        isPrimary: true,
-      },
-    ];
-    const providers = [
-      { provider: 'webgpu' as const, available: true, validated: true },
-      { provider: 'cpu' as const, available: true, validated: true },
-    ];
-
-    const profile = qualifyHardwareProfile(devices, providers);
-    expect(profile.profile).toBe('balanced');
-    expect(profile.maxTargetResolution).toBe('1440p');
-    expect(profile.liveEligible).toBe(true);
-    expect(profile.offlineEligible).toBe(true);
-  });
-
-  it('assigns basic profile for virtual fallback adapter', () => {
-    const devices: VisionHardwareDevice[] = [
-      {
-        id: 'cpu-fallback',
-        vendor: 'unknown',
-        model: 'Generic CPU',
-        type: 'virtual',
-        isPrimary: true,
-      },
-    ];
-    const providers = [
-      { provider: 'cpu' as const, available: true, validated: true },
-    ];
-
-    const profile = qualifyHardwareProfile(devices, providers);
-    expect(profile.profile).toBe('basic');
-    expect(profile.liveEligible).toBe(false);
-    expect(profile.offlineEligible).toBe(true);
-    expect(profile.maxTargetResolution).toBe('720p');
   });
 });

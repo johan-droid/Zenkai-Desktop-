@@ -166,29 +166,16 @@ test.describe('Zenkai Desktop: Full QA Automated Workflows & Release Gates', () 
     await assertHealthyScreen(win, { label: 'Novel Hub' });
   });
 
-  test('WORKFLOW-09: Vision Studio AI Manifests (GATE-VISION)', async () => {
-    await win.evaluate(() => { window.location.hash = '#/vision'; });
-    await assertHealthyScreen(win, { label: 'Vision Studio' });
+  test('WORKFLOW-09: Universal GPU Architecture & WebGPU Diagnostics (GATE-VISION)', async () => {
+    await win.evaluate(() => { window.location.hash = '#/settings'; });
+    await assertHealthyScreen(win, { label: 'Settings & GPU Diagnostics' });
 
-    // A late first-session promo can open while the workflow is running.
-    // Dismiss transient dialogs before interacting with the page controls.
-    await win.keyboard.press('Escape');
-    await win.waitForTimeout(200);
-    for (const name of ['Maybe later', 'Close', 'Continue', 'Got it']) {
-      const dismiss = win.getByRole('button', { name, exact: true }).first();
-      if (await dismiss.isVisible().catch(() => false)) {
-        await dismiss.click().catch(() => {});
-        await win.waitForTimeout(200);
-      }
-    }
+    // Verify GPU Architecture & WebGPU diagnostics section
+    const gpuHeading = win.locator('text="Universal GPU Architecture & Decoders"').first();
+    await expect(gpuHeading).toBeVisible({ timeout: 5000 });
 
-    const modelsTab = win.locator('button:has-text("AI Models")').first();
-    if (await modelsTab.isVisible()) {
-      await modelsTab.click();
-      await win.waitForTimeout(400);
-      const manifestHeading = win.locator('text="Registered Model Manifests"').first();
-      await expect(manifestHeading).toBeVisible({ timeout: 5000 });
-    }
+    const webGpuBadge = win.locator('text="WebGPU AVAILABLE"').first();
+    await expect(webGpuBadge).toBeVisible({ timeout: 5000 });
   });
 
   test('WORKFLOW-10: Schedule Calendar & Airings (GATE-NAV)', async () => {

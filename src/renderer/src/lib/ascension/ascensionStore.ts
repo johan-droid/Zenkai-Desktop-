@@ -1,5 +1,6 @@
 import { cell } from '../cell'
 import { supabase } from '../supabase'
+import { toast } from '../toast'
 import {
   calculateLevelFromXp,
   getHunterRank,
@@ -33,6 +34,7 @@ export interface LevelUpEvent {
 }
 
 export interface AscensionState {
+  userId?: string | null
   totalXp: number
   level: number
   streak: number
@@ -81,6 +83,7 @@ const CURRENT_WEEK = () => {
 }
 
 const defaultState: AscensionState = {
+  userId: null,
   totalXp: 0,
   level: 1,
   streak: 0,
@@ -336,7 +339,7 @@ export async function recordProgressionActivity({
   refId,
   periodKey,
 }: {
-  action: 'watch_episode' | 'read_manga_chapter' | 'read_novel_chapter' | 'daily_login' | 'streak_milestone'
+  action: 'watch_episode' | 'watch_movie' | 'send_message' | 'read_manga_chapter' | 'read_novel_chapter' | 'daily_login' | 'streak_milestone'
   xp: number
   refId: string
   periodKey?: string
@@ -354,6 +357,16 @@ export async function recordProgressionActivity({
   try {
     localStorage.setItem(idempotencyKey, '1')
   } catch {}
+
+  // Lifetime counters for achievements (history/reading lists are per-title and capped, so they can't count episodes/chapters)
+  const kind = action === 'watch_episode' ? 'watch' : action === 'read_manga_chapter' ? 'manga' : action === 'read_novel_chapter' ? 'novel' : null
+  if (kind) {
+    try {
+      const c = JSON.parse(localStorage.getItem('zk:ach-counts') || '{}')
+      c[kind] = (Number(c[kind]) || 0) + 1
+      localStorage.setItem('zk:ach-counts', JSON.stringify(c))
+    } catch {}
+  }
 
   const oldXp = state.totalXp
   const newXp = oldXp + xp
@@ -374,7 +387,7 @@ export async function recordProgressionActivity({
     }
   }
 
-  if (action === 'watch_episode') {
+  if (action === 'watch_episode' || action === 'watch_movie') {
     advanceQuest('daily_watch', 1)
     advanceQuest('weekly_watch_10', 1)
   } else if (action === 'read_manga_chapter') {
@@ -415,11 +428,49 @@ export async function recordProgressionActivity({
     void pushAscensionToCloud(nextState)
   }
 
+  const claimedXp = await autoClaimQuests()
+
   return {
     success: true,
-    xpAwarded: xp,
+    xpAwarded: xp + claimedXp,
     leveledUp: !!levelUp,
   }
+}
+
+const MSG_XP = 5
+const MSG_DAILY_CAP = 10
+let lastMsgPush = 0
+
+/** +5 XP per chat message (10/day). Pushes to the cloud at most once a minute so the ranking stays fresh. */
+export async function awardMessageXp(messageId: string, text: string) {
+  if (text.trim().length < 3) return
+  const key = `zk:msgxp:${TODAY()}`
+  let n = 0
+  try { n = Number(localStorage.getItem(key)) || 0 } catch {}
+  if (n >= MSG_DAILY_CAP) return
+  const r = await recordProgressionActivity({ action: 'send_message', xp: MSG_XP, refId: messageId })
+  if (!r.success) return
+  try { localStorage.setItem(key, String(n + 1)) } catch {}
+  if (Date.now() - lastMsgPush > 60_000) {
+    lastMsgPush = Date.now()
+    void pushAscensionToCloud()
+  }
+}
+
+/** Claims every finished-but-unclaimed quest. Loops because claiming a daily can complete the weekly one. */
+export async function autoClaimQuests(): Promise<number> {
+  let total = 0
+  for (let i = 0; i < 5; i++) {
+    const state = ensureActiveQuests(ascensionCell.get())
+    const ready = Object.entries(state.quests).filter(([, q]) => q.completed && !q.claimed)
+    if (!ready.length) break
+    for (const [id] of ready) {
+      const before = ascensionCell.get().totalXp
+      if (await claimQuestReward(id)) total += ascensionCell.get().totalXp - before
+    }
+  }
+  if (total > 0) toast(`Quest reward claimed: +${total} XP`)
+  return total
 }
 
 // ----------------------------------------------------------------------------
@@ -483,7 +534,7 @@ export async function claimQuestReward(questId: string): Promise<boolean> {
 // Check & Unlock Permanent Achievements
 // ----------------------------------------------------------------------------
 
-export async function checkAchievements(customState?: AscensionState) {
+export async function checkAchievements(customState?: AscensionState, silent: boolean = false) {
   const state = customState || ascensionCell.get()
   const unlocked = new Set(state.achievements)
   let newlyUnlockedXp = 0
@@ -510,28 +561,27 @@ export async function checkAchievements(customState?: AscensionState) {
 
   // Check total watch count from localStorage
   try {
-    const historyRaw = localStorage.getItem('zk:watch-history')
-    if (historyRaw) {
-      const history = JSON.parse(historyRaw)
-      const count = Array.isArray(history) ? history.length : 0
-      check('ach_first_watch', count >= 1)
-      check('ach_episodes_25', count >= 25)
-      check('ach_episodes_100', count >= 100)
-      check('ach_episodes_500', count >= 500)
+    const c = JSON.parse(localStorage.getItem('zk:ach-counts') || '{}')
+    const titles = (k: string) => {
+      const v = JSON.parse(localStorage.getItem(k) || '[]')
+      return Array.isArray(v) ? v : []
     }
-
-    const readingRaw = localStorage.getItem('zk:reading')
-    if (readingRaw) {
-      const reading = JSON.parse(readingRaw)
-      const count = Object.keys(reading || {}).length
-      check('ach_first_manga', count >= 1)
-      check('ach_manga_100', count >= 100)
-    }
+    const watch = Math.max(Number(c.watch) || 0, titles('zk:history').length, titles('zk:watch-history').length)
+    const reading = titles('zk:reading:v1')
+    const manga = Math.max(Number(c.manga) || 0, reading.filter((r: any) => r?.kind === 'manga').length)
+    const novel = Math.max(Number(c.novel) || 0, reading.filter((r: any) => r?.kind === 'novel').length)
+    check('ach_first_watch', watch >= 1)
+    check('ach_episodes_25', watch >= 25)
+    check('ach_episodes_100', watch >= 100)
+    check('ach_episodes_500', watch >= 500)
+    check('ach_first_manga', manga >= 1)
+    check('ach_manga_100', manga >= 100)
+    check('ach_first_novel', novel >= 1)
   } catch {}
 
   if (newlyUnlockedIds.length > 0) {
     const oldXp = state.totalXp
-    const newXp = oldXp + newlyUnlockedXp
+    const newXp = oldXp + (silent ? 0 : newlyUnlockedXp)
     const levelUp = checkLevelUp(oldXp, newXp, state)
     const newLevel = calculateLevelFromXp(newXp)
 
@@ -647,18 +697,24 @@ export async function evaluateDailyLoginStreak() {
 
 export async function syncAscensionWithCloud(userId: string, force: boolean = false) {
   try {
-    const state = ascensionCell.get()
+    let state = ascensionCell.get()
     const now = Date.now()
     const THROTTLE_MS = 30 * 1000
 
+    // If local state was bound to another account (or guest), wipe local state completely to prevent cross-account bleed
+    const isDifferentUser = state.userId && state.userId !== userId
+    if (isDifferentUser || !state.userId) {
+      state = { ...defaultState, userId }
+    }
+
     // Short 30s throttle to avoid duplicate calls within the same render cycle unless forced
-    if (!force && state.lastSyncedAt > 0 && now - state.lastSyncedAt < THROTTLE_MS) {
+    if (!force && !isDifferentUser && state.lastSyncedAt > 0 && now - state.lastSyncedAt < THROTTLE_MS) {
       return
     }
 
     const { data: profile } = await supabase
       .from('profiles')
-      .select('total_xp, level, login_streak, last_login_date, equipped_title, equipped_text_effect, equipped_frame, name_color')
+      .select('*')
       .eq('id', userId)
       .maybeSingle()
 
@@ -668,6 +724,7 @@ export async function syncAscensionWithCloud(userId: string, force: boolean = fa
 
       const merged: AscensionState = sanitizeCosmeticsForLevel({
         ...state,
+        userId,
         totalXp: cloudXp,
         level: calculatedLevel,
         streak: Number(profile.login_streak) || 0,
@@ -683,9 +740,11 @@ export async function syncAscensionWithCloud(userId: string, force: boolean = fa
             : 'none',
         equippedNameColor: profile.name_color || 'default',
         equippedFrame: profile.equipped_frame || null,
+        equippedFontStyle: (profile as any).equipped_font_style || state.equippedFontStyle,
       })
 
       ascensionCell.set(merged)
+      await checkAchievements(merged, true)
       evaluateDailyLoginStreak()
     }
   } catch (err) {

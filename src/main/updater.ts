@@ -22,6 +22,7 @@ export interface UpdateCheckResult {
   assetUrl?: string;
   assetName?: string;
   sha256?: string;
+  sha512?: string;
   isLinuxNativePackage?: boolean;
   reason?: string;
 }
@@ -45,6 +46,9 @@ export interface UpdateDiagnostics {
 
 let latestUpdateResult: UpdateCheckResult | null = null;
 let downloadedPackagePath: string | null = null;
+let isAutoUpdaterStaged = false;
+let isDownloading = false;
+let isApplyingUpdate = false;
 
 const currentDiagnostics: UpdateDiagnostics = {
   currentVersion: "", // filled from app.getVersion() on the first check
@@ -153,13 +157,13 @@ export function pickNewestRelease(
 }
 
 /**
- * Downloads a file while streaming into a destination and simultaneously calculating its SHA-256.
+ * Downloads a file while streaming into a destination and simultaneously calculating its SHA-256 and SHA-512.
  */
 async function downloadFileWithHash(
   url: string,
   targetPath: string,
   onProgress: (percent: number) => void,
-): Promise<{ computedHash: string }> {
+): Promise<{ computedHash: string; computedSha512: string }> {
   const partPath = `${targetPath}.part`;
   const res = await fetch(url, {
     redirect: "follow",
@@ -176,13 +180,15 @@ async function downloadFileWithHash(
 
   fs.mkdirSync(join(targetPath, ".."), { recursive: true });
   const fileStream = fs.createWriteStream(partPath);
-  const hasher = crypto.createHash("sha256");
+  const hasher256 = crypto.createHash("sha256");
+  const hasher512 = crypto.createHash("sha512");
 
   const nodeReadable = Readable.fromWeb(res.body as import("stream/web").ReadableStream);
 
   nodeReadable.on("data", (chunk: Buffer) => {
     received += chunk.length;
-    hasher.update(chunk);
+    hasher256.update(chunk);
+    hasher512.update(chunk);
     if (total > 0) {
       const pct = Math.min(100, Math.round((received / total) * 100));
       if (pct !== lastReported) {
@@ -195,8 +201,9 @@ async function downloadFileWithHash(
   nodeReadable.pipe(fileStream);
   await finished(fileStream);
 
-  const computedHash = hasher.digest("hex").toLowerCase();
-  return { computedHash };
+  const computedHash = hasher256.digest("hex").toLowerCase();
+  const computedSha512 = hasher512.digest("base64");
+  return { computedHash, computedSha512 };
 }
 
 function detectLinuxPackagePreference(): "deb" | "rpm" {
@@ -254,6 +261,19 @@ export function setupAutoUpdater(): void {
   // LOCKED DECISION: Notify-first delivery (never silent download or force install)
   autoUpdater.autoDownload = false;
   autoUpdater.autoInstallOnAppQuit = false;
+
+  try {
+    if (typeof (autoUpdater as any).setFeedURL === "function") {
+      (autoUpdater as any).setFeedURL({
+        provider: "github",
+        owner: "johan-droid",
+        repo: "Zenkai-Desktop-",
+        releaseType: "release",
+      });
+    }
+  } catch {
+    // ignore in tests where autoUpdater may be a stub
+  }
 
   // Determine channel (latest default; beta if version has -beta or user opted in)
   const settings = readSettings(getSettingsPath());
@@ -336,6 +356,7 @@ export function setupAutoUpdater(): void {
     currentDiagnostics.downloadedVersion = info.version;
     currentDiagnostics.verificationState = "verified";
     currentDiagnostics.installationState = "ready";
+    isAutoUpdaterStaged = true;
     persistDiagnostics();
 
     broadcastToWindows("updater:status", {
@@ -528,8 +549,9 @@ export async function checkForUpdatesClient(): Promise<UpdateCheckResult> {
           }
         }
 
-        // Attempt to extract expected SHA-256 hash from SHA256SUMS.txt asset if present
+        // Attempt to extract expected SHA-256 and SHA-512 hashes from release assets
         let expectedSha256: string | undefined;
+        let expectedSha512: string | undefined;
         if (newest.assets && matchingAssetName) {
           const checksumAsset = newest.assets.find((a) => a.name === "SHA256SUMS.txt" || a.name.startsWith("checksums-"));
           if (checksumAsset) {
@@ -550,7 +572,25 @@ export async function checkForUpdatesClient(): Promise<UpdateCheckResult> {
                 }
               }
             } catch {
-              // checksum file fetch failed, will proceed with standard asset download
+              // checksum file fetch non-fatal
+            }
+          }
+
+          // If SHA-256 was not found or additionally, check latest.yml / latest-linux.yml for SHA-512
+          const ymlName = process.platform === "win32" ? "latest.yml" : "latest-linux.yml";
+          const ymlAsset = newest.assets.find((a) => a.name === ymlName);
+          if (ymlAsset) {
+            try {
+              const ymlRes = await fetch(ymlAsset.browser_download_url, { signal: AbortSignal.timeout(5000) });
+              if (ymlRes.ok) {
+                const ymlText = await ymlRes.text();
+                const match = ymlText.match(/sha512:\s*([A-Za-z0-9+/=]+)/);
+                if (match?.[1]) {
+                  expectedSha512 = match[1];
+                }
+              }
+            } catch {
+              // yml fetch non-fatal
             }
           }
         }
@@ -564,6 +604,7 @@ export async function checkForUpdatesClient(): Promise<UpdateCheckResult> {
           assetUrl: matchingAssetUrl,
           assetName: matchingAssetName,
           sha256: expectedSha256,
+          sha512: expectedSha512,
           isLinuxNativePackage: isLinuxNative,
         };
 
@@ -616,109 +657,140 @@ export async function startUpdateDownload(): Promise<{ success: boolean; message
     };
   }
 
-  // 1. AppImage or Windows NSIS with electron-updater
-  if (app.isPackaged && (process.platform === "win32" || process.env.APPIMAGE)) {
-    try {
-      currentDiagnostics.downloadState = "downloading";
-      broadcastToWindows("updater:status", { status: "downloading", progress: 0 });
-      await autoUpdater.downloadUpdate();
-      return { success: true };
-    } catch (err) {
-      console.warn("[updater] autoUpdater.downloadUpdate failed, attempting direct binary pull:", err);
-    }
+  if (isDownloading) {
+    return {
+      success: false,
+      message: "Update download already in progress.",
+    };
   }
 
-  // 2. Direct binary pull from GitHub Releases to Downloads directory with SHA-256 verification
-  if (latestUpdateResult?.assetUrl && latestUpdateResult?.assetName) {
-    try {
-      currentDiagnostics.downloadState = "downloading";
-      broadcastToWindows("updater:status", { status: "downloading", progress: 0 });
-      const targetDir = app.getPath("downloads");
-      const targetFile = join(targetDir, latestUpdateResult.assetName);
-      const partPath = `${targetFile}.part`;
+  isDownloading = true;
+  try {
+    // Reset staged flag on new download initiation
+    isAutoUpdaterStaged = false;
 
-      const { computedHash } = await downloadFileWithHash(latestUpdateResult.assetUrl, targetFile, (progress) => {
-        broadcastToWindows("updater:status", { status: "downloading", progress });
-      });
+    // 1. AppImage or Windows NSIS with electron-updater
+    if (app.isPackaged && (process.platform === "win32" || process.env.APPIMAGE)) {
+      try {
+        currentDiagnostics.downloadState = "downloading";
+        broadcastToWindows("updater:status", { status: "downloading", progress: 0 });
+        await autoUpdater.downloadUpdate();
+        return { success: true };
+      } catch (err) {
+        console.warn("[updater] autoUpdater.downloadUpdate failed, attempting direct binary pull:", err);
+      }
+    }
 
-      // LIFECYCLE STAGE: VERIFYING
-      currentDiagnostics.verificationState = "pending";
-      currentDiagnostics.computedHash = computedHash;
-      broadcastToWindows("updater:status", { status: "verifying", version: latestUpdateResult.version });
+    // 2. Direct binary pull from GitHub Releases to Downloads directory with cryptographic verification
+    if (latestUpdateResult?.assetUrl && latestUpdateResult?.assetName) {
+      try {
+        currentDiagnostics.downloadState = "downloading";
+        broadcastToWindows("updater:status", { status: "downloading", progress: 0 });
+        const targetDir = app.getPath("downloads");
+        const targetFile = join(targetDir, latestUpdateResult.assetName);
+        const partPath = `${targetFile}.part`;
 
-      // If expected SHA-256 is present, strictly enforce match
-      if (latestUpdateResult.sha256) {
-        if (computedHash !== latestUpdateResult.sha256.toLowerCase()) {
+        const { computedHash, computedSha512 } = await downloadFileWithHash(latestUpdateResult.assetUrl, targetFile, (progress) => {
+          broadcastToWindows("updater:status", { status: "downloading", progress });
+        });
+
+        // LIFECYCLE STAGE: VERIFYING
+        currentDiagnostics.verificationState = "pending";
+        currentDiagnostics.computedHash = computedHash;
+        broadcastToWindows("updater:status", { status: "verifying", version: latestUpdateResult.version });
+
+        // Enforce cryptographic checksum match (SHA-256 or SHA-512)
+        if (latestUpdateResult.sha256) {
+          if (computedHash !== latestUpdateResult.sha256.toLowerCase()) {
+            try {
+              if (fs.existsSync(partPath)) fs.unlinkSync(partPath);
+            } catch {}
+            currentDiagnostics.verificationState = "failed";
+            currentDiagnostics.downloadState = "failed";
+            currentDiagnostics.lastFailureReason = `SHA-256 mismatch: expected ${latestUpdateResult.sha256}, got ${computedHash}`;
+            persistDiagnostics();
+
+            broadcastToWindows("updater:status", {
+              status: "error",
+              error: "Cryptographic SHA-256 integrity check failed. Update aborted.",
+            });
+            return { success: false, message: "Cryptographic checksum mismatch" };
+          }
+        } else if (latestUpdateResult.sha512) {
+          if (computedSha512 !== latestUpdateResult.sha512) {
+            try {
+              if (fs.existsSync(partPath)) fs.unlinkSync(partPath);
+            } catch {}
+            currentDiagnostics.verificationState = "failed";
+            currentDiagnostics.downloadState = "failed";
+            currentDiagnostics.lastFailureReason = `SHA-512 mismatch: expected ${latestUpdateResult.sha512}, got ${computedSha512}`;
+            persistDiagnostics();
+
+            broadcastToWindows("updater:status", {
+              status: "error",
+              error: "Cryptographic SHA-512 integrity check failed. Update aborted.",
+            });
+            return { success: false, message: "Cryptographic checksum mismatch" };
+          }
+        }
+
+        // Rename .part to final target file
+        if (fs.existsSync(partPath)) {
+          fs.renameSync(partPath, targetFile);
+        }
+
+        downloadedPackagePath = targetFile;
+        currentDiagnostics.downloadState = "downloaded";
+        currentDiagnostics.downloadedVersion = latestUpdateResult.version;
+        currentDiagnostics.downloadedFile = targetFile;
+        currentDiagnostics.verificationState = "verified";
+        currentDiagnostics.installationState = "ready";
+        persistDiagnostics();
+
+        broadcastToWindows("updater:status", {
+          status: "downloaded",
+          version: latestUpdateResult.version,
+        });
+
+        if (!isPlaybackActive()) {
           try {
-            if (fs.existsSync(partPath)) fs.unlinkSync(partPath);
-          } catch {}
-          currentDiagnostics.verificationState = "failed";
-          currentDiagnostics.downloadState = "failed";
-          currentDiagnostics.lastFailureReason = `SHA-256 mismatch: expected ${latestUpdateResult.sha256}, got ${computedHash}`;
-          persistDiagnostics();
-
-          broadcastToWindows("updater:status", {
-            status: "error",
-            error: "Cryptographic SHA-256 integrity check failed. Update aborted.",
-          });
-          return { success: false, message: "Cryptographic checksum mismatch" };
+            showNotification({
+              id: `update-downloaded-${latestUpdateResult.version}`,
+              title: "⚡ Zenkai Desktop Downloaded & Verified",
+              body: `Package ${latestUpdateResult.assetName} (cryptographically verified) is ready. Click to apply update.`,
+            });
+          } catch {
+            // ignore
+          }
         }
-      }
 
-      // Rename .part to final target file
-      if (fs.existsSync(partPath)) {
-        fs.renameSync(partPath, targetFile);
-      }
+        return { success: true, message: `Package verified and saved to ${targetFile}` };
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.warn("[updater] direct download failed:", msg);
+        currentDiagnostics.downloadState = "failed";
+        currentDiagnostics.lastFailureReason = msg;
+        persistDiagnostics();
 
-      downloadedPackagePath = targetFile;
-      currentDiagnostics.downloadState = "downloaded";
-      currentDiagnostics.downloadedVersion = latestUpdateResult.version;
-      currentDiagnostics.downloadedFile = targetFile;
-      currentDiagnostics.verificationState = "verified";
-      currentDiagnostics.installationState = "ready";
-      persistDiagnostics();
-
-      broadcastToWindows("updater:status", {
-        status: "downloaded",
-        version: latestUpdateResult.version,
-      });
-
-      if (!isPlaybackActive()) {
-        try {
-          showNotification({
-            id: `update-downloaded-${latestUpdateResult.version}`,
-            title: "⚡ Zenkai Desktop Downloaded & Verified",
-            body: `Package ${latestUpdateResult.assetName} (SHA-256 verified) is ready. Click to apply update.`,
-          });
-        } catch {
-          // ignore
+        broadcastToWindows("updater:status", { status: "error", error: msg });
+        if (latestUpdateResult.assetUrl) {
+          shell.openExternal(latestUpdateResult.assetUrl);
         }
+        return { success: false, message: msg };
       }
-
-      return { success: true, message: `Package verified and saved to ${targetFile}` };
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      console.warn("[updater] direct download failed:", msg);
-      currentDiagnostics.downloadState = "failed";
-      currentDiagnostics.lastFailureReason = msg;
-      persistDiagnostics();
-
-      broadcastToWindows("updater:status", { status: "error", error: msg });
-      if (latestUpdateResult.assetUrl) {
-        shell.openExternal(latestUpdateResult.assetUrl);
-      }
-      return { success: false, message: msg };
     }
-  }
 
-  // 3. Standalone/manual download fallback
-  if (latestUpdateResult?.assetUrl) {
-    shell.openExternal(latestUpdateResult.assetUrl);
-    return { success: true, message: "Opened download page in browser" };
-  }
+    // 3. Standalone/manual download fallback
+    if (latestUpdateResult?.assetUrl) {
+      shell.openExternal(latestUpdateResult.assetUrl);
+      return { success: true, message: "Opened download page in browser" };
+    }
 
-  shell.openExternal("https://github.com/johan-droid/Zenkai-Desktop-/releases/latest");
-  return { success: true, message: "Opened release page" };
+    shell.openExternal("https://github.com/johan-droid/Zenkai-Desktop-/releases/latest");
+    return { success: true, message: "Opened release page" };
+  } finally {
+    isDownloading = false;
+  }
 }
 
 /**
@@ -730,46 +802,81 @@ export async function applyUpdateAndRestart(): Promise<void> {
     throw new Error("Cannot restart while media playback is in progress.");
   }
 
-  currentDiagnostics.installationState = "in_progress";
-  persistDiagnostics();
-
-  try {
-    if (app.isPackaged && (process.platform === "win32" || process.env.APPIMAGE)) {
-      autoUpdater.quitAndInstall();
-      return;
-    }
-  } catch (err) {
-    console.warn("[updater] autoUpdater.quitAndInstall threw, checking direct downloaded file:", err);
+  if (isApplyingUpdate) {
+    console.warn("[updater] update application already in progress");
+    return;
   }
 
-  // If a binary package was downloaded directly
-  if (downloadedPackagePath && fs.existsSync(downloadedPackagePath)) {
-    if (process.platform === "win32" && downloadedPackagePath.endsWith(".exe")) {
-      shell.openPath(downloadedPackagePath);
-      currentDiagnostics.lastSuccessfulUpdate = new Date().toISOString();
-      persistDiagnostics();
-      setTimeout(() => app.quit(), 500);
-      return;
+  isApplyingUpdate = true;
+  try {
+    currentDiagnostics.installationState = "in_progress";
+    persistDiagnostics();
+
+    // 1. If electron-updater has successfully downloaded and verified the package into its cache
+    if (isAutoUpdaterStaged) {
+      isAutoUpdaterStaged = false; // Reset immediately to prevent double execution
+      try {
+        autoUpdater.quitAndInstall();
+        return;
+      } catch (err) {
+        console.warn("[updater] autoUpdater.quitAndInstall threw, checking direct downloaded file:", err);
+      }
     }
-    if (process.platform === "linux") {
-      if (downloadedPackagePath.endsWith(".AppImage")) {
-        try {
-          fs.chmodSync(downloadedPackagePath, 0o755);
-        } catch {}
+
+    // 2. Direct binary package replacement / execution
+    if (downloadedPackagePath && fs.existsSync(downloadedPackagePath)) {
+      if (process.platform === "win32" && downloadedPackagePath.endsWith(".exe")) {
         shell.openPath(downloadedPackagePath);
         currentDiagnostics.lastSuccessfulUpdate = new Date().toISOString();
         persistDiagnostics();
         setTimeout(() => app.quit(), 500);
         return;
       }
+      if (process.platform === "linux") {
+        if (downloadedPackagePath.endsWith(".AppImage")) {
+          try {
+            fs.chmodSync(downloadedPackagePath, 0o755);
+          } catch {}
+
+          // In-place atomic AppImage swap if currently running from an AppImage
+          if (process.env.APPIMAGE && fs.existsSync(process.env.APPIMAGE)) {
+            const runningAppImage = process.env.APPIMAGE;
+            const backupPath = `${runningAppImage}.old`;
+            try {
+              fs.copyFileSync(runningAppImage, backupPath);
+              fs.copyFileSync(downloadedPackagePath, runningAppImage);
+              fs.chmodSync(runningAppImage, 0o755);
+              try { fs.unlinkSync(backupPath); } catch {}
+              currentDiagnostics.lastSuccessfulUpdate = new Date().toISOString();
+              persistDiagnostics();
+              app.relaunch({ execPath: runningAppImage });
+              setTimeout(() => app.quit(), 500);
+              return;
+            } catch (swapErr) {
+              console.warn("[updater] In-place AppImage swap failed, launching downloaded binary directly:", swapErr);
+              if (fs.existsSync(backupPath)) {
+                try { fs.copyFileSync(backupPath, runningAppImage); fs.unlinkSync(backupPath); } catch {}
+              }
+            }
+          }
+
+          shell.openPath(downloadedPackagePath);
+          currentDiagnostics.lastSuccessfulUpdate = new Date().toISOString();
+          persistDiagnostics();
+          setTimeout(() => app.quit(), 500);
+          return;
+        }
+        shell.showItemInFolder(downloadedPackagePath);
+        return;
+      }
       shell.showItemInFolder(downloadedPackagePath);
       return;
     }
-    shell.showItemInFolder(downloadedPackagePath);
-    return;
-  }
 
-  shell.openExternal("https://github.com/johan-droid/Zenkai-Desktop-/releases/latest");
+    shell.openExternal("https://github.com/johan-droid/Zenkai-Desktop-/releases/latest");
+  } finally {
+    isApplyingUpdate = false;
+  }
 }
 
 /**

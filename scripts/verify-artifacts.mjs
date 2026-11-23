@@ -139,15 +139,6 @@ async function runLinuxSmokeTest(appImagePath) {
     const asarPath = path.join(extractDir, "resources", "app.asar");
     if (!fs.existsSync(asarPath)) throw new Error("resources/app.asar missing from AppImage");
 
-    const unpackedDir = path.join(extractDir, "resources", "app.asar.unpacked");
-
-    // Alternate ONNX runtime paths depending on build version
-    const onnxFiles = findFilesRecursive(unpackedDir, /onnxruntime/i);
-    if (onnxFiles.length === 0) {
-      throw new Error("Native ONNX Runtime binaries missing from app.asar.unpacked");
-    }
-    console.log(`   ✓ Native ONNX Runtime binaries verified (${onnxFiles.length} files unpacked for OS dynamic linker)`);
-
     // 4. Cleanliness check inside container: verify no test suites or git repos
     const forbidden = findFilesRecursive(extractDir, /^(\.git|tests|\.env)$/);
     if (forbidden.length > 0) {

@@ -40,7 +40,7 @@ export interface VisionLiveMetrics {
   adapterName: string;
   preset: VisionLivePreset;
   active: boolean;
-  watchdogStatus: 'optimal' | 'warning' | 'bypassed';
+  watchdogStatus: 'optimal' | 'warning' | 'degraded' | 'bypassed';
   gpuTier?: GpuTier;
 }
 
@@ -384,38 +384,38 @@ export async function startVisionLive(
 
       device.queue.submit([enc.finish()]);
 
-      // Sample GPU latency asynchronously without stalling the pipeline every single frame
-      const isSampleFrame = frameCount % 8 === 0;
-      if (isSampleFrame) {
-        device.queue
-          .onSubmittedWorkDone()
-          .then(() => {
-            inFlight = Math.max(0, inFlight - 1);
-            const t1 = performance.now();
-            currentRenderMs = Math.round((t1 - t0) * 10) / 10;
+      // Track authentic GPU execution completion and latency
+      device.queue
+        .onSubmittedWorkDone()
+        .then(() => {
+          inFlight = Math.max(0, inFlight - 1);
+          const t1 = performance.now();
+          currentRenderMs = Math.round((t1 - t0) * 10) / 10;
 
-            // Watchdog: auto-switch to fast preset if frame time consistently exceeds 50ms (below 20 FPS)
-            if (currentRenderMs > 50) {
-              consecutiveSlowFrames++;
-              if (consecutiveSlowFrames >= 8) {
-                if (mode !== 'fast' && onDegrade) {
-                  consecutiveSlowFrames = 0;
-                  onDegrade('fast');
-                }
+          // Adaptive Quality Watchdog:
+          // Target budget: 30.0ms (preserves smooth 30 FPS video playback on 60Hz display).
+          const slowThresholdMs = 30.0;
+          if (currentRenderMs > slowThresholdMs) {
+            consecutiveSlowFrames++;
+            if (consecutiveSlowFrames >= 8) {
+              consecutiveSlowFrames = 0;
+              // Multi-tiered Adaptive Degradation Ladder
+              if (mode === 'modeCA' || mode === 'modeC' || mode === 'modeAA' || mode === 'denoise') {
+                onDegrade?.('modeA');
+              } else if (mode === 'modeA' || mode === 'modeB') {
+                onDegrade?.('fast');
+              } else if (mode === 'fast') {
+                // If even the fastest preset exceeds hardware budget, bypass enhancement to protect playback
+                onBypass?.('GPU rendering latency exceeded 30ms budget; enhancement bypassed to preserve smooth video playback.');
               }
-            } else {
-              consecutiveSlowFrames = Math.max(0, consecutiveSlowFrames - 1);
             }
-          })
-          .catch(() => {
-            inFlight = Math.max(0, inFlight - 1);
-          });
-      } else {
-        // Fast-path queue clearance for intermediate frames
-        Promise.resolve().then(() => {
+          } else {
+            consecutiveSlowFrames = Math.max(0, consecutiveSlowFrames - 1);
+          }
+        })
+        .catch(() => {
           inFlight = Math.max(0, inFlight - 1);
         });
-      }
     } catch {
       inFlight = Math.max(0, inFlight - 1);
     }
@@ -440,7 +440,7 @@ export async function startVisionLive(
         adapterName,
         preset: mode,
         active: alive,
-        watchdogStatus: consecutiveSlowFrames > 5 ? 'warning' : 'optimal',
+        watchdogStatus: consecutiveSlowFrames > 5 ? 'warning' : consecutiveSlowFrames > 2 ? 'degraded' : 'optimal',
         gpuTier: tier,
       });
     }
@@ -480,6 +480,12 @@ export async function startVisionLive(
         cancelAnimationFrame(animCallbackId);
       }
       try {
+        input.destroy();
+      } catch {}
+      try {
+        ctx.unconfigure();
+      } catch {}
+      try {
         device.destroy();
       } catch {}
     },
@@ -487,4 +493,9 @@ export async function startVisionLive(
       applyClip(pct);
     },
   };
+}
+
+if (typeof window !== 'undefined') {
+  (window as any).__startVisionLive = startVisionLive;
+  (window as any).__gpuSupported = gpuSupported;
 }

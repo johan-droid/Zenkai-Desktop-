@@ -343,12 +343,23 @@ export const TextEffectRenderer: React.FC<TextEffectRendererProps> = ({
     'frostbite',
     'sakura',
     'shimmer',
+    'aurora',
+    'sunset',
+    'frost',
+    'halo',
+    'sakurafree',
+    'prism',
+    'cyberwave',
+    'blossomstorm',
+    'mistveil',
+    'eclipse',
+    'starfall',
   ].includes(effectId || '')
 
   const combinedClasses = [
     isMaterialShader ? effectClass : (colorClass || effectClass || fallbackClass),
     isMaterialShader ? '' : effectClass,
-    className,
+    effectClass ? className.replace(/\btruncate\b/, 'break-words') : className,
   ].filter(Boolean).join(' ')
 
   return (

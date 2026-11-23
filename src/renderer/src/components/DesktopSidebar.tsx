@@ -20,8 +20,10 @@ import {
   RefreshCw,
   Settings,
   ChevronsUp,
+  Trophy,
   type LucideIcon,
 } from 'lucide-react'
+import { MyName } from './MyName'
 import { cn } from '../lib/utils'
 import { toast } from '../lib/toast'
 import { useSearch } from '../context/SearchContext'
@@ -46,10 +48,10 @@ const getMain = (activeDownloads: number): Item[] => [
   { label: 'Schedule', to: '/schedule', icon: CalendarDays, match: (p) => p.startsWith('/schedule') },
   { label: 'Manga', to: '/manga', icon: BookOpen, match: (p) => p.startsWith('/manga') },
   { label: 'Novels', to: '/novel', icon: Book, match: (p) => p.startsWith('/novel') },
-  { label: 'Vision Studio', to: '/vision', icon: Sparkles, match: (p) => p.startsWith('/vision') },
 ]
 
 const MORE: Item[] = [
+  { label: 'Ranking', to: '/ranking', icon: Trophy, match: (p) => p.startsWith('/ranking') },
   { label: 'Ascension', to: '/ascension', icon: ChevronsUp, match: (p) => p.startsWith('/ascension') || p === '/ascend' || p === '/missions' || p === '/quests' },
   { label: 'WatchParty', to: '/watchparty', icon: Tv, match: (p) => p.startsWith('/watchparty') || p.startsWith('/watchtogether') },
   { label: 'Community', to: '/community', icon: Users, match: (p) => p.startsWith('/community') },
@@ -272,7 +274,7 @@ export const DesktopSidebar = memo(function DesktopSidebar({ collapsed, onToggle
               <Avatar size={32} src={profile.avatar} frame={profile.frame} name={displayName} animateFrame />
             </div>
             <div className="flex min-w-0 flex-col">
-              <span className="truncate text-[13px] font-semibold text-foreground transition-colors group-hover:text-accent">{displayName}</span>
+              <span className="min-w-0 text-[13px] font-semibold text-foreground transition-colors group-hover:text-accent">{isLoggedIn ? <MyName name={displayName} colorOverride={profile.nameColor} /> : displayName}</span>
               <span className="text-[10px] font-medium text-muted">{isLoggedIn ? 'Online' : 'Not signed in'}</span>
             </div>
           </Link>

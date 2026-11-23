@@ -559,45 +559,6 @@
     "status": "AUTOMATED PASS"
   },
   {
-    "id": "COMP-VISION-FILE-SELECT",
-    "name": "Choose Video File",
-    "role": "button",
-    "location": "src/renderer/src/components/VisionStudioPage.tsx",
-    "selector": "button:has-text('Choose Video File')",
-    "interaction": "Click",
-    "expectedStateChange": "Opens file selector dialog; validates video container format (.mp4, .mkv)",
-    "testFile": "tests/unit/vision-jobs.test.ts",
-    "testCase": "schedules and validates vision batch jobs",
-    "gate": "GATE-VISION",
-    "status": "MANUALLY VERIFIED"
-  },
-  {
-    "id": "COMP-VISION-MODEL-RADIO",
-    "name": "Vision Model Radio",
-    "role": "radio",
-    "location": "src/renderer/src/components/VisionStudioPage.tsx",
-    "selector": "button:has-text('Verify SHA-256')",
-    "interaction": "Click",
-    "expectedStateChange": "Sets model identifier and verifies local checksum on disk",
-    "testFile": "tests/unit/vision-models.test.ts",
-    "testCase": "loads and validates model weights",
-    "gate": "GATE-VISION",
-    "status": "AUTOMATED PASS"
-  },
-  {
-    "id": "COMP-VISION-START-JOB",
-    "name": "Start Vision Job",
-    "role": "button",
-    "location": "src/renderer/src/components/VisionStudioPage.tsx",
-    "selector": "button:has-text('Start New Enhancement')",
-    "interaction": "Click",
-    "expectedStateChange": "Spawns background worker process; starts frame extraction and upscaling",
-    "testFile": "tests/unit/vision-jobs.test.ts",
-    "testCase": "schedules and validates vision batch jobs",
-    "gate": "GATE-VISION",
-    "status": "AUTOMATED PASS"
-  },
-  {
     "id": "COMP-ASCENSION-CLAIM",
     "name": "Claim XP Streak Button",
     "role": "button",

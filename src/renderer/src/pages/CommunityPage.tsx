@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent as RKeyboardEvent, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { AnimatePresence, LayoutGroup, MotionConfig, motion } from 'framer-motion'
-import { ArrowDown, Clapperboard, Crown, EyeOff, Flame, Heart, Loader2, MessageSquare, Pencil, Play, Search, Send, Shuffle, Sparkles, Trash2, Tv, Users, X } from 'lucide-react'
+import { ArrowDown, Clapperboard, Crown, EyeOff, Flame, Heart, Loader2, MessageSquare, Pencil, Play, Search, Send, Shuffle, Sparkles, Trash2, Trophy, Tv, Users, X } from 'lucide-react'
 import { DiscordIcon, GithubIcon, TelegramIcon } from '../components/BrandIcons'
 import { DISCORD_URL, REPO_URL, TELEGRAM_URL } from '../lib/app'
 import { useAniList } from '../lib/anilist'
@@ -12,6 +12,8 @@ import { toast } from '../lib/toast'
 import { searchAnime } from '../services/anilist'
 import type { AniMedia } from '../types/anime'
 import { cn, pickTitle } from '../lib/utils'
+import { awardMessageXp } from '../lib/ascension/ascensionStore'
+import { Leaderboard } from '../components/Leaderboard'
 import { createCommunityPost, deleteCommunityPost, getCommunityPosts, likeCommunityPost, supabase, updateCommunityPost, type CommunityPost } from '../lib/supabase'
 import { TextEffectRenderer } from '../components/ascension/TextEffectRenderer'
 import { ascensionCell, getAscensionState } from '../lib/ascension/ascensionStore'
@@ -521,6 +523,7 @@ export default function CommunityPage() {
   const [tagged, setTagged] = useState<{ id: number; title: string; image: string } | null>(null)
 
   const [pulseOpen, setPulseOpen] = useState(false)
+  const [rankOpen, setRankOpen] = useState(false)
   const [nameOpen, setNameOpen] = useState(false)
   const [unseen, setUnseen] = useState(0)
   const [atBottom, setAtBottom] = useState(true)
@@ -687,6 +690,7 @@ export default function CommunityPage() {
             setSentCounter((c) => c + 1);
           }
         } catch {}
+        if (user) void awardMessageXp(real.id, content)
         // the poll may already have delivered the real row: never show it twice
         setMessages((prev) => (prev.some((m) => m.id === real.id) ? prev.filter((m) => m.id !== tempId) : prev.map((m) => (m.id === tempId ? real : m))))
       }
@@ -873,6 +877,9 @@ export default function CommunityPage() {
                   <button type="button" onClick={openName} className="flex items-center gap-2 rounded-full border border-border bg-card-2/60 py-1 pl-1 pr-3 text-xs font-semibold transition hover:border-accent/50 active:scale-95 lg:hidden" aria-label="Change your name">
                     <Avatar name={name} src={myAvatar} size={26} />
                     <span className="max-w-[6.5rem] truncate">{name}</span>
+                  </button>
+                  <button type="button" onClick={() => setRankOpen(true)} aria-label="Open top hunters ranking" className="grid size-10 shrink-0 place-items-center rounded-full border border-border bg-card-2/60 text-muted transition hover:border-accent/50 hover:text-foreground active:scale-90 xl:hidden">
+                    <Trophy className="size-4" />
                   </button>
                   <button type="button" onClick={() => setPulseOpen(true)} aria-label="Open room pulse" className="grid size-10 shrink-0 place-items-center rounded-full border border-border bg-card-2/60 text-muted transition hover:border-accent/50 hover:text-foreground active:scale-90 xl:hidden">
                     <Users className="size-4" />
@@ -1146,6 +1153,9 @@ export default function CommunityPage() {
             <aside className="hidden min-h-0 overflow-y-auto border-l border-border bg-card-2/30 p-4 xl:block">
               <h2 className="mb-4 font-display text-base font-bold">Room pulse</h2>
               <Pulse messages={messages} channelLabel={channel.label} />
+              <h2 className="mb-3 mt-6 font-display text-base font-bold">Top hunters</h2>
+              <Leaderboard limit={10} />
+              <Link to="/ranking" className="mt-2 block rounded-xl py-2 text-center text-xs font-semibold text-muted hover:text-foreground">See full ranking</Link>
             </aside>
           </LayoutGroup>
         </div>
@@ -1154,6 +1164,13 @@ export default function CommunityPage() {
       {/* ----------------------------------------------------------- sheets */}
       <Sheet open={pulseOpen} onClose={() => setPulseOpen(false)} title="Room pulse">
         <Pulse messages={messages} channelLabel={channel.label} />
+        <h3 className="mb-3 mt-6 font-display text-base font-bold">Top hunters</h3>
+        <Leaderboard limit={10} />
+      </Sheet>
+
+      <Sheet open={rankOpen} onClose={() => setRankOpen(false)} title="Top hunters">
+        <Leaderboard limit={25} />
+        <Link to="/ranking" className="mt-2 block rounded-xl py-2 text-center text-xs font-semibold text-muted hover:text-foreground">See full ranking</Link>
       </Sheet>
 
       <Sheet open={tagOpen} onClose={() => setTagOpen(false)} title="Tag a show">

@@ -10,6 +10,9 @@ export const APP_INFO_URL = 'https://zenkai-auth-worker.ammhfoo.workers.dev/'
 /** The open-source web app (this site). Self-hosting instructions point here. */
 export const WEB_REPO_URL = 'https://github.com/nyyrox2/Zenkai'
 export const WEB_REPO_CLONE = `${WEB_REPO_URL}.git`
+/** The official Zenkai Desktop repository */
+export const DESKTOP_REPO = 'johan-droid/Zenkai-Desktop-'
+export const DESKTOP_REPO_URL = `https://github.com/${DESKTOP_REPO}`
 /** Page with the self-hosting guide. */
 export const SELF_HOST_PATH = '/self-host'
 /** Invite links as published in the app's GitHub README. */

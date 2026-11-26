@@ -88,15 +88,19 @@ export function Footer() {
         </nav>
       </div>
       <CommunitySection />
-      <p className="relative mx-auto mt-12 max-w-7xl px-4 text-xs text-muted sm:px-6">
-        © {new Date().getFullYear()} Zenkai. <LegalLink />
-      </p>
+      <div className="relative mx-auto mt-12 flex max-w-7xl flex-wrap items-center justify-between gap-4 px-4 text-xs text-muted sm:px-6">
+        <p>
+          © {new Date().getFullYear()} Zenkai Desktop. <LegalLink />
+        </p>
+        <span className="font-mono text-[11px] text-muted/80">v{release.version}</span>
+      </div>
     </footer>
   )
 }
 
 /** Novels and Manga get their own small footer: no anime links, no app promo. */
 function ReaderFooter({ kind }: { kind: 'novel' | 'manga' }) {
+  const { release } = useRelease()
   const novel = kind === 'novel'
   return (
     <footer className={cn('relative mt-10 overflow-hidden border-t border-border pb-14 pt-14')}>
@@ -130,17 +134,26 @@ function ReaderFooter({ kind }: { kind: 'novel' | 'manga' }) {
               API &amp; Player Embed
             </Link>
           </li>
+          <li>
+            <button type="button" onClick={openChangelog} className="transition-colors hover:text-accent">
+              What&apos;s new (v{release.version})
+            </button>
+          </li>
         </ul>
       </div>
-      <p className="relative mx-auto mt-12 max-w-7xl px-4 text-xs text-muted sm:px-6">
-        © {new Date().getFullYear()} Zenkai. <LegalLink />
-      </p>
+      <div className="relative mx-auto mt-12 flex max-w-7xl flex-wrap items-center justify-between gap-4 px-4 text-xs text-muted sm:px-6">
+        <p>
+          © {new Date().getFullYear()} Zenkai Desktop. <LegalLink />
+        </p>
+        <span className="font-mono text-[11px] text-muted/80">v{release.version}</span>
+      </div>
     </footer>
   )
 }
 
 /** Movies get their own small black & white footer. */
 function MoviesFooter() {
+  const { release } = useRelease()
   return (
     <footer className="relative mt-10 overflow-hidden border-t border-border pb-28 pt-14 md:pb-14">
       <DotPattern className="[mask-image:radial-gradient(500px_circle_at_center,white,transparent)]" />
@@ -155,11 +168,19 @@ function MoviesFooter() {
           <li><Link to="/movies/browse?type=tv" className="transition-colors hover:text-accent">TV Shows</Link></li>
           <li><Link to="/api" className="transition-colors hover:text-accent">API &amp; Player Embed</Link></li>
           <li><a href="https://www.themoviedb.org" target="_blank" rel="noreferrer noopener" className="transition-colors hover:text-accent">TMDB</a></li>
+          <li>
+            <button type="button" onClick={openChangelog} className="transition-colors hover:text-accent">
+              What&apos;s new (v{release.version})
+            </button>
+          </li>
         </ul>
       </div>
-      <p className="relative mx-auto mt-12 max-w-7xl px-4 text-xs text-muted sm:px-6">
-        © {new Date().getFullYear()} Zenkai. <LegalLink />
-      </p>
+      <div className="relative mx-auto mt-12 flex max-w-7xl flex-wrap items-center justify-between gap-4 px-4 text-xs text-muted sm:px-6">
+        <p>
+          © {new Date().getFullYear()} Zenkai Desktop. <LegalLink />
+        </p>
+        <span className="font-mono text-[11px] text-muted/80">v{release.version}</span>
+      </div>
     </footer>
   )
 }

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { WEB_REPO_URL } from './app'
+import { DESKTOP_REPO, DESKTOP_REPO_URL } from './app'
 import pkg from '../../../../package.json'
 
 export interface ChangelogItem {
@@ -17,19 +17,19 @@ export interface ReleaseData {
   highlights: ChangelogItem[]
 }
 
-/** Offline fallback; the real notes come from the latest GitHub release of the web repo. */
+/** Offline fallback; the real notes come from the latest GitHub release of the desktop repo. */
 export const CURRENT_RELEASE: ReleaseData = {
   version: pkg.version,
-  releaseDate: 'November 16, 2026',
-  title: 'New Watchlist, Full-Screen Community & a Cleaner UI',
-  tagline: 'A black-and-white watchlist with favourites and custom lists, private watchlists, a full-screen community chat, and a lighter glass interface.',
-  githubUrl: `${WEB_REPO_URL}/releases`,
+  releaseDate: 'November 26, 2026',
+  title: 'Upstream Web Parity, SSRF DNS Shield & In-App Direct OTA Updater',
+  tagline: 'Upstream web parity, SSRF DNS-level resolution guards, offline manga & novel chapter storage, and direct in-app OTA updating.',
+  githubUrl: `${DESKTOP_REPO_URL}/releases`,
   highlights: [
-    { badge: 'LIST', title: 'New Watchlist', description: 'Black and white, with status tabs, Favourites, your own named lists, search, sort and grid or list view.' },
-    { badge: 'PRIVACY', title: 'Private Watchlists', description: 'Hide your list from everyone. When it is private, the server never sends it to visitors.' },
-    { badge: 'CHAT', title: 'Full-Screen Community', description: 'A real group chat: edge to edge, your name in your equipped style, with live profiles and the chat buttons at the bottom.' },
-    { badge: 'UI', title: 'Glass Header & New Dock', description: 'The header is clear at the top and frosted when you scroll. Community now sits in the bottom bar.' },
-    { badge: 'PROFILE', title: 'Visible Banners & Animated Pictures', description: 'Sharp profile banners, a crop, rotate and flip editor, and GIF or APNG avatars and banners.' },
+    { badge: 'PARITY', title: 'Upstream Web Parity', description: 'Full feature parity with upstream Zenkai, including ranking leaderboards and clean player layouts.' },
+    { badge: 'UPDATER', title: 'Direct In-App OTA Updater', description: 'Automatic and direct update downloads within the desktop shell with cryptographic verification.' },
+    { badge: 'SECURITY', title: 'SSRF DNS Resolution Guard', description: 'Asynchronous DNS resolution verifying every redirect hop against private, CGNAT, loopback and cloud metadata subnets.' },
+    { badge: 'OFFLINE', title: 'Offline Chapter Storage', description: 'Browser IndexedDB chapter caching engine for seamless offline reading of manga and novels.' },
+    { badge: 'WEBGPU', title: 'Anime4K WebGPU Upscaler', description: 'Faithful upstream Anime4K WebGPU upscaler with zero custom clutter.' },
   ],
 }
 
@@ -41,8 +41,8 @@ export interface GhRelease {
   html_url: string
   published_at: string | null
 }
-const REPO = WEB_REPO_URL.replace('https://github.com/', '')
-const CACHE = 'zenkai_release_cache'
+const REPO = DESKTOP_REPO
+const CACHE = 'zenkai_desktop_release_cache_v2'
 const TTL = 10 * 60 * 1000
 const clean = (t: string) => t.replace(/\[([^\]]+)\]\([^)]*\)/g, '$1').replace(/[*_`]/g, '').trim()
 
@@ -82,17 +82,17 @@ export function parseRelease(r: GhRelease): ReleaseData {
 }
 
 let latest: Promise<ReleaseData> | undefined
-/** Latest published release of the web repo (cached 10 min in localStorage); the static fallback when GitHub is unreachable. */
+/** Latest published release of the desktop repo (cached 10 min in localStorage); the static fallback when GitHub is unreachable. */
 export function fetchLatestRelease(): Promise<ReleaseData> {
   try {
     const c = JSON.parse(localStorage.getItem(CACHE) ?? 'null') as { at: number; v: ReleaseData } | null
-    if (c && Date.now() - c.at < TTL) return (latest = Promise.resolve(c.v))
+    if (c && Date.now() - c.at < TTL && c.v?.version) return (latest = Promise.resolve(c.v))
   } catch {}
   return (latest ??= fetch(`https://api.github.com/repos/${REPO}/releases/latest`, { headers: { Accept: 'application/vnd.github+json' } })
     .then((r) => (r.ok ? (r.json() as Promise<GhRelease>) : Promise.reject(r.status)))
     .then((g) => {
       const v = parseRelease(g)
-      if (!v.highlights.length && !v.tagline) throw 0
+      if (!v.highlights.length && !v.tagline && !v.version) throw 0
       try {
         localStorage.setItem(CACHE, JSON.stringify({ at: Date.now(), v }))
       } catch {}
@@ -105,6 +105,17 @@ export function useRelease(): { release: ReleaseData; ready: boolean } {
   const [s, set] = useState({ release: CURRENT_RELEASE, ready: false })
   useEffect(() => {
     let off = false
+    // Synchronize with Electron native app version if available
+    if (typeof window !== 'undefined' && window.zenkai?.app?.version) {
+      window.zenkai.app.version().then((v) => {
+        if (!off && v) {
+          set((prev) => ({
+            ...prev,
+            release: { ...prev.release, version: v },
+          }))
+        }
+      }).catch(() => {})
+    }
     void fetchLatestRelease().then((release) => !off && set({ release, ready: true }))
     return () => {
       off = true

@@ -218,8 +218,8 @@ describe("startUpdateDownload — download lifecycle", () => {
   it("returns failure when no latestUpdateResult is set", async () => {
     const { startUpdateDownload } = await fresh();
     const r = await startUpdateDownload();
-    // Falls through to release page fallback — success (opens browser)
-    expect(r.success).toBe(true);
+    // In-app updater fails safely when no valid release asset is available without opening browser
+    expect(r.success).toBe(false);
   });
 });
 

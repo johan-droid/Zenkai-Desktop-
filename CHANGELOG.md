@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [1.0.6] - 2026-11-26
+## [1.0.7] - 2026-11-26
 
 ### Added
 - **Upstream Web Feature Parity**: Full parity migration from `johan-droid/Zenkai-web` (`c29cea9`).
@@ -22,6 +22,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **In-App Direct OTA Updater Engine**: Resolved "Please check update first" error state by ensuring update readiness before download initiation, verified in-app cryptographic asset fetching, atomic replacement, and eliminated unwanted external browser redirects to GitHub.
 - **Subtitle Track Sanitization & Single Authoritative Default**: Filtered invalid and pseudo-protocol tracks (`javascript:`, `data:`), deduplicated tracks by URL, and enforced a single authoritative default track in CinePlayer.
 - **Upstream Anime4K WebGPU Fidelity**: Restored exact upstream WebGPU upscaler implementation and clean player settings UI under Video -> 4K upscaler (GPU). Removed all experimental/unprompted custom Vision AI tabs and split sliders.
+
+## [1.0.6] - 2026-11-23
+
+### Added
+- **In-App Direct OTA Updater Engine**: Direct GitHub asset downloading with streaming SHA-256 verification and atomic binary staging.
+- **Anime4K WebGPU Upscaler**: Consolidated WebGPU shader pipeline for real-time video super-resolution.
 
 ## [1.0.5] - 2026-11-23
 

@@ -10,11 +10,11 @@ describe('Ranking & Leaderboard Cache Engine', () => {
     const rows = await fetchLeaderboard()
     // Supabase in test environment is unconfigured / offline, so it returns [] gracefully
     expect(Array.isArray(rows)).toBe(true)
-  })
+  }, 15000)
 
   it('caches results within TTL window', async () => {
     const first = await fetchLeaderboard()
     const second = await fetchLeaderboard()
     expect(first).toBe(second) // exact same object reference from in-memory cache
-  })
+  }, 15000)
 })

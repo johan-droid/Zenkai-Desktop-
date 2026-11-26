@@ -75,10 +75,10 @@ test.describe("Phase 6: Sustained Playback & Thermal Load Verification", () => {
             video.style.zIndex = "-9999";
             video.addEventListener("ended", () => {
               video.currentTime = 0;
-              video.play().catch(() => {});
+              video.play().catch(() => { });
             });
             document.body.appendChild(video);
-            await video.play().catch(() => {});
+            await video.play().catch(() => { });
 
             const canvas = document.createElement("canvas");
             canvas.style.position = "fixed";
@@ -196,7 +196,7 @@ test.describe("Phase 6: Sustained Playback & Thermal Load Verification", () => {
     } finally {
       await window.evaluate(async () => {
         await (window as any).zenkai?.settings?.set?.({ pauseOnClose: true });
-      }).catch(() => {});
+      }).catch(() => { });
       await app.close();
     }
   });

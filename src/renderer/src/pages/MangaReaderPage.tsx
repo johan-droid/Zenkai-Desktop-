@@ -7,6 +7,7 @@ import { mangaSourceInfo, readingKey, resolveMangaSource, sourceParams, type Man
 import { DEFAULT_MANGA, getReading, loadPrefs, savePrefs, saveReading, type MangaPrefs } from '../lib/reading'
 import { cn } from '../lib/utils'
 import { fetchMangaChapters, fetchMangaPages, proxiedImage, type MangaChapterRef } from '../services/manga'
+import { saveMangaChapterOffline, getOfflineChapter } from '../lib/offline/chapter-cache'
 import { ErrorState } from '../components/ErrorState'
 import { Skeleton } from '../components/Skeleton'
 import NotFoundPage from './NotFoundPage'
@@ -103,18 +104,34 @@ function Reader({ id, chapterId }: { id: string; chapterId: string }) {
   const [auto, setAuto] = useState(false)
 
   const list = useAsync(() => fetchMangaChapters(id, source).catch(() => [] as MangaChapterRef[]), [id, source])
-  const pagesQ = useAsync(() => fetchMangaPages(chapterId, source), [chapterId, source])
-  const pages = useMemo(() => pagesQ.data ?? [], [pagesQ.data])
-
   const chapters = useMemo(() => list.data ?? [], [list.data])
   const idx = chapters.findIndex((c) => c.chapterId === chapterId)
   const current = idx >= 0 ? chapters[idx] : undefined
   const older = idx > 0 ? chapters[idx - 1] : undefined
   const newer = idx >= 0 && idx < chapters.length - 1 ? chapters[idx + 1] : undefined
+  const chapterNumber = current ? (Number(current.number) || 1) : (Number(chapterId.match(/\d+/)?.[0]) || 1)
+  const chapterLabel = current ? `Chapter ${current.number}` : 'Chapter'
   const q = new URLSearchParams({ title, cover, ...sourceParams(source) }).toString()
   const urlOf = (c: { chapterId: string }) => `/manga/${encodeURIComponent(id)}/read/${encodeURIComponent(c.chapterId)}?${q}`
   const details = `/manga/${encodeURIComponent(id)}?${q}`
-  const chapterLabel = current ? `Chapter ${current.number}` : 'Chapter'
+
+  const pagesQ = useAsync(async () => {
+    try {
+      const remote = await fetchMangaPages(chapterId, source)
+      if (remote && remote.length) {
+        void saveMangaChapterOffline({ mediaId: id, unit: chapterNumber, title: chapterLabel, pages: remote }).catch(() => {})
+        return remote
+      }
+    } catch (err) {
+      const cached = await getOfflineChapter('manga', id, chapterNumber)
+      if (cached?.pages?.length) return cached.pages
+      throw err
+    }
+    const cached = await getOfflineChapter('manga', id, chapterNumber)
+    if (cached?.pages?.length) return cached.pages
+    return []
+  }, [chapterId, source, id, chapterNumber, chapterLabel])
+  const pages = useMemo(() => pagesQ.data ?? [], [pagesQ.data])
 
   const theme = BG[prefs.bg]
   const rtl = prefs.mode === 'rtl'

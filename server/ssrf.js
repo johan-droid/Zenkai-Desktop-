@@ -1,3 +1,6 @@
+import { lookup } from "node:dns/promises";
+import { isIP } from "node:net";
+
 const FORBIDDEN_HOSTNAMES = new Set([
   "localhost",
   "127.0.0.1",
@@ -9,8 +12,69 @@ const FORBIDDEN_HOSTNAMES = new Set([
   "instance-data"
 ]);
 
+const PRIVATE_V4 = [
+  { min: "0.0.0.0", max: "0.255.255.255" }, // "this" network
+  { min: "10.0.0.0", max: "10.255.255.255" }, // RFC1918
+  { min: "100.64.0.0", max: "100.127.255.255" }, // CGNAT
+  { min: "127.0.0.0", max: "127.255.255.255" }, // loopback
+  { min: "169.254.0.0", max: "169.254.255.255" }, // link-local + cloud metadata
+  { min: "172.16.0.0", max: "172.31.255.255" }, // RFC1918
+  { min: "192.0.0.0", max: "192.0.0.255" }, // IETF protocol assignments
+  { min: "192.168.0.0", max: "192.168.255.255" }, // RFC1918
+  { min: "198.18.0.0", max: "198.19.255.255" }, // benchmarking
+  { min: "224.0.0.0", max: "239.255.255.255" }, // multicast
+  { min: "240.0.0.0", max: "255.255.255.255" }, // reserved + broadcast
+];
+
+function v4ToInt(ip) {
+  return ip.split(".").reduce((acc, octet) => (acc << 8) + Number(octet), 0) >>> 0;
+}
+
+export function isPrivateAddress(ip) {
+  if (!ip || typeof ip !== "string") return false;
+  const version = isIP(ip);
+
+  if (version === 4) {
+    const value = v4ToInt(ip);
+    return PRIVATE_V4.some(
+      (range) => value >= v4ToInt(range.min) && value <= v4ToInt(range.max)
+    );
+  }
+
+  if (version === 6) {
+    const lower = ip.toLowerCase();
+    if (lower === "::1" || lower === "::") return true;
+    // Unique-local (fc00::/7) and link-local / site-local (fe80::/10, fec0::/10)
+    if (/^f[cd][0-9a-f]{2}:/.test(lower)) return true;
+    if (/^fe[89a-f][0-9a-f]:/.test(lower)) return true;
+    // Discard (100::/64) and documentation / benchmarking (2001:db8::/32, 2001:2::/48)
+    if (/^100::/.test(lower) || /^2001:db8:/i.test(lower) || /^2001:2:/i.test(lower)) return true;
+    // IPv4-mapped (::ffff:a.b.c.d or ::ffff:0:a.b.c.d)
+    const mapped = lower.match(/^::ffff:(?:0:)?(\d+\.\d+\.\d+\.\d+)$/);
+    if (mapped) return isPrivateAddress(mapped[1]);
+    // IPv4-compatible (::a.b.c.d)
+    const compatible = lower.match(/^::(\d+\.\d+\.\d+\.\d+)$/);
+    if (compatible) return isPrivateAddress(compatible[1]);
+    return false;
+  }
+
+  return false;
+}
+
+export class BlockedUrlError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = "BlockedUrlError";
+  }
+}
+
+export function hostAllowed(host, allowlist) {
+  if (!allowlist || allowlist.length === 0) return false;
+  return allowlist.some((entry) => host === entry || host.endsWith(`.${entry}`));
+}
+
 // Allowed streaming CDN domains and video providers
-const ALLOWED_STREAM_DOMAINS = [
+export const ALLOWED_STREAM_DOMAINS = [
   "megaplay.buzz",
   "nexabloom.top",
   "stellarfrontier.world",
@@ -79,6 +143,71 @@ const ALLOWED_STREAM_DOMAINS = [
   "123moviesfree.club",
   "sflix.film"
 ];
+
+/**
+ * Validates a target URL and asynchronously resolves it, ensuring every DNS record
+ * points to a public, non-private IP address.
+ */
+export async function assertSafeUrl(rawUrl, options = {}) {
+  let url;
+  try {
+    url = new URL(rawUrl);
+  } catch {
+    throw new BlockedUrlError("malformed URL");
+  }
+
+  if (url.protocol !== "http:" && url.protocol !== "https:") {
+    throw new BlockedUrlError(`unsupported protocol: ${url.protocol}`);
+  }
+
+  if (url.username || url.password) {
+    throw new BlockedUrlError("credentials in URL are not allowed");
+  }
+
+  const host = url.hostname.toLowerCase();
+
+  // Explicit forbidden host check
+  if (FORBIDDEN_HOSTNAMES.has(host)) {
+    throw new BlockedUrlError(`Target host restricted (SSRF prevention): ${host}`);
+  }
+
+  // Internal suffixes
+  if (host.endsWith(".internal") || host.endsWith(".local") || host.endsWith(".lan")) {
+    throw new BlockedUrlError(`Internal network targets prohibited: ${host}`);
+  }
+
+  if (options.allowlist && options.allowlist.length > 0) {
+    if (!hostAllowed(host, options.allowlist)) {
+      throw new BlockedUrlError(`host not in allowlist: ${host}`);
+    }
+  }
+
+  const literal = isIP(host);
+  if (literal) {
+    if (isPrivateAddress(host)) throw new BlockedUrlError(`private address blocked: ${host}`);
+    return { url, address: host };
+  }
+
+  let records;
+  try {
+    records = await lookup(host, { all: true });
+  } catch {
+    throw new BlockedUrlError(`DNS resolution failed: ${host}`);
+  }
+
+  if (!records || records.length === 0) {
+    throw new BlockedUrlError(`no DNS records for ${host}`);
+  }
+
+  for (const record of records) {
+    if (isPrivateAddress(record.address)) {
+      throw new BlockedUrlError(`host resolves to a private address: ${host} -> ${record.address}`);
+    }
+  }
+
+  return { url, address: records[0].address };
+}
+
 export function validateProxyUrl(rawUrl) {
   if (!rawUrl || typeof rawUrl !== "string") {
     return { valid: false, error: "Missing URL parameter" };
@@ -96,6 +225,10 @@ export function validateProxyUrl(rawUrl) {
     return { valid: false, error: "Only HTTP and HTTPS protocols permitted" };
   }
 
+  if (parsed.username || parsed.password) {
+    return { valid: false, error: "Credentials in URL are not permitted" };
+  }
+
   const hostname = parsed.hostname.toLowerCase();
 
   // 1. Strict loopback / metadata block
@@ -104,6 +237,9 @@ export function validateProxyUrl(rawUrl) {
   }
 
   // 2. Private IP range block
+  if (isIP(hostname) && isPrivateAddress(hostname)) {
+    return { valid: false, error: "Private IP addresses prohibited" };
+  }
   if (/^(127\.|10\.|192\.168\.|172\.(1[6-9]|2[0-9]|3[0-1])\.|169\.254\.)/.test(hostname)) {
     return { valid: false, error: "Private IP addresses prohibited" };
   }

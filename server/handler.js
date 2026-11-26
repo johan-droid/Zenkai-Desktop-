@@ -25,7 +25,7 @@ import { resolveFlixCloud, resolveReanimeEmbed } from "./flixcloud.js";
 import { extractAnimeSaltPlayer } from "./animesalt.js";
 import { resolveAcdn } from "./acdn.js";
 import { resolveMovieBoxStream } from "./moviebox.js";
-import { validateProxyUrl } from "./ssrf.js";
+import { validateProxyUrl, assertSafeUrl } from "./ssrf.js";
 import novelEngine from "./novel.js";
 import * as manga from "./manga.js";
 import { shield } from "./shield.js";
@@ -235,7 +235,16 @@ async function proxy(request, url, proxyBase = "/proxy", env = null) {
   const target = url.searchParams.get("url");
   const check = validateProxyUrl(target);
   if (!check.valid) return json({ error: check.error }, 403);
-  const t = check.url;
+  let t = check.url;
+
+  // Asynchronous DNS & SSRF address resolution gate
+  try {
+    const safeTarget = await assertSafeUrl(t.href);
+    t = safeTarget.url;
+  } catch (err) {
+    return json({ error: err.message || "SSRF target address blocked" }, 403);
+  }
+
   const host = t.hostname.toLowerCase();
   const isWebMirrorCdn = host.includes("bcdnxw") || host.includes("123moviesfree") || host.includes("sflix");
   const isDirectAppCdn = !isWebMirrorCdn && (/aoneroom/.test(host) || host === "bcdn.hakunaymatata.com");
@@ -287,9 +296,27 @@ async function proxy(request, url, proxyBase = "/proxy", env = null) {
       } catch {}
     }
     if (!up) {
-      up = await fetch(t, { headers });
+      // Manual redirect loop with hop-by-hop SSRF validation
+      let currentHopUrl = t.href;
+      const maxHops = 5;
+      for (let hop = 0; hop <= maxHops; hop++) {
+        if (hop > 0) {
+          const hopCheck = await assertSafeUrl(currentHopUrl);
+          t = hopCheck.url;
+        }
+
+        const hopRes = await fetch(currentHopUrl, { headers, redirect: "manual" });
+        if (hopRes.status >= 300 && hopRes.status < 400) {
+          const location = hopRes.headers.get("location");
+          if (!location) throw new Error("Redirect response missing location header");
+          currentHopUrl = new URL(location, currentHopUrl).toString();
+          continue;
+        }
+        up = hopRes;
+        break;
+      }
     }
-    if ((up.status === 429 || up.status === 428 || up.status === 403) && /hakunaymatata|aoneroom/.test(host)) {
+    if (up && (up.status === 429 || up.status === 428 || up.status === 403) && /hakunaymatata|aoneroom/.test(host)) {
       const retryHeaders = new Headers({ Accept: "*/*" });
       if (range) retryHeaders.set("Range", range);
       if (!headers.has("Referer")) {

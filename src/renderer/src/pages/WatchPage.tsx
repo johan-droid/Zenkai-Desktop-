@@ -15,6 +15,7 @@ import {
   Lock,
   Unlock,
   ShieldCheck,
+  ShieldAlert,
   Users,
   X,
   MonitorPlay,
@@ -62,6 +63,7 @@ import { useAsync } from '../hooks/useAsync'
 import { useTmdb } from '../hooks/useTmdb'
 import { useEpisodes } from '../hooks/useEpisodes'
 import { useSkipTimes } from '../hooks/useSkipTimes'
+import { isSafeEmbedUrl } from '../lib/embedGuard'
 import { useFiller } from '../hooks/useFiller'
 import { useFlag } from '../hooks/useFlag'
 import { SERVERS, DIRECT, ACCESS_TEXT, serverById, type EmbedCtx } from '../lib/servers'
@@ -867,6 +869,69 @@ export default function WatchPage() {
   const flat = 'inline-flex h-8 items-center gap-1.5 rounded-md border border-border px-3 text-xs font-semibold text-muted transition hover:border-foreground/40 hover:text-foreground active:scale-95'
   const providers = bundle?.tmdb?.watchProviders?.providers ?? []
 
+  const renderEmbedFrame = (srcUrl: string) => {
+    const isSafe = isSafeEmbedUrl(srcUrl)
+    if (!isSafe) {
+      let hostname = 'unknown'
+      try {
+        hostname = new URL(srcUrl).hostname
+      } catch {}
+
+      const handleOpenExternal = () => {
+        const proceed = window.confirm(
+          "Notice: You are leaving Zenkai's isolated player to open an external third-party stream. External websites may contain unverified content, popups, or ads. Do you wish to proceed?"
+        )
+        if (proceed) {
+          if ((window as any).zenkai?.system?.openExternal) {
+            void (window as any).zenkai.system.openExternal(srcUrl)
+          } else {
+            window.open(srcUrl, '_blank', 'noopener,noreferrer')
+          }
+        }
+      }
+
+      return (
+        <Frame>
+          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-[#0a0a0f] p-6 text-center">
+            <div className="flex size-12 items-center justify-center rounded-2xl bg-amber-500/20 text-amber-400 ring-1 ring-amber-500/30">
+              <ShieldAlert className="size-6" />
+            </div>
+            <div className="max-w-md space-y-1">
+              <h4 className="text-sm font-semibold text-white">External Embed Provider Blocked</h4>
+              <p className="text-xs text-zinc-400">
+                The provider origin is not on Zenkai&apos;s approved ad-free allowlist. For your security and to prevent unverified popups, this embed has been quarantined.
+              </p>
+            </div>
+            <div className="mt-2 text-xs font-mono text-zinc-500">{hostname}</div>
+            <button
+              type="button"
+              onClick={handleOpenExternal}
+              className="mt-3 inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-2 text-xs font-semibold text-white hover:bg-white/20 transition active:scale-95"
+            >
+              <ExternalLink className="size-3.5" /> Open in external browser (isolated)
+            </button>
+          </div>
+        </Frame>
+      )
+    }
+
+    return (
+      <Frame>
+        <iframe
+          key={srcUrl}
+          src={srcUrl}
+          title={title}
+          sandbox="allow-scripts allow-same-origin allow-forms allow-presentation"
+          allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
+          allowFullScreen
+          referrerPolicy="origin"
+          className="absolute inset-0 size-full border-0 bg-black"
+          style={{ backgroundColor: '#000000' }}
+        />
+      </Frame>
+    )
+  }
+
   return (
     <>
     <main className="relative pb-10">
@@ -1060,14 +1125,10 @@ export default function WatchPage() {
                 </button>
               </Problem>
             ) : (
-              <Frame>
-                <iframe key={salt.data} src={salt.data} title={title} sandbox="allow-scripts allow-same-origin allow-forms allow-presentation" allow="autoplay; fullscreen; picture-in-picture; encrypted-media" allowFullScreen referrerPolicy="origin" className="absolute inset-0 size-full border-0 bg-black" style={{ backgroundColor: '#000000' }} />
-              </Frame>
+              renderEmbedFrame(salt.data)
             )
           ) : embedSrc ? (
-            <Frame>
-              <iframe key={embedSrc} src={embedSrc} title={title} sandbox="allow-scripts allow-same-origin allow-forms allow-presentation" allow="autoplay; fullscreen; picture-in-picture; encrypted-media" allowFullScreen referrerPolicy="origin" className="absolute inset-0 size-full border-0 bg-black" style={{ backgroundColor: '#000000' }} />
-            </Frame>
+            renderEmbedFrame(embedSrc)
           ) : bundle === null ? (
             <Loading quiet={serverBusy} logo={logo} />
           ) : (

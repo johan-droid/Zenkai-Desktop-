@@ -697,13 +697,25 @@ export async function startUpdateDownload(): Promise<{ success: boolean; message
 
     // 1. AppImage or Windows NSIS with electron-updater
     if (app.isPackaged && (process.platform === "win32" || process.env.APPIMAGE)) {
-      try {
-        currentDiagnostics.downloadState = "downloading";
-        broadcastToWindows("updater:status", { status: "downloading", progress: 0 });
-        await autoUpdater.downloadUpdate();
-        return { success: true };
-      } catch (err) {
-        console.warn("[updater] autoUpdater.downloadUpdate failed, attempting direct binary pull:", err);
+      if (!isAutoUpdaterReady) {
+        try {
+          const checkRes = await autoUpdater.checkForUpdates();
+          if (checkRes && checkRes.updateInfo) {
+            isAutoUpdaterReady = true;
+          }
+        } catch (checkErr: any) {
+          console.warn("[updater] autoUpdater.checkForUpdates before download failed:", checkErr?.message);
+        }
+      }
+      if (isAutoUpdaterReady) {
+        try {
+          currentDiagnostics.downloadState = "downloading";
+          broadcastToWindows("updater:status", { status: "downloading", progress: 0 });
+          await autoUpdater.downloadUpdate();
+          return { success: true };
+        } catch (err: any) {
+          console.warn("[updater] autoUpdater.downloadUpdate failed, attempting direct binary pull:", err?.message);
+        }
       }
     }
 
@@ -799,21 +811,11 @@ export async function startUpdateDownload(): Promise<{ success: boolean; message
         persistDiagnostics();
 
         broadcastToWindows("updater:status", { status: "error", error: msg });
-        if (latestUpdateResult.assetUrl) {
-          shell.openExternal(latestUpdateResult.assetUrl);
-        }
         return { success: false, message: msg };
       }
     }
 
-    // 3. Standalone/manual download fallback
-    if (latestUpdateResult?.assetUrl) {
-      shell.openExternal(latestUpdateResult.assetUrl);
-      return { success: true, message: "Opened download page in browser" };
-    }
-
-    shell.openExternal("https://github.com/johan-droid/Zenkai-Desktop-/releases/latest");
-    return { success: true, message: "Opened release page" };
+    return { success: false, message: "No compatible downloadable update asset found." };
   } finally {
     isDownloading = false;
   }

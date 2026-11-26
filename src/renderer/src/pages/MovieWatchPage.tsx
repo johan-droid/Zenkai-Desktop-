@@ -3,7 +3,8 @@ import { recordProgressionActivity } from '../lib/ascension/ascensionStore'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useBackToDetails } from '../lib/backToDetails'
-import { ChevronLeft, ChevronRight, Loader2, Lock, MessageSquare, TriangleAlert, Download, Users, Zap } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Loader2, Lock, MessageSquare, TriangleAlert, Download, Users, Zap, ShieldAlert, ExternalLink } from 'lucide-react'
+import { isSafeEmbedUrl } from '../lib/embedGuard'
 import { ErrorState } from '../components/ErrorState'
 import { ServerPopup } from '../components/ServerPopup'
 import { EpisodeList } from '../components/EpisodeList'
@@ -479,17 +480,54 @@ export default function MovieWatchPage() {
         ) : (
           <>
             {src.data && (
-              <iframe
-                key={src.data}
-                src={src.data}
-                title={title}
-                allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
-                allowFullScreen
-                referrerPolicy="origin"
-                onLoad={() => setFrameLoaded(true)}
-                className="absolute inset-0 size-full border-0 bg-black"
-                style={{ backgroundColor: '#000000' }}
-              />
+              isSafeEmbedUrl(src.data) ? (
+                <iframe
+                  key={src.data}
+                  src={src.data}
+                  title={title}
+                  allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
+                  allowFullScreen
+                  referrerPolicy="origin"
+                  onLoad={() => setFrameLoaded(true)}
+                  className="absolute inset-0 size-full border-0 bg-black"
+                  style={{ backgroundColor: '#000000' }}
+                />
+              ) : (
+                <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-[#0a0a0f] p-6 text-center">
+                  <div className="flex size-12 items-center justify-center rounded-2xl bg-amber-500/20 text-amber-400 ring-1 ring-amber-500/30">
+                    <ShieldAlert className="size-6" />
+                  </div>
+                  <div className="max-w-md space-y-1">
+                    <h4 className="text-sm font-semibold text-white">External Embed Provider Blocked</h4>
+                    <p className="text-xs text-zinc-400">
+                      The provider origin is not on Zenkai&apos;s approved ad-free allowlist. For your security and to prevent unverified popups, this embed has been quarantined.
+                    </p>
+                  </div>
+                  <div className="mt-2 text-xs font-mono text-zinc-500">
+                    {(() => {
+                      try { return new URL(src.data).hostname } catch { return 'unknown' }
+                    })()}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const proceed = window.confirm(
+                        "Notice: You are leaving Zenkai's isolated player to open an external third-party stream. External websites may contain unverified content, popups, or ads. Do you wish to proceed?"
+                      )
+                      if (proceed && src.data) {
+                        if ((window as any).zenkai?.system?.openExternal) {
+                          void (window as any).zenkai.system.openExternal(src.data)
+                        } else {
+                          window.open(src.data, '_blank', 'noopener,noreferrer')
+                        }
+                      }
+                    }}
+                    className="mt-3 inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-2 text-xs font-semibold text-white hover:bg-white/20 transition active:scale-95"
+                  >
+                    <ExternalLink className="size-3.5" /> Open in external browser (isolated)
+                  </button>
+                </div>
+              )
             )}
             {(providers.loading || src.loading || (src.data && !frameLoaded)) && !src.error && !providers.error && (
               <div className="pointer-events-none absolute inset-0 grid place-items-center bg-black text-white/80">

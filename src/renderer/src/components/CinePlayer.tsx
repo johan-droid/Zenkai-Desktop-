@@ -1624,7 +1624,16 @@ const slider = (label: string, key: 'opacity' | 'lh' | 'width' | 'blur' | 'scale
     ;(async () => {
       setLoadingSubs(true)
       setCues([])
-      const all: Track[] = directSubtitles.map((s, i) => ({
+      const rawDirect = directSubtitles
+        .filter(
+          (s) =>
+            s &&
+            typeof s.url === 'string' &&
+            s.url.trim().length > 0 &&
+            !s.url.startsWith('javascript:') &&
+            !s.url.startsWith('data:')
+        )
+      const all: Track[] = rawDirect.map((s, i) => ({
         id: s.id || `direct_${i}`,
         label: s.label || s.lang || `Track ${i + 1}`,
         language: s.lang || s.label || 'English',
@@ -1638,7 +1647,18 @@ const slider = (label: string, key: 'opacity' | 'lh' | 'width' | 'blur' | 'scale
           const res = await fetch(apiUrl(`/api/subtitles?${q}`))
           if (res.ok) {
             const data = (await res.json()) as { subtitles?: Track[] }
-            for (const s of data.subtitles ?? []) if (!all.some((c) => c.url === s.url)) all.push(s) // every source, not one per language
+            for (const s of data.subtitles ?? []) {
+              if (
+                s &&
+                typeof s.url === 'string' &&
+                s.url.trim().length > 0 &&
+                !s.url.startsWith('javascript:') &&
+                !s.url.startsWith('data:') &&
+                !all.some((c) => c.url === s.url)
+              ) {
+                all.push(s)
+              }
+            }
           }
         } catch {
           /* OpenSubtitles is optional */
@@ -1655,7 +1675,18 @@ const slider = (label: string, key: 'opacity' | 'lh' | 'width' | 'blur' | 'scale
           const res = await fetch(apiUrl(`/api/movies/stream?${q}`))
           if (res.ok) {
             const data = (await res.json()) as { subtitles?: Track[] }
-            for (const s of data.subtitles ?? []) if (!all.some((c) => c.url === s.url)) all.push(s)
+            for (const s of data.subtitles ?? []) {
+              if (
+                s &&
+                typeof s.url === 'string' &&
+                s.url.trim().length > 0 &&
+                !s.url.startsWith('javascript:') &&
+                !s.url.startsWith('data:') &&
+                !all.some((c) => c.url === s.url)
+              ) {
+                all.push(s)
+              }
+            }
           }
         } catch {}
       }
@@ -1676,7 +1707,14 @@ const slider = (label: string, key: 'opacity' | 'lh' | 'width' | 'blur' | 'scale
               } catch {}
             }
             const add: Track[] = (r.subtitles || [])
-              .filter((s) => s.file && !seen.has(s.file))
+              .filter(
+                (s) =>
+                  s.file &&
+                  typeof s.file === 'string' &&
+                  !s.file.startsWith('javascript:') &&
+                  !s.file.startsWith('data:') &&
+                  !seen.has(s.file)
+              )
               .map((s, i) => ({ id: `${x.id}_${i}_${s.file}`, label: s.label, language: s.label, url: s.file, source: x.name, referer: sourceReferer(x.id) }))
             add.forEach((t) => seen.add(t.url))
             if (!dead && add.length) setTracks((p) => [...p, ...add])

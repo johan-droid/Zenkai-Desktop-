@@ -15,6 +15,7 @@ import {
   NOVEL_SOURCES,
   type NovelChapterRef,
   type NovelSource, proxiedNovelImage } from '../services/novel'
+import { saveNovelChapterOffline, getOfflineChapter } from '../lib/offline/chapter-cache'
 import { ErrorState } from '../components/ErrorState'
 import { Skeleton } from '../components/Skeleton'
 import NotFoundPage from './NotFoundPage'
@@ -45,14 +46,45 @@ function Reader({ source, slug, chapterSlug }: { source: NovelSource; slug: stri
 
   const detail = useAsync(() => fetchNovelDetail(source, slug).catch(() => null), [source, slug])
   const list = useAsync(() => fetchNovelChapters(source, slug).catch(() => [] as NovelChapterRef[]), [source, slug])
-  const content = useAsync(() => fetchNovelChapter(source, slug, chapterSlug), [source, slug, chapterSlug])
-
   const chapters = list.data ?? []
   const idx = chapters.findIndex((c) => c.slug === chapterSlug)
   const current = idx >= 0 ? chapters[idx] : undefined
   const prev = idx > 0 ? chapters[idx - 1] : undefined
   const next = idx >= 0 && idx < chapters.length - 1 ? chapters[idx + 1] : undefined
   const number = current?.number ?? (source === 'lnori' ? '' : chapterSlug.match(/\d+/)?.[0] ?? '')
+
+  const content = useAsync(async () => {
+    const unitNum = Number(number) || 1
+    try {
+      const remote = await fetchNovelChapter(source, slug, chapterSlug)
+      if (remote && remote.paragraphs?.length) {
+        void saveNovelChapterOffline({
+          mediaId: slug,
+          unit: unitNum,
+          title: remote.title || `Chapter ${unitNum}`,
+          content: remote.paragraphs.join('\n\n'),
+        }).catch(() => {})
+        return remote
+      }
+    } catch (err) {
+      const cached = await getOfflineChapter('novel', slug, unitNum)
+      if (cached?.content) {
+        return {
+          title: cached.title,
+          paragraphs: cached.content.split('\n\n').filter(Boolean),
+        }
+      }
+      throw err
+    }
+    const cached = await getOfflineChapter('novel', slug, unitNum)
+    if (cached?.content) {
+      return {
+        title: cached.title,
+        paragraphs: cached.content.split('\n\n').filter(Boolean),
+      }
+    }
+    throw new Error('This chapter has no text yet.')
+  }, [source, slug, chapterSlug, number])
   const Unit = chapterUnit(source) === 'volume' ? 'Volume' : 'Chapter'
   const base = `/novel/${source}/${encodeURIComponent(slug)}`
   const readUrl = (c: string) => `${base}/read/${encodeURIComponent(c)}`

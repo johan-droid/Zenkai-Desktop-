@@ -9,10 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [1.0.6] - 2026-11-23
+## [1.0.6] - 2026-11-26
+
+### Added
+- **Upstream Web Feature Parity**: Full parity migration from `johan-droid/Zenkai-web` (`c29cea9`).
+- **Offline Manga & Novel Chapter Storage**: Zero-dependency browser IndexedDB chapter cache engine (`chapter-cache.ts`) enabling seamless offline reading in both Manga and Novel readers.
+- **Catalogue Sort Normalization & Prototype Defense**: Safe sort normalization with null prototype dictionary (`Object.create(null)`), shielding against prototype pollution (`__proto__`, `constructor`, `prototype`) and guiding `TRENDING` to the discovery endpoint.
+- **Embed Quarantine & Origin Allowlisting**: Strict allowlisting (`ALLOWED_EMBED_ORIGINS`) and security card quarantine (`ShieldAlert`) for untrusted stream mirrors, with user confirmation before opening external links.
 
 ### Fixed
-- **In-App Direct OTA Updater Engine**: Fixed updater issue where incomplete releases or missing manifests caused false "Please check update first" notices and browser redirects to GitHub. The updater now strictly verifies platform-compatible downloadable assets before advertising an update, downloads packages with cryptographic SHA-256 verification in-app, performs atomic in-place replacement, and relaunches without external browser redirection.
+- **SSRF DNS-Level Resolution & Hop Validation**: Asynchronous DNS resolution via `assertSafeUrl` and strict CIDR/IP classification (`isPrivateAddress`) blocking loopback, RFC 1918, CGNAT (`100.64.0.0/10`), cloud metadata (`169.254.169.254`), and IPv6 mapped subnets across all redirect hops in the streaming proxy.
+- **In-App Direct OTA Updater Engine**: Resolved "Please check update first" error state by ensuring update readiness before download initiation, verified in-app cryptographic asset fetching, atomic replacement, and eliminated unwanted external browser redirects to GitHub.
+- **Subtitle Track Sanitization & Single Authoritative Default**: Filtered invalid and pseudo-protocol tracks (`javascript:`, `data:`), deduplicated tracks by URL, and enforced a single authoritative default track in CinePlayer.
 - **Upstream Anime4K WebGPU Fidelity**: Restored exact upstream WebGPU upscaler implementation and clean player settings UI under Video -> 4K upscaler (GPU). Removed all experimental/unprompted custom Vision AI tabs and split sliders.
 
 ## [1.0.5] - 2026-11-23

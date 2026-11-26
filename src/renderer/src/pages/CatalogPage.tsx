@@ -67,6 +67,9 @@ export default function CatalogPage({ preset }: { preset: Preset }) {
     )
   }
 
+  const rawSort = (preset === 'browse' && get('sort')) || copy.sort
+  const safeSort = rawSort === '__proto__' || rawSort === 'constructor' || rawSort === 'prototype' ? copy.sort : rawSort
+
   const params: CatalogParams = useMemo(
     () => ({
       search: get('q') || undefined,
@@ -75,10 +78,10 @@ export default function CatalogPage({ preset }: { preset: Preset }) {
       year: Number(get('year')) || undefined,
       season: get('season') || undefined,
       status: get('status') || undefined,
-      sort: (preset === 'browse' && get('sort')) || copy.sort,
+      sort: safeSort,
       minPopularity: copy.minPopularity,
     }),
-    [sp, preset], // eslint-disable-line react-hooks/exhaustive-deps
+    [sp, preset, safeSort], // eslint-disable-line react-hooks/exhaustive-deps
   )
   const key = JSON.stringify(params)
 
